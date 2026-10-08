@@ -19,17 +19,17 @@ Git 增强工具集（CLI + 桌面端）：分支治理、命名 stash、多仓�
 | `backup` | 完整仓库备份（git clone --mirror） | ✅ |
 | `license` | 47 份开源许可证模板创建与检测 | ✅ |
 | `ignore` | .gitignore 模板管理（幂等追加） | ✅ |
-| `clone` | 代理加速克隆（Lua 规则引擎） | 🔜 Phase 2 |
-| `download` | GitHub Release 资产下载 | 🔜 Phase 2 |
-| `archive` | 仓库快照归档 | 🔜 Phase 2 |
-| `ai` | AI 提交信息 / AI 改写 | 🔜 Phase 2 |
-| `rewrite` | 提交历史元数据改写 | 🔜 Phase 3 |
-| `review` | AI 代码审查（外部 OCR 集成） | 🔜 Phase 3 |
-| `secret` | 密钥泄露扫描（外部 gitleaks 集成） | 🔜 Phase 3 |
-| `hook` | Git 钩子管理（Lua 脚本） | 🔜 Phase 3 |
-| `rebase` | Rebase 预览与自动 squash | 🔜 Phase 3 |
-| `undo` | 安全撤销 | 🔜 Phase 3 |
-| `logview` | Git 日志 TUI 浏览 | 🔜 Phase 3 |
+| `clone` | 代理加速克隆（Lua 规则引擎，镜像/预设/-r 还原） | ✅ |
+| `download` | GitHub Release 资产下载（平台自动匹配/进度条） | ✅ |
+| `archive` | 仓库快照归档（tar.gz/zip/tar） | ✅ |
+| `ai` | AI 提交信息生成 / 历史批量改写（gen→run→apply） | ✅ |
+| `rewrite` | 提交元数据改写（作者/邮箱/日期/消息，规则+日期重分配） | ✅ |
+| `review` | AI 代码审查（外部 OCR 集成） | ✅ |
+| `secret` | 密钥泄露扫描（外部 gitleaks 集成，脱敏报告） | ✅ |
+| `hook` | Git 钩子管理（Lua/脚本，安装-执行-拦截） | ✅ |
+| `rebase` | Rebase 预览与 autosquash（fixup!/squash! 整理） | ✅ |
+| `undo` | 安全撤销（上次提交/rebase/merge，支持备份） | ✅ |
+| `logview` | Git 日志 TUI 浏览（列表/diff/搜索，ratatui） | ✅ |
 
 ## 安装与构建
 

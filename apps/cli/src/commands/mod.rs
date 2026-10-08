@@ -1,10 +1,21 @@
 //! CLI 子命令实现（每个命令组一个模块）。
 
+pub mod ai;
+pub mod archive;
 pub mod backup;
 pub mod branch;
+pub mod clone;
 pub mod config;
+pub mod download;
+pub mod hook;
 pub mod ignore;
 pub mod info;
 pub mod license;
+pub mod logview;
+pub mod rebase;
+pub mod review;
+pub mod rewrite;
+pub mod secret;
 pub mod stash;
 pub mod stats;
+pub mod undo;

@@ -19,17 +19,17 @@ A Git power toolkit (CLI + desktop): branch hygiene, named stashes, multi-repo d
 | `backup` | Full repo backup (git clone --mirror) | ✅ |
 | `license` | 47 OSS license templates, create & detect | ✅ |
 | `ignore` | .gitignore template management (idempotent append) | ✅ |
-| `clone` | Proxy-accelerated clone (Lua rules engine) | 🔜 Phase 2 |
-| `download` | GitHub Release asset download | 🔜 Phase 2 |
-| `archive` | Repository snapshot archiving | 🔜 Phase 2 |
-| `ai` | AI commit message / AI rewrite | 🔜 Phase 2 |
-| `rewrite` | Commit history metadata rewriting | 🔜 Phase 3 |
-| `review` | AI code review (external OCR integration) | 🔜 Phase 3 |
-| `secret` | Secret leak scanning (external gitleaks) | 🔜 Phase 3 |
-| `hook` | Git hook management (Lua scripts) | 🔜 Phase 3 |
-| `rebase` | Rebase preview & auto-squash | 🔜 Phase 3 |
-| `undo` | Safe undo | 🔜 Phase 3 |
-| `logview` | Git log TUI browser | 🔜 Phase 3 |
+| `clone` | Proxy-accelerated clone (Lua rules engine) | ✅ |
+| `download` | GitHub Release asset download | ✅ |
+| `archive` | Repository snapshot archiving | ✅ |
+| `ai` | AI commit message / AI rewrite | ✅ |
+| `rewrite` | Commit history metadata rewriting | ✅ |
+| `review` | AI code review (external OCR integration) | ✅ |
+| `secret` | Secret leak scanning (external gitleaks) | ✅ |
+| `hook` | Git hook management (Lua scripts) | ✅ |
+| `rebase` | Rebase preview & auto-squash | ✅ |
+| `undo` | Safe undo | ✅ |
+| `logview` | Git log TUI browser | ✅ |
 
 ## Install & Build
 

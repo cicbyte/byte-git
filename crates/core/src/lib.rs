@@ -9,13 +9,26 @@
 //! - 完整备份：`~/.cicbyte/byte-git/backups/<repo-name>/`
 //! - 项目级数据：`.git/byte-git/`
 
+pub mod ai;
+pub mod aicommit;
+pub mod airewrite;
+pub mod archive;
 pub mod backup;
 pub mod branch;
+pub mod clone;
 pub mod config;
+pub mod download;
 pub mod git;
+pub mod gitleaks;
+pub mod hook;
 pub mod ignore;
 pub mod info;
 pub mod license;
+pub mod logview;
+pub mod ocr;
+pub mod rebase;
+pub mod rewrite;
 pub mod stash;
 pub mod stats;
+pub mod undo;
 pub mod util;

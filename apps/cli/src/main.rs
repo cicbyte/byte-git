@@ -39,28 +39,28 @@ enum Commands {
     License(commands::license::LicenseCmd),
     /// .gitignore 模板管理
     Ignore(commands::ignore::IgnoreCmd),
-    /// 代理加速克隆（Phase 2 接入 Lua 规则引擎后开放）
-    Clone,
-    /// 下载 GitHub Release 资产（Phase 2）
-    Download,
-    /// 归档仓库快照（Phase 2）
-    Archive,
-    /// AI 提交信息生成（Phase 2）
-    Ai,
-    /// 提交历史改写（Phase 3）
-    Rewrite,
-    /// AI 代码审查（Phase 3，依赖外部 OCR）
-    Review,
-    /// 密钥泄露扫描（Phase 3，依赖外部 gitleaks）
-    Secret,
-    /// Git 钩子管理（Phase 3，Lua 脚本）
-    Hook,
-    /// Rebase 预览与自动 squash（Phase 3）
-    Rebase,
-    /// 安全撤销（Phase 3）
-    Undo,
-    /// Git 日志 TUI 浏览（Phase 3）
-    Logview,
+    /// 代理加速克隆 Git 仓库（Lua 规则引擎）
+    Clone(commands::clone::CloneCmd),
+    /// 下载 GitHub Release 资产
+    Download(commands::download::DownloadCmd),
+    /// 归档仓库快照（tar.gz/zip/tar）
+    Archive(commands::archive::ArchiveCmd),
+    /// AI 提交信息生成与历史改写
+    Ai(commands::ai::AiCmd),
+    /// 提交历史元数据改写（export/apply）
+    Rewrite(commands::rewrite::RewriteCmd),
+    /// AI 代码审查（集成 OpenCodeReview）
+    Review(commands::review::ReviewCmd),
+    /// 密钥泄露扫描（集成 gitleaks）
+    Secret(commands::secret::SecretCmd),
+    /// Git 钩子管理（Lua 脚本）
+    Hook(commands::hook::HookCmd),
+    /// Rebase 预览与自动 squash
+    Rebase(commands::rebase::RebaseCmd),
+    /// 安全撤销（上次提交 / rebase / merge）
+    Undo(commands::undo::UndoCmd),
+    /// Git 日志 TUI 浏览
+    Logview(commands::logview::LogviewCmd),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -80,19 +80,17 @@ fn main() -> anyhow::Result<()> {
         Commands::Backup(c) => commands::backup::run(c)?,
         Commands::License(c) => commands::license::run(&repo_path, c)?,
         Commands::Ignore(c) => commands::ignore::run(&repo_path, c)?,
-        Commands::Clone
-        | Commands::Download
-        | Commands::Archive
-        | Commands::Ai
-        | Commands::Rewrite
-        | Commands::Review
-        | Commands::Secret
-        | Commands::Hook
-        | Commands::Rebase
-        | Commands::Undo
-        | Commands::Logview => {
-            anyhow::bail!("该命令在 Phase 2/3 实现（见 README 路线图），当前阶段先保证核心命令稳定");
-        }
+        Commands::Clone(c) => commands::clone::run(c)?,
+        Commands::Download(c) => commands::download::run(c)?,
+        Commands::Archive(c) => commands::archive::run(&repo_path, c)?,
+        Commands::Ai(c) => commands::ai::run(&repo_path, c)?,
+        Commands::Rewrite(c) => commands::rewrite::run(&repo_path, c)?,
+        Commands::Review(c) => commands::review::run(c)?,
+        Commands::Secret(c) => commands::secret::run(c)?,
+        Commands::Hook(c) => commands::hook::run(&repo_path, c)?,
+        Commands::Rebase(c) => commands::rebase::run(&repo_path, c)?,
+        Commands::Undo(c) => commands::undo::run(&repo_path, c)?,
+        Commands::Logview(c) => commands::logview::run(&repo_path, c)?,
     }
     Ok(())
 }

@@ -17,4 +17,7 @@ include_dir = { workspace = true }
 walkdir = { workspace = true }
 chrono = { workspace = true }
 regex = { workspace = true }
+fancy-regex = { workspace = true }
 reqwest = { workspace = true }
+mlua = { workspace = true }
+flate2 = { workspace = true }

@@ -27,6 +27,15 @@ include_dir = "0.7"
 walkdir = "2"
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1"
+# 环视支持（airewrite 检测规则用负向前瞻，RE2 语法表达不了）
+fancy-regex = "0.14"
+# === Lua 规则引擎（clone 代理规则 / hook 脚本）===
+mlua = { version = "0.10", features = ["lua54", "vendored"] }
+# === 压缩（archive tar.gz）===
+flate2 = "1"
+# === TUI（logview）===
+ratatui = "0.29"
+crossterm = "0.28"
 
 [profile.release]
 opt-level = "z"      # 体积优先

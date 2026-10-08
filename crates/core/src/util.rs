@@ -186,6 +186,27 @@ pub fn exec_inherit(program: &str, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
+/// 在仓库目录执行 git 命令（透传 + 附加环境变量）。
+pub fn run_inherit_env<I, S>(repo: &Path, args: I, envs: &[(&str, &str)]) -> Result<()>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let args: Vec<String> = args.into_iter().map(|s| s.as_ref().to_string()).collect();
+    let mut cmd = Command::new("git");
+    cmd.arg("-C").arg(repo).args(&args);
+    for (k, v) in envs {
+        cmd.env(k, v);
+    }
+    let status = cmd
+        .status()
+        .with_context(|| format!("启动 git 失败: git {}", args.join(" ")))?;
+    if !status.success() {
+        anyhow::bail!("git {} 失败（退出码 {:?}）", args.join(" "), status.code());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
