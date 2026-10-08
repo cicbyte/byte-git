@@ -101,7 +101,7 @@ git-mate 的 Vue 3 前端通过 `window.go.main.ByteGitApp.Method(...)` 调用 W
 - `go/main/ByteGitApp.ts` —— Proxy 桥接：方法名 camelCase → Tauri 命令 snake_case，参数按签名表编组
 - `runtime/runtime.ts` —— `EventsOn/EventsOff/EventsEmit` → Tauri 事件
 
-前端代码零改动运行于 Tauri；Rust 命令集随 core 模块补全逐步开放。
+前端代码零改动运行于 Tauri；Rust 命令层已开放 **169 个命令**（10 个域：commit / gitops / backup+log / info+stats / repo / rewrite / secret / license / system / ignore），覆盖 git-mate GUI 绑定面的核心域——git 操作、AI 提交与改写、密钥扫描、备份归档、日志浏览、设置与模板管理。延后域：GitHub（Gh\*）、实时监视（Live\*）、Reference、终端（Terminal）、Cheatsheet。
 
 ## 开源许可证
 

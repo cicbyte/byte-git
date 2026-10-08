@@ -2,7 +2,7 @@
 //!
 //! 移植自 git-mate `internal/rebase`。
 
-use crate::util::{run_capture, run_inherit};
+use crate::util::run_capture;
 use anyhow::Result;
 use std::path::Path;
 

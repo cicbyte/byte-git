@@ -1,0 +1,426 @@
+//! system 域命令：设置（config.yaml）、代理规则（rules.lua）、
+//! 命令片段（snippets.json）与 GitHub Release 查询。
+//!
+//! 移植自 git-mate `gui/internal/system/{settings,rules,snippets,download}.go`，
+//! 行为对齐 Go 实现；存储布局迁移到 `~/.cicbyte/byte-git/`：
+//! - 设置：core::config::Settings（config/config.yaml）
+//! - 规则：core::clone::ensure_rules_file（rules/rules.lua，内嵌默认模板）
+//! - 片段：`~/.cicbyte/byte-git/snippets.json`（应用级、跨仓库）
+
+use byte_git_core::config::Settings;
+use byte_git_core::util::AppPaths;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+/// 与 Go GUI 一致：无仓库上下文的命令统一接收可选 repo 参数；
+/// 缺省回落到当前仓库状态（state.rs，对应 Core.CurrentRepo），最终 "."。
+fn repo_path(repo: Option<String>) -> std::path::PathBuf { crate::state::resolve(repo) }
+
+/// 子进程隐藏控制台窗口（sysproc.HideExec 的 Windows 等价物）。
+#[cfg(windows)]
+fn hide_window(cmd: &mut std::process::Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+#[cfg(not(windows))]
+fn hide_window(_cmd: &mut std::process::Command) {}
+
+// =====================================================================
+// Settings（前端扁平视图，json tag 对齐 Go SettingsDTO）
+// =====================================================================
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SettingsDto {
+    pub model: String,
+    pub base_url: String,
+    pub api_key: String,
+    pub lang: String,
+    pub max_tokens: i64,
+    pub github_token: String,
+    pub ocr_exe_path: String,
+    pub ocr_concurrency: i64,
+    pub ocr_max_tools: i64,
+    pub ocr_audience: String,
+    pub ocr_language: String,
+    pub gitleaks_exe_path: String,
+    pub reference_exe_path: String,
+    pub rewrite_auto_backup: bool,
+    pub term_shell_path: String,
+    pub term_font_size: i64,
+    /// 侧边栏外部依赖功能开关（Go tag 为 featuresGitHub，含大写 HUB，需显式 rename）。
+    #[serde(rename = "featuresGitHub")]
+    pub features_github: bool,
+    pub features_reference: bool,
+    pub features_secret: bool,
+    pub features_review: bool,
+    pub config_path: String,
+}
+
+fn to_dto(s: &Settings) -> Result<SettingsDto, String> {
+    Ok(SettingsDto {
+        model: s.ai.model.clone(),
+        base_url: s.ai.base_url.clone(),
+        api_key: s.ai.api_key.clone(),
+        lang: s.ai.lang.clone(),
+        max_tokens: s.ai.max_tokens,
+        github_token: s.github.token.clone(),
+        ocr_exe_path: s.ocr.exe_path.clone(),
+        ocr_concurrency: s.ocr.concurrency,
+        ocr_max_tools: s.ocr.max_tools,
+        ocr_audience: s.ocr.audience.clone(),
+        ocr_language: s.ocr.language.clone(),
+        gitleaks_exe_path: s.gitleaks.exe_path.clone(),
+        reference_exe_path: s.reference.exe_path.clone(),
+        rewrite_auto_backup: s.rewrite.auto_backup,
+        term_shell_path: s.terminal.shell_path.clone(),
+        term_font_size: s.terminal.font_size,
+        features_github: s.features.github,
+        features_reference: s.features.reference,
+        features_secret: s.features.secret,
+        features_review: s.features.review,
+        config_path: AppPaths::new()
+            .map_err(|e| e.to_string())?
+            .settings_file()
+            .display()
+            .to_string(),
+    })
+}
+
+/// SettingsGet 读取 config.yaml（缺失时写入默认值）并返回扁平 DTO。
+#[tauri::command]
+pub fn settings_get(repo: Option<String>) -> Result<SettingsDto, String> {
+    let _ = repo_path(repo.clone()); // 应用级命令，repo 仅为适配层统一注入
+    let s = Settings::load().map_err(|e| e.to_string())?;
+    to_dto(&s)
+}
+
+/// SettingsReload 丢弃内存中未保存的修改，重新读取 config.yaml。
+#[tauri::command]
+pub fn settings_reload(repo: Option<String>) -> Result<SettingsDto, String> {
+    let _ = repo_path(repo.clone());
+    let s = Settings::load().map_err(|e| e.to_string())?;
+    to_dto(&s)
+}
+
+/// SettingsSave 按点路径 patch（如 {"ai.model": "gpt-4o"}）合并后整体落盘。
+#[tauri::command]
+pub fn settings_save(repo: Option<String>, patch: HashMap<String, String>) -> Result<(), String> {
+    let _ = repo_path(repo.clone());
+    let mut s = Settings::load().map_err(|e| e.to_string())?;
+    for (key, value) in &patch {
+        apply_setting(&mut s, key, value)
+            .map_err(|e| format!("invalid value for {key}: {e}"))?;
+    }
+    s.save().map_err(|e| e.to_string())
+}
+
+/// 点路径写入（对齐 Go applySetting 的 switch；值为字符串，类型按字段转换）。
+/// 相比 Go 多支持 `gitignore.default_source`（core Settings schema 含该字段）。
+fn apply_setting(s: &mut Settings, key: &str, value: &str) -> Result<(), String> {
+    match key {
+        "ai.model" => s.ai.model = value.to_string(),
+        "ai.base_url" => s.ai.base_url = value.to_string(),
+        "ai.api_key" => s.ai.api_key = value.to_string(),
+        "ai.lang" => s.ai.lang = value.to_string(),
+        "ai.max_tokens" => s.ai.max_tokens = parse_int(value)?,
+        "github.token" => s.github.token = value.to_string(),
+        "ocr.exe_path" => s.ocr.exe_path = value.to_string(),
+        "ocr.concurrency" => s.ocr.concurrency = parse_int(value)?,
+        "ocr.max_tools" => s.ocr.max_tools = parse_int(value)?,
+        "ocr.audience" => s.ocr.audience = value.to_string(),
+        "ocr.language" => s.ocr.language = value.to_string(),
+        "gitleaks.exe_path" => s.gitleaks.exe_path = value.to_string(),
+        "reference.exe_path" => s.reference.exe_path = value.to_string(),
+        "gitignore.default_source" => s.gitignore.default_source = value.to_string(),
+        "features.github" => s.features.github = parse_bool(value)?,
+        "features.reference" => s.features.reference = parse_bool(value)?,
+        "features.secret" => s.features.secret = parse_bool(value)?,
+        "features.review" => s.features.review = parse_bool(value)?,
+        "rewrite.auto_backup" => s.rewrite.auto_backup = parse_bool(value)?,
+        "terminal.shell_path" => s.terminal.shell_path = value.to_string(),
+        "terminal.font_size" => s.terminal.font_size = parse_int(value)?,
+        _ => return Err(format!("unknown config key: {key}")),
+    }
+    Ok(())
+}
+
+/// strconv.Atoi 等价。
+fn parse_int(v: &str) -> Result<i64, String> {
+    v.trim().parse::<i64>().map_err(|e| e.to_string())
+}
+
+/// strconv.ParseBool 等价（接受 1/t/T/true/TRUE/True/0/f/F/false/FALSE/False）。
+fn parse_bool(v: &str) -> Result<bool, String> {
+    match v {
+        "1" | "t" | "T" | "true" | "TRUE" | "True" => Ok(true),
+        "0" | "f" | "F" | "false" | "FALSE" | "False" => Ok(false),
+        _ => Err(format!("strconv.ParseBool: parsing {v:?}: invalid syntax")),
+    }
+}
+
+// =====================================================================
+// Rules（rules.lua 代理规则脚本）
+// =====================================================================
+
+/// RulesRead 返回 rules.lua 内容；文件不存在时落盘默认模板并返回（与 Go 的
+/// “返回默认模板”等价——core 未暴露内嵌默认值，故经 ensure 初始化后读取）。
+#[tauri::command]
+pub fn rules_read(repo: Option<String>) -> Result<String, String> {
+    let _ = repo_path(repo.clone());
+    let file = byte_git_core::clone::ensure_rules_file().map_err(|e| e.to_string())?;
+    std::fs::read_to_string(&file).map_err(|e| e.to_string())
+}
+
+/// RulesSave 将给定内容写入 rules.lua。
+#[tauri::command]
+pub fn rules_save(repo: Option<String>, content: String) -> Result<(), String> {
+    let _ = repo_path(repo.clone());
+    let file = byte_git_core::clone::ensure_rules_file().map_err(|e| e.to_string())?;
+    std::fs::write(&file, content).map_err(|e| e.to_string())
+}
+
+/// RulesReset 恢复默认模板：删除现有文件后由 ensure_rules_file 重新释放内嵌默认值。
+#[tauri::command]
+pub fn rules_reset(repo: Option<String>) -> Result<(), String> {
+    let _ = repo_path(repo.clone());
+    let file = byte_git_core::clone::ensure_rules_file().map_err(|e| e.to_string())?;
+    match std::fs::remove_file(&file) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e.to_string()),
+    }
+    byte_git_core::clone::ensure_rules_file().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// RulesPath 返回 rules.lua 绝对路径（供 UI 展示）。
+#[tauri::command]
+pub fn rules_path(repo: Option<String>) -> Result<String, String> {
+    let _ = repo_path(repo.clone());
+    let paths = AppPaths::new().map_err(|e| e.to_string())?;
+    Ok(paths.rules_file().display().to_string())
+}
+
+// =====================================================================
+// Snippets（个人 git 命令库，应用级跨仓库）
+// =====================================================================
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Snippet {
+    pub id: String,
+    pub command: String,
+    pub note: String,
+    pub tag: String,
+    pub favorite: bool,
+    pub created_at: i64,
+}
+
+/// snippets.json 路径：`~/.cicbyte/byte-git/snippets.json`。
+fn snippets_file() -> Result<PathBuf, String> {
+    Ok(AppPaths::new().map_err(|e| e.to_string())?.root().join("snippets.json"))
+}
+
+fn load_snippets() -> Result<Vec<Snippet>, String> {
+    let path = snippets_file()?;
+    let data = match std::fs::read(&path) {
+        Ok(d) => d,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e.to_string()),
+    };
+    serde_json::from_slice(&data).map_err(|e| format!("解析 snippets.json 失败: {e}"))
+}
+
+fn save_snippets(list: &[Snippet]) -> Result<(), String> {
+    let path = snippets_file()?;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let mut data = serde_json::to_string_pretty(list).map_err(|e| e.to_string())?;
+    data.push('\n');
+    std::fs::write(&path, data).map_err(|e| e.to_string())
+}
+
+/// 短 ID：时间戳 + 随机后缀（约定实现；Go 为 3 字节随机 hex）。
+fn gen_id() -> String {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    let noise = (now.subsec_nanos() as u64)
+        .wrapping_mul(2654435761)
+        ^ ((std::process::id() as u64) << 16);
+    format!("{}-{:04x}", now.as_secs(), (noise & 0xffff) as u16)
+}
+
+/// 排序：收藏优先，其次按创建时间倒序（稳定排序）。
+fn sort_snippets(list: &mut [Snippet]) {
+    list.sort_by(|a, b| {
+        if a.favorite != b.favorite {
+            return b.favorite.cmp(&a.favorite);
+        }
+        b.created_at.cmp(&a.created_at)
+    });
+}
+
+/// SnippetsList 返回全部片段（收藏优先，时间倒序）。
+#[tauri::command]
+pub fn snippets_list(repo: Option<String>) -> Result<Vec<Snippet>, String> {
+    let _ = repo_path(repo.clone());
+    let mut list = load_snippets()?;
+    sort_snippets(&mut list);
+    Ok(list)
+}
+
+/// SnippetsAdd 新建片段；ID 与 createdAt 由后端生成并在返回值中回填。
+#[tauri::command]
+pub fn snippets_add(repo: Option<String>, s: Snippet) -> Result<Snippet, String> {
+    let _ = repo_path(repo.clone());
+    if s.command.trim().is_empty() {
+        return Err("命令不能为空".into());
+    }
+    let mut s = s;
+    s.id = gen_id();
+    s.created_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let mut list = load_snippets()?;
+    list.push(s.clone());
+    save_snippets(&list)?;
+    Ok(s)
+}
+
+/// SnippetsUpdate 按 ID 整体替换一条片段。
+#[tauri::command]
+pub fn snippets_update(repo: Option<String>, s: Snippet) -> Result<(), String> {
+    let _ = repo_path(repo.clone());
+    if s.id.is_empty() {
+        return Err("ID 不能为空".into());
+    }
+    if s.command.trim().is_empty() {
+        return Err("命令不能为空".into());
+    }
+    let mut list = load_snippets()?;
+    match list.iter_mut().find(|item| item.id == s.id) {
+        Some(item) => *item = s,
+        None => return Err(format!("未找到 ID: {}", s.id)),
+    }
+    save_snippets(&list)
+}
+
+/// SnippetsDelete 按 ID 删除一条片段。
+#[tauri::command]
+pub fn snippets_delete(repo: Option<String>, id: String) -> Result<(), String> {
+    let _ = repo_path(repo.clone());
+    let mut list = load_snippets()?;
+    let before = list.len();
+    list.retain(|item| item.id != id);
+    if list.len() == before {
+        return Err(format!("未找到 ID: {id}"));
+    }
+    save_snippets(&list)
+}
+
+/// SnippetsToggleFavorite 翻转一条片段的收藏标记。
+#[tauri::command]
+pub fn snippets_toggle_favorite(repo: Option<String>, id: String) -> Result<(), String> {
+    let _ = repo_path(repo.clone());
+    let mut list = load_snippets()?;
+    match list.iter_mut().find(|item| item.id == id) {
+        Some(item) => item.favorite = !item.favorite,
+        None => return Err(format!("未找到 ID: {id}")),
+    }
+    save_snippets(&list)
+}
+
+/// SnippetsFilePath 返回 snippets.json 绝对路径（供 UI 展示）。
+#[tauri::command]
+pub fn snippets_file_path(repo: Option<String>) -> Result<String, String> {
+    let _ = repo_path(repo.clone());
+    Ok(snippets_file()?.display().to_string())
+}
+
+// =====================================================================
+// Download（GitHub Release 列表；与 Go 一致经 curl 调 GitHub API）
+// =====================================================================
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AssetInfo {
+    pub name: String,
+    pub size: i64,
+    /// Go tag 为 browserDownloadURL（URL 全大写），serde camelCase 会得到
+    /// browserDownloadUrl，故显式 rename。
+    #[serde(rename = "browserDownloadURL")]
+    pub browser_download_url: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseInfo {
+    pub tag_name: String,
+    pub published_at: String,
+    pub body: String,
+    pub assets: Vec<AssetInfo>,
+}
+
+/// GitHub API 原始字段（snake_case）。
+#[derive(Debug, Deserialize)]
+struct GhAsset {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    size: i64,
+    #[serde(default)]
+    browser_download_url: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GhRelease {
+    #[serde(default)]
+    tag_name: String,
+    #[serde(default)]
+    published_at: String,
+    #[serde(default)]
+    body: String,
+    #[serde(default)]
+    assets: Vec<GhAsset>,
+}
+
+/// DownloadReleases 拉取仓库最近 30 条 Release（Go 同款 curl -sL 调用）。
+#[tauri::command]
+pub fn download_releases(owner: String, repo: String) -> Result<Vec<ReleaseInfo>, String> {
+    let url = format!("https://api.github.com/repos/{owner}/{repo}/releases?per_page=30");
+    let mut cmd = std::process::Command::new("curl");
+    cmd.args(["-sL", &url]);
+    hide_window(&mut cmd);
+    let out = cmd.output().map_err(|e| format!("启动 curl 失败: {e}"))?;
+    if !out.status.success() {
+        return Err(format!(
+            "curl 失败: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    let releases: Vec<GhRelease> =
+        serde_json::from_slice(&out.stdout).map_err(|e| format!("解析 Release 响应失败: {e}"))?;
+    Ok(releases
+        .into_iter()
+        .map(|r| ReleaseInfo {
+            tag_name: r.tag_name,
+            published_at: r.published_at,
+            body: r.body,
+            assets: r
+                .assets
+                .into_iter()
+                .map(|a| AssetInfo {
+                    name: a.name,
+                    size: a.size,
+                    browser_download_url: a.browser_download_url,
+                })
+                .collect(),
+        })
+        .collect())
+}

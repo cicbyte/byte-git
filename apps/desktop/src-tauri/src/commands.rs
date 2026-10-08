@@ -1,13 +1,26 @@
-//! Tauri 命令层：薄封装 byte-git-core，供前端 invoke 调用。
+//! Tauri 命令层根模块。
 //!
-//! Phase 1 先暴露核心命令集；其余模块（github/rewrite/secret/...）
-//! 随 core 实现逐步接入。
+//! Phase 1 的少量根命令（version/config/git_status/branch_clean/ignore_add）
+//! 保留；其余域命令在 commands/ 子目录（commit/gitops/backup/info/repo/
+//! rewrite/secret/license/system/ignore），对应 git-mate gui/internal 布局。
 
-use byte_git_core::branch::{self, CleanOptions};
+use byte_git_core::branch::CleanOptions;
 use byte_git_core::config::Settings;
-use byte_git_core::{git, ignore, info, license, stash, util};
+use byte_git_core::{git, util};
+use byte_git_core::ignore as core_ignore;
 use serde_json::Value;
 use std::path::PathBuf;
+
+pub mod backup;
+pub mod commit;
+pub mod gitops;
+pub mod ignore;
+pub mod info;
+pub mod license;
+pub mod repo;
+pub mod rewrite;
+pub mod secret;
+pub mod system;
 
 fn repo_path(repo: &str) -> PathBuf {
     PathBuf::from(if repo.is_empty() { "." } else { repo })
@@ -15,13 +28,13 @@ fn repo_path(repo: &str) -> PathBuf {
 
 #[tauri::command]
 pub fn version() -> String {
-    format!("byte-git {} (Rust, phase 1)", env!("CARGO_PKG_VERSION"))
+    format!("byte-git {} (Rust)", env!("CARGO_PKG_VERSION"))
 }
 
+/// 取消当前长任务（对应 Go core.CancelTask）。
 #[tauri::command]
-pub fn info_summary(repo: String) -> Result<String, String> {
-    info::summary(&repo_path(&repo)).map_err(|e| e.to_string())?;
-    Ok("ok".into())
+pub fn cancel_task() -> bool {
+    crate::tasks::cancel()
 }
 
 #[tauri::command]
@@ -31,13 +44,8 @@ pub fn git_status(repo: String) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn branch_list(repo: String) -> Result<Vec<String>, String> {
-    branch::local_branches(&repo_path(&repo)).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
 pub fn branch_clean(repo: String, dry_run: bool) -> Result<Value, String> {
-    let (candidates, deleted) = branch::clean(
+    let (candidates, deleted) = byte_git_core::branch::clean(
         &repo_path(&repo),
         &CleanOptions { dry_run, ..Default::default() },
     )
@@ -46,38 +54,13 @@ pub fn branch_clean(repo: String, dry_run: bool) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn stash_list(repo: String, search: Option<String>) -> Result<Vec<stash::StashEntry>, String> {
-    stash::list(&repo_path(&repo), search.as_deref().unwrap_or("")).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn stash_save(repo: String, name: String) -> Result<(), String> {
-    stash::save(&repo_path(&repo), &name).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn stash_pop(repo: String, name: String) -> Result<(), String> {
-    stash::pop(&repo_path(&repo), &name).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn license_list() -> Vec<String> {
-    license::list()
-}
-
-#[tauri::command]
-pub fn license_create(repo: String, name: String, author: Option<String>, year: Option<i32>) -> Result<(), String> {
-    license::create(&repo_path(&repo), &name, author.as_deref().unwrap_or(""), year).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
 pub fn ignore_list() -> Vec<String> {
-    ignore::list()
+    core_ignore::list()
 }
 
 #[tauri::command]
 pub fn ignore_add(repo: String, template: String) -> Result<(), String> {
-    ignore::add(&repo_path(&repo), &template).map_err(|e| e.to_string())
+    core_ignore::add(&repo_path(&repo), &template).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

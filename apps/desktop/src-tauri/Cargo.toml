@@ -19,6 +19,7 @@ tauri = { version = "2", features = [] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
+chrono = { workspace = true }
 
 [features]
 # 默认启用自定义协议（生产构建用）
