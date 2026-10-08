@@ -1,0 +1,36 @@
+# === Rust ===
+/target/
+**/*.rs.bk
+
+# === Node / 前端 ===
+node_modules/
+dist/
+*.local
+
+# === IDE / 编辑器 ===
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# === 日志 ===
+logs/
+*.log
+npm-debug.log*
+
+# === 构建产物 ===
+bin/
+*.exe
+*.msi
+*.nsis.zip
+*.test
+*.out
+
+# === 本地工具链数据 ===
+.bc/
+.reference/
+.zcode/
+msg.txt
+.bc/

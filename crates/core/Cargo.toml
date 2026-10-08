@@ -1,0 +1,20 @@
+[package]
+name = "byte-git-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "byte-git 领域核心（git 操作 / 配置 / 备份 / 统计 / 许可证 / 模板）——CLI 与桌面端共用"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+dirs = { workspace = true }
+include_dir = { workspace = true }
+walkdir = { workspace = true }
+chrono = { workspace = true }
+regex = { workspace = true }
+reqwest = { workspace = true }

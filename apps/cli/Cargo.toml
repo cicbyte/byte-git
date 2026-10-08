@@ -1,0 +1,20 @@
+[package]
+name = "byte-git-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "byte-git CLI——Git 增强工具集（分支治理 / stash / 统计 / 备份 / 许可证 / gitignore）"
+
+[[bin]]
+name = "byte-git"
+path = "src/main.rs"
+
+[dependencies]
+byte-git-core = { path = "../../crates/core" }
+clap = { version = "4", features = ["derive"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }

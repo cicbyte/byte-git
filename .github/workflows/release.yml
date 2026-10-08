@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (如 1.2.3，会自动加 v 前缀)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: byte-git_linux_amd64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: byte-git_windows_amd64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: byte-git_darwin_amd64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="v${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME}"
+          fi
+          echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build CLI
+        run: cargo build --release --target ${{ matrix.target }} -p byte-git-cli
+
+      - name: Package artifact (unix)
+        if: runner.os != 'Windows'
+        run: |
+          cd target/${{ matrix.target }}/release
+          cp byte-git "${{ matrix.artifact }}"
+          tar czf "${{ matrix.artifact }}.tar.gz" "${{ matrix.artifact }}"
+
+      - name: Package artifact (windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd target/${{ matrix.target }}/release
+          cp byte-git.exe "${{ matrix.artifact }}.exe"
+          7z a -tzip "${{ matrix.artifact }}.zip" "${{ matrix.artifact }}.exe"
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          files: |
+            target/${{ matrix.target }}/release/*.tar.gz
+            target/${{ matrix.target }}/release/*.zip
+          generate_release_notes: true
