@@ -1568,7 +1568,7 @@ fn get_stats(dir: &Path, since: &str, until: &str, author: &str) -> Result<Stats
     }
     let mut day_hour: Vec<DayHourEntry> = full_day_hour
         .into_iter()
-        .map(|(date, mut h)| {
+        .map(|(date, h)| {
             let count = h.iter().sum();
             DayHourEntry { date, hours: h, count }
         })

@@ -14,13 +14,17 @@ use std::path::PathBuf;
 pub mod backup;
 pub mod commit;
 pub mod gitops;
+pub mod github;
 pub mod ignore;
 pub mod info;
 pub mod license;
+pub mod live;
+pub mod reference;
 pub mod repo;
 pub mod rewrite;
 pub mod secret;
 pub mod system;
+pub mod terminal;
 
 fn repo_path(repo: &str) -> PathBuf {
     PathBuf::from(if repo.is_empty() { "." } else { repo })

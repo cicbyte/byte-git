@@ -6,7 +6,7 @@
 //! 对应 Go 的 Core.CurrentRepo 与 repos.json。
 //!
 //! 已知偏差（详见各命令注释）：
-//! - PickRepoFolder：Tauri 侧未接对话框插件，返回错误让前端走手动输入；
+//! - PickRepoFolder：tauri-plugin-dialog 原生目录选择框（取消返回空串）；
 //! - OpenInExplorer：按约定用 `explorer <path>` 直接打开（Go 为 /select 定位）；
 //! - 最近仓库不持久化时间戳（state 只存路径），lastOpened 恒为空串。
 
@@ -465,13 +465,26 @@ pub fn remove_recent_repo(path: String) -> Result<(), String> {
     crate::state::remove_recent(&path).map_err(|e| e.to_string())
 }
 
-/// PickRepoFolder 打开系统目录选择框。
+/// PickRepoFolder 打开系统目录选择框（tauri-plugin-dialog 原生对话框）。
 ///
-/// 偏差：Tauri 侧未接对话框插件（tauri-plugin-dialog），无法弹出原生选择框；
-/// 返回错误提示手动输入，前端仓库切换弹窗应提供路径输入框兜底。
+/// 对应 Go wails runtime.OpenDirectoryDialog：取消返回空串（Go 同语义），
+/// 前端以空串判断未选择。
 #[tauri::command]
-pub fn pick_repo_folder() -> Result<String, String> {
-    Err("请手动输入仓库路径".into())
+pub async fn pick_repo_folder(app: tauri::AppHandle) -> Result<String, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (tx, rx) = std::sync::mpsc::channel::<Option<String>>();
+    app.dialog().file().pick_folder(move |dir| {
+        let path = dir
+            .and_then(|d| d.as_path().map(|p| p.display().to_string()))
+            .unwrap_or_default();
+        let _ = tx.send(Some(path));
+    });
+    // 对话框由主线程事件循环驱动，std 线程等待回调（取消时目录为空串）
+    let picked = std::thread::spawn(move || rx.recv().ok().flatten())
+        .join()
+        .map_err(|_| "对话框线程异常".to_string())?
+        .unwrap_or_default();
+    Ok(picked)
 }
 
 /// RepoFileList 列出仓库内某目录的直接子项（subPath 空串 = 仓库根）。

@@ -194,14 +194,87 @@ const SIGNATURES: Record<string, string[]> = {
     RepoReadImage: ['relPath'],
     OpenInExplorer: ['path'],
     OpenInBrowser: ['url'],
+    // ---- reference 域（reference.exe 集成）----
+    ReferenceCheck: [],
+    ReferenceInit: ['req'],
+    ReferenceList: [],
+    ReferenceMap: [],
+    ReferenceRemove: ['name', 'purge'],
+    ReferenceUpdate: ['name'],
+    ReferenceAdd: ['req'],
+    ReferenceDoctor: [],
+    ReferenceSettings: [],
+    ReferenceScc: ['name'],
+    ReferenceCachePath: ['name', 'filePath'],
+    ReferenceFileList: ['name', 'subPath'],
+    ReferenceFileRead: ['name', 'filePath'],
+    ReferenceFileSearch: ['name', 'query'],
+    ReferenceWikiList: ['repoName'],
+    ReferenceWikiFile: ['repoName', 'file'],
+    ReferenceWikiSync: [],
+    ReferenceWikiStatus: [],
+    ReferenceWikiRemoteGet: [],
+    ReferenceWikiRemoteSet: ['url'],
+    ReferenceWikiRestore: ['path'],
+    ReferenceWikiTrash: [],
+    ReferenceWikiCommit: [],
+    // ---- live/cheat 域（实时监视 + 备忘录）----
+    LiveStartWatch: [],
+    LiveStopWatch: [],
+    LiveStat: [],
+    LiveFileDiff: ['filePath'],
+    LiveStagedFileDiff: ['filePath'],
+    CheatEnsure: [],
+    CheatPull: [],
+    CheatList: [],
+    CheatRead: ['relPath'],
+    // ---- terminal 域（PTY 终端）----
+    TerminalStart: ['shell', 'cwd', 'cols', 'rows'],
+    TerminalInput: ['b64'],
+    TerminalResize: ['cols', 'rows'],
+    TerminalStop: [],
+    TerminalDetectShell: [],
+    // ---- github 域（GitHub REST 集成）----
+    GhActionsList: [],
+    GhActionsJobs: ['runId'],
+    GhActionsJobLogs: ['jobId'],
+    GhActionsRerun: ['runId'],
+    GhActionsCancel: ['runId'],
+    GhIssueList: ['state'],
+    GhIssueCreate: ['title', 'body'],
+    GhIssueClose: ['number'],
+    GhIssueComment: ['number', 'body'],
+    GhIssueLabels: [],
+    GhIssueAddLabels: ['number', 'labels'],
+    GhIssueRemoveLabel: ['number', 'label'],
+    GhPRList: ['state'],
+    GhPRCreate: ['title', 'head', 'base', 'body'],
+    GhPRComments: ['number'],
+    GhPRCreateComment: ['number', 'body'],
+    GhPRFiles: ['number'],
+    GhPRReview: ['number', 'event', 'body'],
+    GhPRMerge: ['number', 'strategy'],
+    GhPRCheckout: ['number'],
+    GhReleaseList: [],
+    GhReleaseCreate: ['tag', 'title', 'body', 'isDraft', 'isPre'],
+    GhReleaseDelete: ['releaseId'],
+    GhReleaseDeleteAsset: ['assetId'],
+    GhReleaseUploadAsset: ['releaseId', 'filePath'],
+    GhSearchRepos: ['query'],
+    GhSearchCode: ['query'],
+    GhTrendingProjects: ['timeframe', 'language', 'spokenLang'],
+    GhTrendingLanguages: [],
+    GhSpokenLanguages: [],
 }
 
-/** PascalCase/camelCase → snake_case（三段式：首字母小写、小写数字后的大写前插下划线、再统一小写）。
- *  处理连续大写：RemoteSetURL → remote_set_url（两段式会把 URL 拆成 u_r_l）。 */
+/** PascalCase/camelCase → snake_case。
+ *  两条边界规则：小写/数字→大写 插下划线；缩写尾边界（大写 + 大写开头小写结尾，如 GhPRList 的 PR|List）插下划线。
+ *  例：GhPRList → gh_pr_list、RemoteSetURL → remote_set_url、OcrConfigGetRaw → ocr_config_get_raw。 */
 function toCommandName(method: string): string {
     return method
         .replace(/^([A-Z])/, (c) => c.toLowerCase())
         .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+        .replace(/([A-Z])([A-Z][a-z])/g, '$1_$2')
         .replace(/[A-Z]/g, (c) => c.toLowerCase())
 }
 

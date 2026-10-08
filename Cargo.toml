@@ -36,6 +36,12 @@ flate2 = "1"
 # === TUI（logview）===
 ratatui = "0.29"
 crossterm = "0.28"
+# === 文件监视（桌面 Live 域，对应 Go fsnotify）===
+notify = "8"
+# === PTY（桌面 Terminal 域，对应 Go conpty）===
+portable-pty = "0.9"
+# === base64（终端流/图片编码备用）===
+base64 = "0.22"
 
 [profile.release]
 opt-level = "z"      # 体积优先
