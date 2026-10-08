@@ -263,6 +263,11 @@ pub fn run() {
             commands::github::gh_status,
             commands::github::gh_pr_diff,
             commands::system::npm_available,
+            // ---- 窗口控制（Go WindowModule）----
+            commands::system::window_minimize,
+            commands::system::window_maximize,
+            commands::system::window_close,
+            commands::system::window_is_maximized,
         ])
         .run(tauri::generate_context!())
         .expect("byte-git 桌面端启动失败");

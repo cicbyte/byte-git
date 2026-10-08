@@ -272,6 +272,11 @@ const SIGNATURES: Record<string, string[]> = {
     GhStatus: [],
     GhPRDiff: ['number'],
     NpmAvailable: [],
+    // ---- 窗口控制（Go WindowModule；Maximize=切换，Close=退出应用）----
+    WindowMinimize: [],
+    WindowMaximize: [],
+    WindowClose: [],
+    WindowIsMaximized: [],
 }
 
 /** PascalCase/camelCase → snake_case。

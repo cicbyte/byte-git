@@ -466,3 +466,42 @@ fn look_path(exe: &str) -> bool {
 pub fn npm_available() -> bool {
     look_path("npm")
 }
+
+// ---------------------------------------------------------------------------
+// 窗口控制（Go gui/internal/window.go WindowModule）
+// ---------------------------------------------------------------------------
+
+fn main_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, String> {
+    use tauri::Manager;
+    app.get_webview_window("main").ok_or_else(|| "主窗口未就绪".to_string())
+}
+
+/// WindowMinimize：最小化主窗口。
+#[tauri::command]
+pub fn window_minimize(app: tauri::AppHandle) -> Result<(), String> {
+    main_window(&app)?.minimize().map_err(|e| e.to_string())
+}
+
+/// WindowMaximize：**切换**最大化（已最大化则还原；对齐 Go WindowModule）。
+#[tauri::command]
+pub fn window_maximize(app: tauri::AppHandle) -> Result<(), String> {
+    let win = main_window(&app)?;
+    if win.is_maximized().map_err(|e| e.to_string())? {
+        win.unmaximize().map_err(|e| e.to_string())
+    } else {
+        win.maximize().map_err(|e| e.to_string())
+    }
+}
+
+/// WindowClose：退出整个应用（对应 Go runtime.Quit，非隐藏窗口）。
+#[tauri::command]
+pub fn window_close(app: tauri::AppHandle) -> Result<(), String> {
+    app.exit(0);
+    Ok(())
+}
+
+/// WindowIsMaximized：主窗口是否处于最大化状态。
+#[tauri::command]
+pub fn window_is_maximized(app: tauri::AppHandle) -> Result<bool, String> {
+    main_window(&app)?.is_maximized().map_err(|e| e.to_string())
+}
