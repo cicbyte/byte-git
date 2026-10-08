@@ -181,10 +181,18 @@ fn template_meta(spdx: &str) -> Option<&'static TemplateMeta> {
 // 检测（关键词启发式，与 core license::detect 同一规则集）
 // ---------------------------------------------------------------------------
 
-/// 关键词检测：返回 (SPDXID, 置信度, 是否有效)。
-/// Go 版基于 licensecheck n-gram 匹配给出真实置信度；此处为关键词启发式
-/// （固定置信度 0.95），行为简化点在最终报告中注明。
+/// 检测：返回 (SPDXID, 置信度, 是否有效)。
+/// 词级 trigram 全模板覆盖匹配（core::license::detect_confidence，
+/// licensecheck n-gram 的简化版）给出真实置信度；关键词表兜底（置信度 0.5）。
 fn detect_content(content: &str) -> (String, f64, bool) {
+    let (name, score) = core_license::detect_confidence(content);
+    if score >= 0.35 {
+        let spdx = template_meta(&name)
+            .map(|t| t.spdx.to_string())
+            .unwrap_or_else(|| name.to_uppercase());
+        return (spdx, score, true);
+    }
+    // 关键词兜底：文本被大幅改写但保留特征词
     let head: String = content.chars().take(600).collect();
     let lower = head.to_lowercase();
     let rules: &[(&str, &str)] = &[
@@ -201,7 +209,7 @@ fn detect_content(content: &str) -> (String, f64, bool) {
     ];
     for (kw, name) in rules {
         if lower.contains(kw) {
-            return ((*name).to_string(), 0.95, true);
+            return ((*name).to_string(), 0.5, true);
         }
     }
     (String::new(), 0.0, false)

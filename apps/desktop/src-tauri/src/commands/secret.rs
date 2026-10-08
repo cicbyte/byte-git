@@ -196,6 +196,17 @@ fn ocr_check_cache() -> &'static Mutex<Option<ReviewCheckResult>> {
     CACHE.get_or_init(|| Mutex::new(None))
 }
 
+/// 清空 gitleaks/ocr 可用性检测缓存（设置保存且 exe_path 变更时调用，
+/// 对齐 Go SettingsSave 的缓存失效钩子）。gitleaks=true 清 gitleaks，ocr=true 清 ocr。
+pub fn clear_check_cache(gitleaks: bool, ocr: bool) {
+    if gitleaks {
+        *gitleaks_cache().lock().unwrap() = None;
+    }
+    if ocr {
+        *ocr_check_cache().lock().unwrap() = None;
+    }
+}
+
 /// SecretCheck：gitleaks 是否就绪（配置 > PATH；结果进程内缓存）。
 #[tauri::command]
 pub fn secret_check() -> Result<SecretCheckResult, String> {

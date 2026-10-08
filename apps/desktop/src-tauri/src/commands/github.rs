@@ -1648,3 +1648,85 @@ pub fn gh_spoken_languages(repo: Option<String>) -> Vec<TrendingLanguage> {
     })
     .collect()
 }
+
+// ---------------------------------------------------------------------------
+// Status / PRDiff（Go gui/internal/github + internal/gh status.go 部分）
+// ---------------------------------------------------------------------------
+
+/// gh.Status 镜像。
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct GhStatusDto {
+    /// GitHub Token 已配置
+    pub token_set: bool,
+    /// token 有效（GET /user 成功）
+    pub authed: bool,
+    /// 认证用户名
+    pub user: String,
+    /// origin remote 指向 GitHub
+    pub remote_is_gh: bool,
+    /// "owner/repo"（origin 解析；非 GitHub 为空）
+    pub owner_repo: String,
+}
+
+/// GhStatus：Token 配置/有效性 + origin remote 检测（对应 Go DetectStatus）。
+/// 与 Go 一致：任何内部失败都不报错，以字段反映状态。
+#[tauri::command]
+pub async fn gh_status(repo: Option<String>) -> Result<GhStatusDto, String> {
+    let repo = repo.unwrap_or_default();
+    run_blocking(move || {
+        let mut token = Settings::load().unwrap_or_default().github.token;
+        if token.is_empty() {
+            token = std::env::var("GITHUB_TOKEN").unwrap_or_default();
+        }
+        let mut st = GhStatusDto { token_set: !token.is_empty(), ..Default::default() };
+        if let Some(owner_repo) = detect_remote(repo_or_dot(&repo)) {
+            st.remote_is_gh = true;
+            st.owner_repo = owner_repo;
+        }
+        if !token.is_empty() {
+            if let Ok(bytes) = gh_send(
+                "GET",
+                "https://api.github.com/user",
+                &[],
+                None,
+                None,
+                &token,
+                "application/vnd.github+json",
+                Duration::from_secs(10),
+            ) {
+                if let Ok(v) = serde_json::from_slice::<Value>(&bytes) {
+                    let login = vs(&v, "login");
+                    if !login.is_empty() {
+                        st.authed = true;
+                        st.user = login;
+                    }
+                }
+            }
+        }
+        Ok(st)
+    })?
+}
+
+/// GhPRDiff：PR 原始 diff 文本（Accept: application/vnd.github.diff，30s）。
+#[tauri::command]
+pub async fn gh_pr_diff(number: i32, repo: Option<String>) -> Result<String, String> {
+    let repo = repo.unwrap_or_default();
+    run_blocking(move || {
+        let owner_repo = detect_remote(repo_or_dot(&repo))
+            .ok_or_else(|| "无法从 remote 解析 owner/repo".to_string())?;
+        let token = gh_token()?;
+        let (o, r) = split_owner_repo(&owner_repo)?;
+        let bytes = gh_send(
+            "GET",
+            &format!("https://api.github.com/repos/{o}/{r}/pulls/{number}"),
+            &[],
+            None,
+            None,
+            &token,
+            "application/vnd.github.diff",
+            Duration::from_secs(30),
+        )
+        .map_err(|e| format!("获取 PR diff 失败: {e}"))?;
+        Ok(String::from_utf8_lossy(&bytes).into_owned())
+    })?
+}

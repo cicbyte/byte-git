@@ -265,6 +265,13 @@ const SIGNATURES: Record<string, string[]> = {
     GhTrendingProjects: ['timeframe', 'language', 'spokenLang'],
     GhTrendingLanguages: [],
     GhSpokenLanguages: [],
+    // ---- archive 补全（导出/选目录）----
+    ArchiveExportToDir: ['ref', 'targetDir'],
+    ArchivePickDir: [],
+    // ---- 导出面补全（GhStatus/GhPRDiff/NpmAvailable）----
+    GhStatus: [],
+    GhPRDiff: ['number'],
+    NpmAvailable: [],
 }
 
 /** PascalCase/camelCase → snake_case。

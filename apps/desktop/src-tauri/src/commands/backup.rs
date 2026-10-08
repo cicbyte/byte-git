@@ -472,9 +472,7 @@ fn archive_run_impl(repo: &Path, dto: ArchiveOptionsDto) -> Result<ArchiveResult
         return Err(format!("未知模式: {mode} (standard/full)"));
     }
     if mode == "full" {
-        // Go full 模式用 Go 标准库 tar/zip 打包整个工作区（含 .git）；
-        // Rust 侧桌面 crate 无 tar/zip 依赖，暂不支持（standard 覆盖 GUI 主流程）
-        return Err("full 模式暂未实现（缺少直接打包工作区 + .git 的 tar/zip 实现）".into());
+        return archive_full_impl(repo, dto);
     }
 
     let ref_ = if dto.ref_.is_empty() { "HEAD" } else { dto.ref_.as_str() };
@@ -516,6 +514,170 @@ fn archive_run_impl(repo: &Path, dto: ArchiveOptionsDto) -> Result<ArchiveResult
         file_count: 0,
         mode: "standard".into(),
     })
+}
+
+/// full 模式（对齐 Go archiveFull）：tar/zip 直接打包整个工作区（含 .git），
+/// 不依赖 git archive；尊重 paths 过滤器（相对路径前缀匹配）。
+/// 偏差：zip 容器因 zip crate 在本机构造缺陷暂不支持（tar/tar.gz 完整）。
+fn archive_full_impl(repo: &Path, dto: ArchiveOptionsDto) -> Result<ArchiveResultDto, String> {
+    use std::io::Write;
+
+    let format = if dto.format.is_empty() { "tar.gz" } else { dto.format.as_str() };
+    if format == "zip" {
+        return Err("full 模式暂不支持 zip（请用 tar.gz）".into());
+    }
+    let ref_ = if dto.ref_.is_empty() { "HEAD" } else { dto.ref_.as_str() };
+    let out = if dto.output.is_empty() {
+        default_archive_path(repo, &format!("{ref_}-full"), format)?
+    } else {
+        PathBuf::from(&dto.output)
+    };
+    if let Some(parent) = out.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+    }
+    let abs = abs_path(repo);
+
+    // 收集条目（含 .git；paths 过滤器 = 相对路径前缀匹配）
+    let mut entries: Vec<(PathBuf, PathBuf)> = Vec::new(); // (绝对路径, 相对路径)
+    collect_files(&abs, &abs, &dto.paths, &mut entries);
+
+    let f = std::fs::File::create(&out).map_err(|e| format!("创建归档文件失败: {e}"))?;
+    let mut file_count: i64 = 0;
+    let mut build = |w: Box<dyn Write>| -> Result<(), String> {
+        let mut tar = tar::Builder::new(w);
+        for (abs_p, rel_p) in &entries {
+            let meta = std::fs::metadata(abs_p).map_err(|e| format!("读取 {}: {e}", rel_p.display()))?;
+            let mtime = meta
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let mut header = tar::Header::new_gnu();
+            header.set_size(meta.len());
+            header.set_mode(if meta.is_dir() { 0o755 } else { 0o644 });
+            header.set_mtime(mtime);
+            header.set_cksum();
+            let rel_str = rel_p.display().to_string().replace('\\', "/");
+            if meta.is_dir() {
+                header.set_entry_type(tar::EntryType::Directory);
+                tar.append_data(&mut header, format!("{rel_str}/"), std::io::empty())
+            } else {
+                header.set_entry_type(tar::EntryType::Regular);
+                let src = std::fs::File::open(abs_p).map_err(|e| format!("读取 {}: {e}", rel_p.display()))?;
+                tar.append_data(&mut header, rel_str, src)
+            }
+            .map_err(|e| format!("写入归档失败: {e}"))?;
+            if meta.is_file() {
+                file_count += 1;
+            }
+        }
+        tar.finish().map_err(|e| format!("归档收尾失败: {e}"))
+    };
+
+    match format {
+        "tar" => build(Box::new(f))?,
+        _ => build(Box::new(flate2::write::GzEncoder::new(f, flate2::Compression::default())))?,
+    }
+
+    let size = std::fs::metadata(&out).map(|m| m.len() as i64).unwrap_or(0);
+    Ok(ArchiveResultDto {
+        output_path: out.display().to_string(),
+        size,
+        file_count,
+        mode: "full".into(),
+    })
+}
+
+/// 递归收集（含隐藏目录与 .git；paths 空 = 全收；否则按相对路径前缀过滤）。
+fn collect_files(root: &Path, dir: &Path, filter: &[String], out: &mut Vec<(PathBuf, PathBuf)>) {
+    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    for e in rd.flatten() {
+        let abs_p = e.path();
+        let Ok(rel) = abs_p.strip_prefix(root) else { continue };
+        let rel_str = rel.display().to_string().replace('\\', "/");
+        if !filter.is_empty() && !filter.iter().any(|p| rel_str.starts_with(&p.replace('\\', "/"))) {
+            // 不在过滤器内：文件与目录整枝跳过（对齐 Go pathfilter 前缀语义）
+            continue;
+        }
+        out.push((abs_p.clone(), rel.to_path_buf()));
+        if abs_p.is_dir() {
+            collect_files(root, &abs_p, filter, out);
+        }
+    }
+}
+
+/// ArchiveExportToDir：把 ref 处的完整源码树导出到 targetDir（不压缩、
+/// 保留目录结构；git archive --format=tar 流式解包）。
+/// （长阻塞：上限 10 分钟，async + std 线程。）
+#[tauri::command]
+pub async fn archive_export_to_dir(
+    ref_: String,
+    target_dir: String,
+    repo: Option<String>,
+) -> Result<ArchiveResultDto, String> {
+    let repo = repo_path(repo);
+    run_blocking(move || {
+        let ref_ = if ref_.is_empty() { "HEAD".to_string() } else { ref_ };
+        let target = PathBuf::from(&target_dir);
+        std::fs::create_dir_all(&target).map_err(|e| format!("创建导出目录失败: {e}"))?;
+
+        // git archive --format=tar <ref>，stdout 为 tar 流
+        let mut cmd = std::process::Command::new("git");
+        cmd.args(["archive", "--format=tar", ref_.as_str()])
+            .current_dir(&repo)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+        hide_console(&mut cmd);
+        let mut child = cmd.spawn().map_err(|e| format!("启动 git archive 失败: {e}"))?;
+        let stdout = child.stdout.take().unwrap();
+        let target_disp = target.display().to_string();
+        let target_in = target.clone();
+        let unpack = std::thread::spawn(move || -> Result<i64, String> {
+            let mut ar = tar::Archive::new(stdout);
+            let mut count = 0i64;
+            for entry in ar.entries().map_err(|e| format!("解包失败: {e}"))? {
+                let mut entry = entry.map_err(|e| format!("解包失败: {e}"))?;
+                if entry.header().entry_type().is_file() {
+                    count += 1;
+                }
+                entry.unpack_in(&target_in).map_err(|e| format!("解包失败: {e}"))?;
+            }
+            Ok(count)
+        });
+        let status = child.wait().map_err(|e| format!("等待 git archive 失败: {e}"))?;
+        let count = unpack.join().map_err(|_| "解包线程异常".to_string())??;
+        if !status.success() {
+            return Err("git archive 失败（ref 无效或仓库为空）".into());
+        }
+        let size = dir_size(&target);
+        Ok(ArchiveResultDto {
+            output_path: target_disp,
+            size,
+            file_count: count,
+            mode: "standard".into(),
+        })
+    })?
+}
+
+/// ArchivePickDir：原生目录选择框（tauri-plugin-dialog；取消返回空串）。
+#[tauri::command]
+pub async fn archive_pick_dir(app: tauri::AppHandle) -> Result<String, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (tx, rx) = std::sync::mpsc::channel::<Option<String>>();
+    app.dialog().file().pick_folder(move |dir| {
+        let path = dir
+            .and_then(|d| d.as_path().map(|p| p.display().to_string()))
+            .unwrap_or_default();
+        let _ = tx.send(Some(path));
+    });
+    let picked = std::thread::spawn(move || rx.recv().ok().flatten())
+        .join()
+        .map_err(|_| "对话框线程异常".to_string())?
+        .unwrap_or_default();
+    Ok(picked)
 }
 
 /// ArchiveList lists all archive files for the current repo (newest first).
@@ -1072,4 +1234,72 @@ pub fn commit_file_diff(
     }
 
     Ok(res)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_repo(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("bg-arch-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// full 模式往返：打包（含 .git 与过滤语义）→ tar 解包 → 校验内容
+    #[test]
+    fn archive_full_roundtrip() {
+        let repo = temp_repo("full");
+        std::fs::write(repo.join("README.md"), "hello full").unwrap();
+        std::fs::create_dir(repo.join("sub")).unwrap();
+        std::fs::write(repo.join("sub").join("a.txt"), "aaa").unwrap();
+        std::fs::create_dir(repo.join(".git")).unwrap();
+        std::fs::write(repo.join(".git").join("HEAD"), "ref: refs/heads/main").unwrap();
+
+        let out = repo.parent().unwrap().join("bg-arch-full-out.tar.gz");
+        let res = archive_full_impl(
+            &repo,
+            ArchiveOptionsDto {
+                mode: "full".into(),
+                format: "tar.gz".into(),
+                output: out.display().to_string(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(res.mode, "full");
+        assert_eq!(res.file_count, 3); // README + sub/a.txt + .git/HEAD（目录不计）
+        assert!(res.size > 0);
+        assert!(out.exists());
+        // tar.gz 可解且内容在
+        let raw = std::fs::read(&out).unwrap();
+        let dec = flate2::read::GzDecoder::new(&raw[..]);
+        let mut ar = tar::Archive::new(dec);
+        let mut names = Vec::new();
+        for e in ar.entries().unwrap() {
+            names.push(e.unwrap().path().unwrap().display().to_string());
+        }
+        assert!(names.iter().any(|n| n == "README.md"));
+        assert!(names.iter().any(|n| n == "sub/a.txt"));
+        assert!(names.iter().any(|n| n == ".git/HEAD"));
+
+        // paths 过滤：只打包 sub
+        let out2 = repo.parent().unwrap().join("bg-arch-full-sub.tar");
+        let res2 = archive_full_impl(
+            &repo,
+            ArchiveOptionsDto {
+                mode: "full".into(),
+                format: "tar".into(),
+                output: out2.display().to_string(),
+                paths: vec!["sub".into()],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(res2.file_count, 1);
+        let _ = std::fs::remove_dir_all(&repo);
+        let _ = std::fs::remove_file(&out);
+        let _ = std::fs::remove_file(&out2);
+    }
 }

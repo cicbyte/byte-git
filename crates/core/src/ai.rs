@@ -56,7 +56,7 @@ struct ContentField {
     content: String,
 }
 
-/// Chat 客户端（阻塞式，120s 超时）。
+/// Chat 客户端（阻塞式，300s 超时——对齐 Go TaskContext(5min)）。
 pub struct ChatClient {
     base_url: String,
     api_key: String,
@@ -71,7 +71,7 @@ impl ChatClient {
             api_key: api_key.to_string(),
             model: model.to_string(),
             client: reqwest::blocking::Client::builder()
-                .timeout(Duration::from_secs(120))
+                .timeout(Duration::from_secs(300))
                 .build()
                 .expect("构建 HTTP 客户端失败"),
         }

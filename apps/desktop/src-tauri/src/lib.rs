@@ -256,6 +256,13 @@ pub fn run() {
             commands::github::gh_trending_projects,
             commands::github::gh_trending_languages,
             commands::github::gh_spoken_languages,
+            // ---- archive 补全（导出/选目录）----
+            commands::backup::archive_export_to_dir,
+            commands::backup::archive_pick_dir,
+            // ---- 导出面补全（GhStatus/GhPRDiff/NpmAvailable）----
+            commands::github::gh_status,
+            commands::github::gh_pr_diff,
+            commands::system::npm_available,
         ])
         .run(tauri::generate_context!())
         .expect("byte-git 桌面端启动失败");

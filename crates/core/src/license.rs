@@ -72,14 +72,78 @@ fn strip_frontmatter(raw: &str) -> String {
     parts[2].trim().to_string()
 }
 
-/// 检测仓库现有 LICENSE 类型（简单启发式：匹配模板首行/关键词）。
+/// 取指定模板的正文（剥 frontmatter）。
+pub fn template_text(name: &str) -> Option<String> {
+    let lower = name.trim().to_lowercase();
+    let file = LICENSES.get_file(format!("{lower}.txt")).or_else(|| LICENSES.get_file(lower))?;
+    Some(strip_frontmatter(&String::from_utf8_lossy(&file.contents())))
+}
+
+/// 文本归一：小写、非字母数字折叠为空白、分词。
+fn normalize_words(text: &str) -> Vec<String> {
+    let mut cur = String::new();
+    let mut words = Vec::new();
+    for ch in text.to_lowercase().chars() {
+        if ch.is_alphanumeric() {
+            cur.push(ch);
+        } else if !cur.is_empty() {
+            words.push(std::mem::take(&mut cur));
+        }
+    }
+    if !cur.is_empty() {
+        words.push(cur);
+    }
+    words
+}
+
+/// 词级 trigram 集合。
+fn trigrams(words: &[String]) -> std::collections::HashSet<(String, String, String)> {
+    words
+        .windows(3)
+        .map(|w| (w[0].clone(), w[1].clone(), w[2].clone()))
+        .collect()
+}
+
+/// n-gram 检测（licensecheck 简化版）：对全部 47 个模板计算
+/// 文档 trigram 被模板覆盖的比例，取最高分。
+/// 返回 (SPDX id 小写, 置信度 0.0~1.0)；未检出置信度 0。
+pub fn detect_confidence(content: &str) -> (String, f64) {
+    let doc = trigrams(&normalize_words(content));
+    if doc.is_empty() {
+        return (String::new(), 0.0);
+    }
+    let mut best: (String, f64) = (String::new(), 0.0);
+    for f in LICENSES.files() {
+        let Some(name) = f.path().file_stem().and_then(|s| s.to_str()) else { continue };
+        let tpl = trigrams(&normalize_words(&strip_frontmatter(&String::from_utf8_lossy(&f.contents()))));
+        if tpl.is_empty() {
+            continue;
+        }
+        let covered = doc.iter().filter(|g| tpl.contains(*g)).count();
+        let score = covered as f64 / doc.len() as f64;
+        if score > best.1 {
+            best = (name.to_string(), score);
+        }
+    }
+    best
+}
+
+/// 检测仓库现有 LICENSE 类型。
+/// 优先 n-gram 全模板匹配（真实置信度）；兜底关键词启发式。
 pub fn detect(repo: &std::path::Path) -> Result<String> {
     let content = std::fs::read_to_string(repo.join("LICENSE"))
         .or_else(|_| std::fs::read_to_string(repo.join("LICENSE.txt")))
         .or_else(|_| std::fs::read_to_string(repo.join("LICENSE.md")))?;
+
+    let (name, score) = detect_confidence(&content);
+    if score >= 0.35 {
+        println!("检测到许可证: {name}（置信度 {:.0}%）", score * 100.0);
+        return Ok(name);
+    }
+
+    // 兜底：关键词（检测被大幅改写的自定义文本）
     let head: String = content.chars().take(600).collect();
     let lower = head.to_lowercase();
-
     let rules: &[(&str, &str)] = &[
         ("apache license", "apache-2.0"),
         ("gnu affero general public license", "agpl-3.0"),
@@ -94,7 +158,7 @@ pub fn detect(repo: &std::path::Path) -> Result<String> {
     ];
     for (kw, name) in rules {
         if lower.contains(kw) {
-            println!("检测到许可证: {name}");
+            println!("检测到许可证: {name}（关键词匹配）");
             return Ok((*name).into());
         }
     }

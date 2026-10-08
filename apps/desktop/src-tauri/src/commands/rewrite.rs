@@ -1131,7 +1131,10 @@ pub fn rewrite_apply(repo: Option<String>, entries: Vec<RewriteEntryDto>, auto_b
         "--".into(),
         preview.range.clone(),
     ];
-    run_filter_branch(&repo, &args)?;
+    run_filter_branch(&repo, &args).map_err(|e| {
+        // Go 返回 (backedUp, error)——失败时备份标志并入错误文案，用户可见行为一致
+        if backed_up { format!("filter-branch 失败（已创建整库备份）: {e}") } else { e }
+    })?;
     let _ = run_capture(&repo, ["update-ref", "-d", "refs/original/ai-rewrite"]);
     Ok(backed_up)
 }
@@ -1408,7 +1411,10 @@ pub fn meta_rewrite_apply(
     if msg_posix.is_some() {
         let _ = std::fs::remove_file(git_dir.join("byte-git-msg-filter.sh"));
     }
-    result?;
+    result.map_err(|e| {
+        // Go 返回 (backedUp, error)——失败时备份标志并入错误文案，用户可见行为一致
+        if backed_up { format!("filter-branch 失败（已创建整库备份）: {e}") } else { e }
+    })?;
 
     let _ = run_capture(&repo, ["update-ref", "-d", "refs/original/rewrite"]);
 

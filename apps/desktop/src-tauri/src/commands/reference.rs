@@ -337,6 +337,12 @@ fn reference_check_cache() -> &'static Mutex<Option<ReferenceCheckResult>> {
     CACHE.get_or_init(|| Mutex::new(None))
 }
 
+/// 清空 reference 可用性检测缓存（设置保存且 reference.exe_path 变更时调用，
+/// 对齐 Go SettingsSave 的 OnClearRefCache 回调）。
+pub fn clear_check_cache() {
+    *reference_check_cache().lock().unwrap() = None;
+}
+
 /// 解析 reference 可执行文件路径（对齐 Go reference.FindExe）：
 /// 1. config.yaml `reference.exe_path`（须能响应 `reference version`）
 /// 2. PATH 查找（PATHEXT 感知，Windows 下 .exe/.bat/.cmd）

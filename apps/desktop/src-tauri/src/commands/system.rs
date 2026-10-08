@@ -107,6 +107,7 @@ pub fn settings_reload(repo: Option<String>) -> Result<SettingsDto, String> {
 }
 
 /// SettingsSave 按点路径 patch（如 {"ai.model": "gpt-4o"}）合并后整体落盘。
+/// exe_path 变更时同步失效对应可用性检测缓存（对齐 Go 缓存失效钩子）。
 #[tauri::command]
 pub fn settings_save(repo: Option<String>, patch: HashMap<String, String>) -> Result<(), String> {
     let _ = repo_path(repo.clone());
@@ -115,7 +116,17 @@ pub fn settings_save(repo: Option<String>, patch: HashMap<String, String>) -> Re
         apply_setting(&mut s, key, value)
             .map_err(|e| format!("invalid value for {key}: {e}"))?;
     }
-    s.save().map_err(|e| e.to_string())
+    s.save().map_err(|e| e.to_string())?;
+    // 缓存失效：下次 check 重新探测（可能已变更的）可执行文件
+    let gitleaks = patch.contains_key("gitleaks.exe_path");
+    let ocr = patch.contains_key("ocr.exe_path");
+    if gitleaks || ocr {
+        crate::commands::secret::clear_check_cache(gitleaks, ocr);
+    }
+    if patch.contains_key("reference.exe_path") {
+        crate::commands::reference::clear_check_cache();
+    }
+    Ok(())
 }
 
 /// 点路径写入（对齐 Go applySetting 的 switch；值为字符串，类型按字段转换）。
@@ -423,4 +434,35 @@ pub fn download_releases(owner: String, repo: String) -> Result<Vec<ReleaseInfo>
                 .collect(),
         })
         .collect())
+}
+
+/// PATH 查找可执行文件（PATHEXT 感知；对应 Go exec.LookPath）。
+fn look_path(exe: &str) -> bool {
+    let path_var = std::env::var("PATH").unwrap_or_default();
+    let candidate = |dir: &str, name: &str| -> Vec<std::path::PathBuf> {
+        let p = std::path::Path::new(dir).join(name);
+        if p.is_file() {
+            return vec![p];
+        }
+        #[cfg(windows)]
+        {
+            std::env::var("PATHEXT")
+                .unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".into())
+                .split(';')
+                .filter(|e| !e.is_empty())
+                    .map(|e| std::path::Path::new(dir).join(format!("{name}{e}")))
+                .filter(|p| p.is_file())
+                .collect()
+        }
+        #[cfg(not(windows))]
+        Vec::new()
+    };
+    path_var.split(';').filter(|d| !d.is_empty()).any(|d| !candidate(d, exe).is_empty())
+}
+
+/// NpmAvailable：npm 是否在 PATH 上（对应 Go exec.LookPath("npm")）。
+/// 前端当前未调用，为对齐 Go SystemModule 导出面补齐。
+#[tauri::command]
+pub fn npm_available() -> bool {
+    look_path("npm")
 }
