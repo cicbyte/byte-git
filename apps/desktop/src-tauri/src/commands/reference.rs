@@ -343,6 +343,13 @@ pub fn clear_check_cache() {
     *reference_check_cache().lock().unwrap() = None;
 }
 
+/// ReferenceClearCache：手动清空可用性检测缓存（Go OnClearRefCache 的直调入口）。
+#[tauri::command]
+pub fn reference_clear_cache() -> Result<(), String> {
+    clear_check_cache();
+    Ok(())
+}
+
 /// 解析 reference 可执行文件路径（对齐 Go reference.FindExe）：
 /// 1. config.yaml `reference.exe_path`（须能响应 `reference version`）
 /// 2. PATH 查找（PATHEXT 感知，Windows 下 .exe/.bat/.cmd）

@@ -268,6 +268,10 @@ pub fn run() {
             commands::system::window_maximize,
             commands::system::window_close,
             commands::system::window_is_maximized,
+            // ---- 零豁免补齐（npm 管理/缓存清理/版本文件读取）----
+            commands::system::npm_manage,
+            commands::reference::reference_clear_cache,
+            commands::backup::show_file_at,
         ])
         .run(tauri::generate_context!())
         .expect("byte-git 桌面端启动失败");

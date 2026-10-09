@@ -277,6 +277,10 @@ const SIGNATURES: Record<string, string[]> = {
     WindowMaximize: [],
     WindowClose: [],
     WindowIsMaximized: [],
+    // ---- 零豁免补齐 ----
+    NpmManage: ['action'],
+    ReferenceClearCache: [],
+    ShowFileAt: ['commitRef', 'filePath'],
 }
 
 /** PascalCase/camelCase → snake_case。

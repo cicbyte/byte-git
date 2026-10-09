@@ -28,6 +28,20 @@ fn hide_window(cmd: &mut std::process::Command) {
 #[cfg(not(windows))]
 fn hide_window(_cmd: &mut std::process::Command) {}
 
+/// 阻塞任务挪 std 线程（Tauri async 命令里长 spawn 会卡运行时；
+/// 返回闭包结果本身——闭包体常为 Result<T,String>，调用侧再 `?` 解包）。
+fn run_blocking<T, F>(f: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce() -> T + Send + 'static,
+{
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(f());
+    });
+    rx.recv().map_err(|_| "任务线程异常退出".to_string())
+}
+
 // =====================================================================
 // Settings（前端扁平视图，json tag 对齐 Go SettingsDTO）
 // =====================================================================
@@ -504,4 +518,120 @@ pub fn window_close(app: tauri::AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn window_is_maximized(app: tauri::AppHandle) -> Result<bool, String> {
     main_window(&app)?.is_maximized().map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// npm 管理（Go gui/internal/system/npm.go：安装/卸载/升级 OCR）
+// ---------------------------------------------------------------------------
+
+/// npm.NpmResult 镜像。
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct NpmResultDto {
+    pub ok: bool,
+    pub output: String,
+    /// 解析出的版本（version/latest 场景）
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub version: String,
+}
+
+/// OCR 审查工具的 npm 包名（Go ocrNpmPackage）。
+const OCR_NPM_PACKAGE: &str = "@alibaba-group/open-code-review";
+
+/// 执行 npm 命令：合并 stdout+stderr（npm 把进度/警告写 stderr，拆流会让成功安装看起来空），
+/// CREATE_NO_WINDOW + 超时（GUI 中 npm 可能因 registry 卡死挂起，必须有截止）。
+fn run_npm(timeout: std::time::Duration, args: &[&str]) -> (String, bool) {
+    let mut cmd = std::process::Command::new("npm");
+    cmd.args(args);
+    hide_window(&mut cmd);
+    let Ok(mut child) = cmd
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+    else {
+        return ("npm 不可用（未安装或不在 PATH）".into(), false);
+    };
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let out = child.wait_with_output();
+        let _ = tx.send(out);
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(Ok(out)) => {
+            let mut combined = String::from_utf8_lossy(&out.stdout).into_owned();
+            combined.push_str(&String::from_utf8_lossy(&out.stderr));
+            (combined.trim().to_string(), out.status.success())
+        }
+        Ok(Err(e)) => (format!("npm 执行失败: {e}"), false),
+        Err(_) => ("npm 超时（网络/registry 卡死）".into(), false),
+    }
+}
+
+/// `npm ls -g --json` 输出 → 已安装版本（JSON 解析，不字符串扫描）。
+fn parse_npm_ls_version(json_out: &str) -> String {
+    serde_json::from_str::<serde_json::Value>(json_out)
+        .ok()
+        .and_then(|v| {
+            v.get("dependencies")
+                .and_then(|d| d.get(OCR_NPM_PACKAGE))
+                .and_then(|p| p.get("version"))
+                .and_then(|s| s.as_str())
+                .map(str::to_string)
+        })
+        .unwrap_or_default()
+}
+
+/// NpmManage：install / uninstall / update / version / latest。
+/// 超时对齐 Go：install/update 5min（碰 registry），其余 2min。
+/// 偏差：失败时错误文案带 npm 输出（Go Wails 拒绝时只回 "exit status 1"，信息量更少）。
+#[tauri::command]
+pub async fn npm_manage(action: String) -> Result<NpmResultDto, String> {
+    let two = std::time::Duration::from_secs(120);
+    let five = std::time::Duration::from_secs(300);
+    let run = move || -> Result<NpmResultDto, String> {
+        match action.as_str() {
+            "install" => {
+                let (out, ok) = run_npm(five, &["install", "-g", OCR_NPM_PACKAGE]);
+                if !ok {
+                    return Err(format!("npm install 失败: {out}"));
+                }
+                Ok(NpmResultDto { ok: true, output: out, ..Default::default() })
+            }
+            "uninstall" => {
+                let (out, ok) = run_npm(two, &["uninstall", "-g", OCR_NPM_PACKAGE]);
+                if !ok {
+                    return Err(format!("npm uninstall 失败: {out}"));
+                }
+                Ok(NpmResultDto { ok: true, output: out, ..Default::default() })
+            }
+            "update" => {
+                // npm update -g 跨版本不可靠 → 重装 @latest 强制升级（Go 同）
+                let pkg_latest = format!("{OCR_NPM_PACKAGE}@latest");
+                let (out, ok) = run_npm(five, &["install", "-g", pkg_latest.as_str()]);
+                if !ok {
+                    return Err(format!("npm update 失败: {out}"));
+                }
+                // 回读新装版本，UI 免二次往返
+                let (ver_out, _) = run_npm(two, &["ls", "-g", OCR_NPM_PACKAGE, "--depth=0", "--json"]);
+                Ok(NpmResultDto { ok: true, output: out, version: parse_npm_ls_version(&ver_out) })
+            }
+            "version" => {
+                // npm ls 在包缺席时 exit 1 但 JSON 有效——常态非错误；仅输出不可解析才算真失败
+                let (out, _) = run_npm(two, &["ls", "-g", OCR_NPM_PACKAGE, "--depth=0", "--json"]);
+                let ver = parse_npm_ls_version(&out);
+                if ver.is_empty() && !out.starts_with('{') {
+                    return Err(format!("npm ls 失败: {out}"));
+                }
+                Ok(NpmResultDto { ok: true, output: out, version: ver })
+            }
+            "latest" => {
+                let (out, ok) = run_npm(two, &["view", OCR_NPM_PACKAGE, "version"]);
+                if !ok {
+                    return Err(format!("npm view 失败: {out}"));
+                }
+                Ok(NpmResultDto { ok: true, output: out.clone(), version: out })
+            }
+            other => Err(format!("未知 npm 操作: {other}")),
+        }
+    };
+    run_blocking(run)?
 }

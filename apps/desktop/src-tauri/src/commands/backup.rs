@@ -518,14 +518,11 @@ fn archive_run_impl(repo: &Path, dto: ArchiveOptionsDto) -> Result<ArchiveResult
 
 /// full 模式（对齐 Go archiveFull）：tar/zip 直接打包整个工作区（含 .git），
 /// 不依赖 git archive；尊重 paths 过滤器（相对路径前缀匹配）。
-/// 偏差：zip 容器因 zip crate 在本机构造缺陷暂不支持（tar/tar.gz 完整）。
+/// zip 支持见 zip_write。
 fn archive_full_impl(repo: &Path, dto: ArchiveOptionsDto) -> Result<ArchiveResultDto, String> {
     use std::io::Write;
 
     let format = if dto.format.is_empty() { "tar.gz" } else { dto.format.as_str() };
-    if format == "zip" {
-        return Err("full 模式暂不支持 zip（请用 tar.gz）".into());
-    }
     let ref_ = if dto.ref_.is_empty() { "HEAD" } else { dto.ref_.as_str() };
     let out = if dto.output.is_empty() {
         default_archive_path(repo, &format!("{ref_}-full"), format)?
@@ -543,9 +540,13 @@ fn archive_full_impl(repo: &Path, dto: ArchiveOptionsDto) -> Result<ArchiveResul
     let mut entries: Vec<(PathBuf, PathBuf)> = Vec::new(); // (绝对路径, 相对路径)
     collect_files(&abs, &abs, &dto.paths, &mut entries);
 
-    let f = std::fs::File::create(&out).map_err(|e| format!("创建归档文件失败: {e}"))?;
     let mut file_count: i64 = 0;
-    let mut build = |w: Box<dyn Write>| -> Result<(), String> {
+    if format == "zip" {
+        let mut f = std::fs::File::create(&out).map_err(|e| format!("创建归档文件失败: {e}"))?;
+        file_count = zip_write(&mut f, &entries)?;
+    } else {
+        let f = std::fs::File::create(&out).map_err(|e| format!("创建归档文件失败: {e}"))?;
+        let mut build = |w: Box<dyn Write>| -> Result<(), String> {
         let mut tar = tar::Builder::new(w);
         for (abs_p, rel_p) in &entries {
             let meta = std::fs::metadata(abs_p).map_err(|e| format!("读取 {}: {e}", rel_p.display()))?;
@@ -581,6 +582,7 @@ fn archive_full_impl(repo: &Path, dto: ArchiveOptionsDto) -> Result<ArchiveResul
         "tar" => build(Box::new(f))?,
         _ => build(Box::new(flate2::write::GzEncoder::new(f, flate2::Compression::default())))?,
     }
+    }
 
     let size = std::fs::metadata(&out).map(|m| m.len() as i64).unwrap_or(0);
     Ok(ArchiveResultDto {
@@ -589,6 +591,115 @@ fn archive_full_impl(repo: &Path, dto: ArchiveOptionsDto) -> Result<ArchiveResul
         file_count,
         mode: "full".into(),
     })
+}
+
+/// 手写 zip 写入器：local file header + 数据 + central directory + EOCD。
+/// 文件走 DEFLATE（flate2，方法 8），目录走 STORED（方法 0，零长度）；
+/// 名称置 UTF-8 位（0x0800），路径 `/` 分隔，目录名尾 `/`。
+/// 绕开 zip crate 2.3/2.4 的 deflate-flate2 feature 打包缺陷。
+/// 返回文件数（目录不计）。
+fn zip_write<W: std::io::Write>(w: &mut W, entries: &[(PathBuf, PathBuf)]) -> Result<i64, String> {
+    use std::io::Write as _;
+
+    use chrono::{Datelike, Timelike};
+    let now = chrono::Local::now();
+    let year = now.year().max(1980);
+    let dos_time = ((now.hour() as u16) << 11) | ((now.minute() as u16) << 5) | (now.second() as u16 / 2);
+    let dos_date = (((year - 1980) as u16) << 9) | ((now.month() as u16) << 5) | now.day() as u16;
+
+    let mut offset: u32 = 0;
+    let mut central: Vec<u8> = Vec::new();
+    let mut total_entries: u16 = 0;
+    let mut file_count: i64 = 0;
+
+    let wr = |w: &mut W, buf: &[u8]| -> Result<(), String> {
+        w.write_all(buf).map_err(|e| format!("写入归档失败: {e}"))
+    };
+
+    for (abs_p, rel_p) in entries {
+        let meta = std::fs::metadata(abs_p).map_err(|e| format!("读取 {}: {e}", rel_p.display()))?;
+        let is_dir = meta.is_dir();
+        let mut name = rel_p.display().to_string().replace('\\', "/");
+        let (method, payload, crc32v, uncomp) = if is_dir {
+            name.push('/');
+            (0u16, Vec::new(), 0u32, 0u32)
+        } else {
+            let raw = std::fs::read(abs_p).map_err(|e| format!("读取 {}: {e}", rel_p.display()))?;
+            let mut crc = flate2::Crc::new();
+            crc.update(&raw);
+            let mut enc = flate2::write::DeflateEncoder::new(
+                Vec::new(),
+                flate2::Compression::default(),
+            );
+            enc.write_all(&raw).map_err(|e| format!("压缩失败: {e}"))?;
+            let comp = enc.finish().map_err(|e| format!("压缩失败: {e}"))?;
+            let uncomp = raw.len() as u32;
+            (8u16, comp, crc.sum(), uncomp)
+        };
+        let comp_len = payload.len() as u32;
+
+        // ---- local file header（PK\x03\x04）----
+        let lfh_off = offset;
+        let mut lfh: Vec<u8> = Vec::with_capacity(30 + name.len());
+        lfh.extend_from_slice(&0x0403_4b50u32.to_le_bytes()); // 签名
+        lfh.extend_from_slice(&20u16.to_le_bytes()); // 版本需求 2.0
+        lfh.extend_from_slice(&0x0800u16.to_le_bytes()); // UTF-8 名称
+        lfh.extend_from_slice(&method.to_le_bytes());
+        lfh.extend_from_slice(&dos_time.to_le_bytes());
+        lfh.extend_from_slice(&dos_date.to_le_bytes());
+        lfh.extend_from_slice(&crc32v.to_le_bytes());
+        lfh.extend_from_slice(&comp_len.to_le_bytes());
+        lfh.extend_from_slice(&uncomp.to_le_bytes());
+        lfh.extend_from_slice(&(name.len() as u16).to_le_bytes());
+        lfh.extend_from_slice(&0u16.to_le_bytes()); // extra 长度
+        lfh.extend_from_slice(name.as_bytes());
+        wr(w, &lfh)?;
+        wr(w, &payload)?;
+        offset += (lfh.len() as u32).wrapping_add(comp_len);
+
+        // ---- central directory 记录（PK\x01\x02，先攒后写）----
+        let ext_attrs: u32 = if is_dir { 0x10 } else { 0o100_644 << 16 };
+        let mut cd: Vec<u8> = Vec::with_capacity(46 + name.len());
+        cd.extend_from_slice(&0x0201_4b50u32.to_le_bytes());
+        cd.extend_from_slice(&20u16.to_le_bytes()); // 制作版本
+        cd.extend_from_slice(&20u16.to_le_bytes()); // 需求版本
+        cd.extend_from_slice(&0x0800u16.to_le_bytes());
+        cd.extend_from_slice(&method.to_le_bytes());
+        cd.extend_from_slice(&dos_time.to_le_bytes());
+        cd.extend_from_slice(&dos_date.to_le_bytes());
+        cd.extend_from_slice(&crc32v.to_le_bytes());
+        cd.extend_from_slice(&comp_len.to_le_bytes());
+        cd.extend_from_slice(&uncomp.to_le_bytes());
+        cd.extend_from_slice(&(name.len() as u16).to_le_bytes());
+        cd.extend_from_slice(&0u16.to_le_bytes()); // extra
+        cd.extend_from_slice(&0u16.to_le_bytes()); // comment
+        cd.extend_from_slice(&0u16.to_le_bytes()); // 起始盘号
+        cd.extend_from_slice(&0u16.to_le_bytes()); // 内部属性
+        cd.extend_from_slice(&ext_attrs.to_le_bytes());
+        cd.extend_from_slice(&lfh_off.to_le_bytes());
+        cd.extend_from_slice(name.as_bytes());
+        central.extend_from_slice(&cd);
+
+        total_entries = total_entries.wrapping_add(1);
+        if !is_dir {
+            file_count += 1;
+        }
+    }
+
+    // ---- central directory + EOCD（PK\x05\x06）----
+    let cd_off = offset;
+    wr(w, &central)?;
+    let mut eocd: Vec<u8> = Vec::with_capacity(22);
+    eocd.extend_from_slice(&0x0605_4b50u32.to_le_bytes());
+    eocd.extend_from_slice(&0u16.to_le_bytes()); // 当前盘
+    eocd.extend_from_slice(&0u16.to_le_bytes()); // central 目录起始盘
+    eocd.extend_from_slice(&total_entries.to_le_bytes());
+    eocd.extend_from_slice(&total_entries.to_le_bytes());
+    eocd.extend_from_slice(&(central.len() as u32).to_le_bytes());
+    eocd.extend_from_slice(&cd_off.to_le_bytes());
+    eocd.extend_from_slice(&0u16.to_le_bytes()); // comment 长度
+    wr(w, &eocd)?;
+    Ok(file_count)
 }
 
 /// 递归收集（含隐藏目录与 .git；paths 空 = 全收；否则按相对路径前缀过滤）。
@@ -1021,6 +1132,24 @@ pub fn log_fetch(repo: String, limit: i64, before: String) -> Result<Vec<LogComm
     Ok(parse_log_output(&res.stdout))
 }
 
+/// Go LogModule.ShowFileAt 的三值返回镜像。
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct ShowFileAtResult {
+    pub content: String,
+    pub binary: bool,
+    /// ref:path 在该版本不存在时为 false（非错误）
+    pub ok: bool,
+}
+
+/// ShowFileAt：读文件在某 commit（或 commit^）处的内容（Wails 绑定入口）。
+/// 二进制探测/截断与 ReadFileAtCommit 同逻辑；ok=false = ref:path 不存在。
+#[tauri::command]
+pub fn show_file_at(commit_ref: String, file_path: String, repo: Option<String>) -> Result<ShowFileAtResult, String> {
+    let repo = repo_path(repo);
+    let r = file_at_content(&repo, &commit_ref, &file_path);
+    Ok(ShowFileAtResult { content: r.content, binary: r.binary, ok: r.ok })
+}
+
 /// LogFetchByDate returns all commits on the given calendar day ("YYYY-MM-DD")
 /// ——统计热力图按天钻取用。显式 "00:00:00" 时间戳窗口（裸日期跨 git
 /// 版本/时区解析不一致，可能漏掉当天晚间的提交）。
@@ -1147,9 +1276,9 @@ struct FileAt {
     ok: bool,
 }
 
-/// ShowFileAt：读取文件在某个 ref（commit 或 commit^）的内容，
+/// ShowFileAt 的内部实现：读取文件在某个 ref（commit 或 commit^）的内容，
 /// 复用 ReadFileAtCommit 的二进制/截断逻辑；失败仅表示不存在。
-fn show_file_at(repo: &Path, commit_ref: &str, file_path: &str) -> FileAt {
+fn file_at_content(repo: &Path, commit_ref: &str, file_path: &str) -> FileAt {
     let spec = format!("{commit_ref}:{file_path}");
     let res = git_exec(repo, &["show", spec.as_str()], LOG_TIMEOUT);
     if !res.success {
@@ -1211,7 +1340,7 @@ pub fn commit_file_diff(
     }
 
     // after = commit 版本内容
-    let after = show_file_at(&repo, &commit, &file_path);
+    let after = file_at_content(&repo, &commit, &file_path);
     if after.binary {
         res.binary = true;
         return Ok(res);
@@ -1222,7 +1351,7 @@ pub fn commit_file_diff(
 
     // before = commit^（父版本）内容；纯新增文件父版本不存在
     let parent = format!("{commit}^");
-    let before = show_file_at(&repo, &parent, &file_path);
+    let before = file_at_content(&repo, &parent, &file_path);
     if before.binary {
         res.binary = true;
         return Ok(res);
@@ -1301,5 +1430,51 @@ mod tests {
         let _ = std::fs::remove_dir_all(&repo);
         let _ = std::fs::remove_file(&out);
         let _ = std::fs::remove_file(&out2);
+    }
+
+    /// full 模式 zip：手写写入器产物能被 Windows 原生解包（Expand-Archive）
+    #[test]
+    #[cfg(windows)]
+    fn archive_full_zip() {
+        let repo = temp_repo("zip");
+        std::fs::write(repo.join("hello.txt"), "zip roundtrip 内容").unwrap();
+        std::fs::create_dir(repo.join("d")).unwrap();
+        std::fs::write(repo.join("d").join("b.bin"), vec![0u8; 1024]).unwrap();
+
+        let out = repo.parent().unwrap().join("bg-arch-zip-out.zip");
+        let res = archive_full_impl(
+            &repo,
+            ArchiveOptionsDto {
+                mode: "full".into(),
+                format: "zip".into(),
+                output: out.display().to_string(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(res.mode, "full");
+        assert_eq!(res.file_count, 2);
+        assert!(out.exists());
+
+        // Windows 原生解包验证
+        let dst = repo.parent().unwrap().join("bg-arch-zip-dst");
+        let ps = format!(
+            "Expand-Archive -LiteralPath '{}' -DestinationPath '{}' -Force",
+            out.display(),
+            dst.display()
+        );
+        let st = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", &ps])
+            .output()
+            .expect("spawn powershell");
+        assert!(st.status.success(), "Expand-Archive 失败: {}", String::from_utf8_lossy(&st.stderr));
+        let txt = std::fs::read_to_string(dst.join("hello.txt")).unwrap();
+        assert_eq!(txt, "zip roundtrip 内容");
+        let bin = std::fs::read(dst.join("d").join("b.bin")).unwrap();
+        assert_eq!(bin.len(), 1024);
+
+        let _ = std::fs::remove_dir_all(&repo);
+        let _ = std::fs::remove_file(&out);
+        let _ = std::fs::remove_dir_all(&dst);
     }
 }
