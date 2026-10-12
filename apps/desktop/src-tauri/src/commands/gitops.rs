@@ -12,10 +12,8 @@
 //! 状态 → "."）。命名 stash 前缀沿用 byte-git 全仓统一的
 //! "byte-git-stash:"（Go 侧为 "git-mate-stash:"），保证 GUI 与 CLI 互认。
 
-use byte_git_core::hook::{self as core_hook, InstallOptions, HOOK_NAMES};
-use byte_git_core::util::git_dir;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use byte_git_core::hook::{self as core_hook};
+use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -233,11 +231,14 @@ pub struct TagDto {
 pub struct HookDto {
     pub name: String,
     pub enabled: bool,
-    /// lua / script / sample（完全空置的槽位为 ""）
+    /// shell / python / node / script / sample（完全空置的槽位为 ""）
     #[serde(rename = "type")]
     pub ty: String,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub source: String,
+    /// local / global
+    #[serde(default)]
+    pub scope: String,
 }
 
 /// Hook 执行结果（对应 Go hook.ExecResult）。
@@ -712,117 +713,105 @@ pub async fn tag_push(remote: String, names: Vec<String>, repo: Option<String>) 
 }
 
 // ---------------------------------------------------------------------------
-// Hook（hook.go —— core::hook 复用 + Go GUI 语义本地实现）
+// Hook（上游 03915e0 后：shebang 统一，core::hook::list_hooks 等复用）
 // ---------------------------------------------------------------------------
 
-/// 读取 `.git/byte-git/config.json` 的 hooks 配置（name → (type, source)）。
-/// 文件缺失 / 损坏按空配置处理（对应 Go ListHooks 对 loadConfig 错误的忽略）。
-fn load_hook_config(repo: &Path) -> HashMap<String, (String, String)> {
-    #[derive(Deserialize)]
-    struct RawConfig {
-        #[serde(default)]
-        hooks: HashMap<String, RawEntry>,
-    }
-    #[derive(Deserialize)]
-    struct RawEntry {
-        #[serde(rename = "type")]
-        ty: String,
-        #[serde(default)]
-        source: String,
-    }
-    let Ok(dir) = git_dir(repo) else { return HashMap::new() };
-    let Ok(data) = std::fs::read_to_string(dir.join("byte-git").join("config.json")) else {
-        return HashMap::new();
-    };
-    match serde_json::from_str::<RawConfig>(&data) {
-        Ok(cfg) => cfg.hooks.into_iter().map(|(k, v)| (k, (v.ty, v.source))).collect(),
-        Err(_) => HashMap::new(),
-    }
-}
-
-/// HookList returns all 21 hook slots with their status.
-/// （core::hook::list 会跳过完全空置的槽位，Go GUI 返回全部 21 槽位，
-/// 故按 Go 语义在 GUI 侧本地实现。）
+/// HookList：按作用域返回全部 21 个固定槽位（core.hooksPath 感知）。
+/// global 未配置时返回空列表，前端引导配置。
 #[tauri::command]
-pub fn hook_list(repo: Option<String>) -> Result<Vec<HookDto>, String> {
+pub fn hook_list(scope: String, repo: Option<String>) -> Result<Vec<HookDto>, String> {
     let repo = repo_path(repo);
-    let hooks_dir = git_dir(&repo)
-        .map_err(|e| format!("解析 hooks 目录失败: {e}"))?
-        .join("hooks");
-    let cfg = load_hook_config(&repo);
-    let mut result = Vec::new();
-    for name in HOOK_NAMES {
-        let hook_path = hooks_dir.join(name);
-        let sample_path = hooks_dir.join(format!("{name}.sample"));
-        let mut h = HookDto {
-            name: (*name).to_string(),
-            enabled: false,
-            ty: String::new(),
-            source: String::new(),
-        };
-        if let Some((ty, source)) = cfg.get(*name) {
-            h.enabled = true;
-            h.ty = ty.clone();
-            h.source = source.clone();
-        } else if hook_path.is_file() {
-            h.enabled = true;
-            h.ty = "script".into();
-        } else if sample_path.is_file() {
-            h.ty = "sample".into();
-        }
-        // Go 语义：无论是否空置，21 个槽位全部返回
-        result.push(h);
-    }
-    Ok(result)
+    core_hook::list_hooks(&repo, &scope)
+        .map(|list| {
+            list.into_iter()
+                .map(|h| HookDto {
+                    name: h.name,
+                    enabled: h.enabled,
+                    ty: h.ty,
+                    source: h.source,
+                    scope: h.scope,
+                })
+                .collect()
+        })
+        .map_err(|e| e.to_string())
 }
 
-/// HookInstallLua installs a Lua hook: saves the script content and creates
-/// the .git/hooks/<name> wrapper（save_lua_script + install 组合）。
-/// scriptContent 为完整 Lua 源码。
+/// HookInstallScript：按语言（shell/python/node）写内容到作用域 hooks 目录，
+/// git 经 shebang 原生执行（上游 03915e0 后统一机制，Lua 路径已移除）。
 #[tauri::command]
-pub fn hook_install_lua(name: String, script_content: String, repo: Option<String>) -> Result<(), String> {
+pub fn hook_install_script(
+    name: String,
+    lang: String,
+    script_content: String,
+    scope: String,
+    repo: Option<String>,
+) -> Result<(), String> {
     let repo = repo_path(repo);
-    // 先保存脚本到 .git/byte-git/hook-scripts/<name>.lua
-    let script_path = core_hook::save_lua_script(&repo, &name, &script_content)
-        .map_err(|e| e.to_string())?;
-    // 复用 core 的安装机制：写 .git/hooks/<name> wrapper + 记录配置
-    core_hook::install(
-        &repo,
-        &InstallOptions {
-            hook_name: name,
-            lua_file: script_path.display().to_string(),
-            script: String::new(),
-        },
-    )
-    .map_err(|e| e.to_string())
+    core_hook::install_script(&repo, &name, &lang, &script_content, &scope).map_err(|e| e.to_string())
 }
 
-/// HookRemove uninstalls a hook (deletes .git/hooks/<name> + config entry).
+/// HookRemove：按作用域卸载钩子（文件 + 对应配置项）。
 #[tauri::command]
-pub fn hook_remove(name: String, repo: Option<String>) -> Result<(), String> {
+pub fn hook_remove(name: String, scope: String, repo: Option<String>) -> Result<(), String> {
     let repo = repo_path(repo);
-    core_hook::remove(&repo, &name).map_err(|e| e.to_string())
+    core_hook::remove(&repo, &name, &scope).map_err(|e| e.to_string())
 }
 
-/// HookReadScript reads the Lua source content for an installed hook.
-/// Returns empty string if the hook is not installed as Lua.
+/// HookReadScript：读取作用域目录内钩子脚本内容；
+/// 未配置/文件不存在 → 空串（前端回落模板）。
 #[tauri::command]
-pub fn hook_read_script(name: String, repo: Option<String>) -> Result<String, String> {
+pub fn hook_read_script(name: String, scope: String, repo: Option<String>) -> Result<String, String> {
     let repo = repo_path(repo);
-    core_hook::read_lua_script(&repo, &name).map_err(|e| e.to_string())
+    Ok(core_hook::read_script(&repo, &name, &scope))
 }
 
-/// HookExec runs the Lua hook for testing and returns the result.
+/// HookExec：测试执行钩子（直接 spawn hook 文件，shebang 原生机制）。
+/// 失败不报错，以 ExecResult 反映（对齐上游）。
 #[tauri::command]
-pub fn hook_exec(name: String, repo: Option<String>) -> Result<HookExecResultDto, String> {
+pub fn hook_exec(name: String, scope: String, repo: Option<String>) -> Result<HookExecResultDto, String> {
     let repo = repo_path(repo);
     let no_args: Vec<String> = Vec::new();
-    let r = core_hook::exec(&repo, &name, &no_args).map_err(|e| e.to_string())?;
+    let r = core_hook::exec(&repo, &name, &scope, &no_args).map_err(|e| e.to_string())?;
     Ok(HookExecResultDto {
         exit_code: r.exit_code,
         output: r.output,
         error: r.error,
     })
+}
+
+/// HookConfigInfo 的 DTO（core.hooksPath 配置面板）。
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct HookConfigInfoDto {
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub hooks_path_local: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub hooks_path_global: String,
+    pub hooks_path_effective: String,
+    pub default_hooks_dir: String,
+    pub has_local_hooks_path: bool,
+    pub has_global_hooks_path: bool,
+}
+
+/// HookConfigInfo：core.hooksPath 的 local/global/effective 全貌。
+#[tauri::command]
+pub fn hook_config_info(repo: Option<String>) -> Result<HookConfigInfoDto, String> {
+    let repo = repo_path(repo);
+    let i = core_hook::config_info(&repo);
+    Ok(HookConfigInfoDto {
+        hooks_path_local: i.hooks_path_local,
+        hooks_path_global: i.hooks_path_global,
+        hooks_path_effective: i.hooks_path_effective,
+        default_hooks_dir: i.default_hooks_dir,
+        has_local_hooks_path: i.has_local_hooks_path,
+        has_global_hooks_path: i.has_global_hooks_path,
+    })
+}
+
+/// HookSetHooksPath：设置（空值=清除）core.hooksPath。scope = local/global。
+#[tauri::command]
+pub fn hook_set_hooks_path(scope: String, value: String, repo: Option<String>) -> Result<(), String> {
+    let repo = repo_path(repo);
+    core_hook::set_hooks_path(&repo, &scope, &value).map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------

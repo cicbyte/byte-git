@@ -1,13 +1,18 @@
-//! Git 钩子管理：Lua 脚本钩子（wrapper 指向本程序 `hook exec`）与普通脚本钩子。
+//! Git 钩子管理：shebang 脚本钩子（shell/python/node，git 原生机制直执行）。
 //!
-//! 移植自 git-mate `internal/hook`（hook.go + exec.go）。
-//! 配置落盘 `.git/byte-git/config.json`。
+//! 对齐上游 git-mate `internal/hook`（03915e0 移除 Lua 后版本）：
+//! - 21 个固定钩子槽位（自定义槽位已移除）
+//! - local/global 双作用域（core.hooksPath 配置感知）
+//! - Exec 统一直接执行 hook 文件（shebang），无内嵌语言运行时
+//! - 配置落盘 `.git/byte-git/config.json`（仓库级）与 AppDir `hooks.json`（全局）
+//! - clone 代理规则的 Lua 引擎不受影响（mlua 仍由 clone 域使用）
 
-use crate::util::{git_dir, repo_data_dir};
+use crate::util::{git_dir, repo_data_dir, run_capture, AppPaths};
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+/// git 内置钩子槽位（上游固定 21 个）。
 pub const HOOK_NAMES: &[&str] = &[
     "applypatch-msg", "commit-msg", "fsmonitor-watchman",
     "post-applypatch", "post-checkout", "post-commit",
@@ -19,22 +24,36 @@ pub const HOOK_NAMES: &[&str] = &[
     "update",
 ];
 
+// hook type 常量（对齐上游收敛后的字面量）
+pub const TYPE_SHELL: &str = "shell";
+pub const TYPE_PYTHON: &str = "python";
+pub const TYPE_NODE: &str = "node";
+pub const TYPE_SAMPLE: &str = "sample";
+pub const TYPE_SCRIPT: &str = "script";
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Hook {
     pub name: String,
     #[serde(default)]
     pub enabled: bool,
-    #[serde(default)]
-    pub r#type: String,
+    #[serde(rename = "type", default)]
+    pub ty: String,
     #[serde(default)]
     pub source: String,
+    /// "local" | "global"
+    #[serde(default)]
+    pub scope: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct HookEntry {
     #[serde(rename = "type")]
     ty: String,
+    #[serde(default)]
     source: String,
+    /// 脚本语言（shell/python/node）
+    #[serde(default)]
+    lang: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -43,31 +62,153 @@ struct HookConfig {
     hooks: std::collections::HashMap<String, HookEntry>,
 }
 
-fn hooks_dir(repo: &Path) -> Result<PathBuf> {
-    Ok(git_dir(repo)?.join("hooks"))
+// ---------------------------------------------------------------------------
+// 钩子名称校验（Windows 共享 hooks 目录的文件名安全）
+// ---------------------------------------------------------------------------
+
+/// 校验钩子名可安全用作 hooks 目录下的文件名（非空、无路径分隔、仅字母数字-_\.）。
+pub fn validate_hook_name(name: &str) -> Result<()> {
+    if name.is_empty() {
+        bail!("hook 名称为空");
+    }
+    if name.contains('/') || name.contains('\\') || name.contains("..") {
+        bail!("hook 名称含有非法字符（不允许 / \\ 或 ..）");
+    }
+    if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.') {
+        bail!("hook 名称含非法字符（仅允许字母、数字、- _ .）");
+    }
+    Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// hooks 目录解析（core.hooksPath 感知）
+// ---------------------------------------------------------------------------
+
+/// git config 单层读取：`git config --<layer> --get <key>`；未设置返回 None。
+fn config_get_layered(layer: &str, repo: &Path, key: &str) -> Option<String> {
+    let args: Vec<String> = vec![
+        "config".into(), format!("--{layer}"), "--get".into(), key.into(),
+    ];
+    let refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    run_capture(repo, refs).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+}
+
+/// 绝对化：相对路径 local 按 repo、global 按 $HOME 解析（对齐上游）。
+fn absolutize(hp: String, base: &Path) -> PathBuf {
+    let p = PathBuf::from(&hp);
+    if p.is_absolute() { p } else { base.join(&hp) }
+}
+
+/// git 实际使用的 hooks 目录 + 来源作用域：
+/// local core.hooksPath > global core.hooksPath > `<gitdir>/hooks`（local）。
+pub fn hooks_dir_with_scope(repo: &Path) -> Result<(PathBuf, String)> {
+    if let Some(hp) = config_get_layered("local", repo, "core.hooksPath") {
+        return Ok((absolutize(hp, repo), "local".into()));
+    }
+    if let Some(hp) = config_get_layered("global", repo, "core.hooksPath") {
+        let home = std::env::var("USERPROFILE")
+            .or_else(|_| std::env::var("HOME"))
+            .unwrap_or_default();
+        return Ok((absolutize(hp, Path::new(&home)), "global".into()));
+    }
+    Ok((git_dir(repo)?.join("hooks"), "local".into()))
+}
+
+/// 忽略作用域的兼容包装（CLI 合并视图用）。
+pub fn hooks_dir(repo: &Path) -> Result<PathBuf> {
+    Ok(hooks_dir_with_scope(repo)?.0)
+}
+
+/// global 层 hooks 目录（未设置返回空路径）。
+fn global_hooks_dir(repo: &Path) -> PathBuf {
+    match config_get_layered("global", repo, "core.hooksPath") {
+        Some(hp) => {
+            let home = std::env::var("USERPROFILE")
+                .or_else(|_| std::env::var("HOME"))
+                .unwrap_or_default();
+            absolutize(hp, Path::new(&home))
+        }
+        None => PathBuf::new(),
+    }
+}
+
+/// local 层 hooks 目录（local core.hooksPath 或默认 `<gitdir>/hooks`）。
+fn local_hooks_dir(repo: &Path) -> PathBuf {
+    match config_get_layered("local", repo, "core.hooksPath") {
+        Some(hp) => absolutize(hp, repo),
+        None => git_dir(repo).map(|gd| gd.join("hooks")).unwrap_or_default(),
+    }
+}
+
+/// 按作用域取 hooks 目录。global 未配置时报错（前端引导去配置）。
+pub fn hooks_dir_for_scope(repo: &Path, scope: &str) -> Result<PathBuf> {
+    if scope == "global" {
+        let dir = global_hooks_dir(repo);
+        if dir.as_os_str().is_empty() {
+            bail!("全局 core.hooksPath 未设置，请在「Git 配置 → Hook」页配置");
+        }
+        return Ok(dir);
+    }
+    let dir = local_hooks_dir(repo);
+    if dir.as_os_str().is_empty() {
+        bail!("无法确定仓库 hooks 目录");
+    }
+    Ok(dir)
+}
+
+// ---------------------------------------------------------------------------
+// 配置存取（仓库级 config.json / 全局 hooks.json）
+// ---------------------------------------------------------------------------
 
 fn config_path(repo: &Path) -> Result<PathBuf> {
     Ok(repo_data_dir(repo)?.join("config.json"))
 }
 
+fn global_config_path() -> Result<PathBuf> {
+    Ok(AppPaths::new().context("定位应用目录失败")?.root().join("hooks.json"))
+}
+
+fn parse_config(data: &str) -> HookConfig {
+    serde_json::from_str(data).unwrap_or_default()
+}
+
 fn load_config(repo: &Path) -> Result<HookConfig> {
     let path = config_path(repo)?;
     match std::fs::read_to_string(&path) {
-        Ok(data) => serde_json::from_str(&data).with_context(|| format!("解析失败: {}", path.display())),
+        Ok(data) => Ok(parse_config(&data)),
         Err(_) => Ok(HookConfig::default()),
     }
 }
 
 fn save_config(repo: &Path, cfg: &HookConfig) -> Result<()> {
     let path = config_path(repo)?;
-    crate::util::AppPaths::ensure_dir(path.parent().unwrap())?;
+    AppPaths::ensure_dir(path.parent().unwrap())?;
     std::fs::write(&path, serde_json::to_string_pretty(cfg)?)
-        .with_context(|| format!("写入失败: {}", path.display()))?;
-    Ok(())
+        .with_context(|| format!("写入失败: {}", path.display()))
 }
 
-/// 列出所有钩子槽位状态（启用/禁用/样例）。
+fn load_global_config() -> HookConfig {
+    let Ok(path) = global_config_path() else { return HookConfig::default() };
+    match std::fs::read_to_string(&path) {
+        Ok(data) => parse_config(&data),
+        Err(_) => HookConfig::default(),
+    }
+}
+
+fn save_global_config(cfg: &HookConfig) -> Result<()> {
+    let path = global_config_path()?;
+    if let Some(parent) = path.parent() {
+        AppPaths::ensure_dir(parent)?;
+    }
+    std::fs::write(&path, serde_json::to_string_pretty(cfg)?)
+        .with_context(|| format!("写入失败: {}", path.display()))
+}
+
+// ---------------------------------------------------------------------------
+// 列表（CLI 合并视图 + GUI 双作用域视图）
+// ---------------------------------------------------------------------------
+
+/// CLI：按 git 实际生效目录列出（上游 List 语义）。
 pub fn list(repo: &Path) -> Result<Vec<Hook>> {
     let dir = hooks_dir(repo)?;
     let cfg = load_config(repo).unwrap_or_default();
@@ -78,13 +219,13 @@ pub fn list(repo: &Path) -> Result<Vec<Hook>> {
         let mut h = Hook { name: name.to_string(), ..Default::default() };
         if let Some(entry) = cfg.hooks.get(*name) {
             h.enabled = true;
-            h.r#type = entry.ty.clone();
+            h.ty = entry.ty.clone();
             h.source = entry.source.clone();
         } else if hook_path.is_file() {
             h.enabled = true;
-            h.r#type = "script".into();
+            h.ty = TYPE_SCRIPT.into();
         } else if sample.is_file() {
-            h.r#type = "sample".into();
+            h.ty = TYPE_SAMPLE.into();
         } else {
             continue;
         }
@@ -102,18 +243,57 @@ pub fn print_list(repo: &Path) -> Result<()> {
     println!("{:<22} {:<6} {}", "钩子", "状态", "类型");
     println!("{}", "-".repeat(40));
     for h in &hooks {
-        println!("{:<22} {:<6} {}", h.name, if h.enabled { "启用" } else { "禁用" }, h.r#type);
+        println!("{:<22} {:<6} {}", h.name, if h.enabled { "启用" } else { "禁用" }, h.ty);
     }
     Ok(())
 }
 
+/// GUI：按作用域列出全部 21 个槽位（含未启用空槽）。
+/// 作用域未配置（如 global hooksPath 未设置）返回空列表，前端引导配置。
+pub fn list_hooks(repo: &Path, scope: &str) -> Result<Vec<Hook>> {
+    let scope = if scope.is_empty() { "local" } else { scope };
+    let dir = match hooks_dir_for_scope(repo, scope) {
+        Ok(d) => d,
+        Err(_) => return Ok(Vec::new()),
+    };
+    let cfg_hooks = if scope == "global" {
+        load_global_config().hooks
+    } else {
+        load_config(repo).map(|c| c.hooks).unwrap_or_default()
+    };
+
+    let mut hooks = Vec::new();
+    for name in HOOK_NAMES {
+        let hook_path = dir.join(name);
+        let sample = dir.join(format!("{name}.sample"));
+        let mut h = Hook { name: name.to_string(), scope: scope.into(), ..Default::default() };
+        if let Some(entry) = cfg_hooks.get(*name) {
+            h.enabled = true;
+            h.ty = entry.ty.clone();
+            h.source = entry.source.clone();
+        } else if hook_path.is_file() {
+            h.enabled = true;
+            h.ty = detect_lang(&hook_path);
+        } else if sample.is_file() {
+            h.ty = TYPE_SAMPLE.into();
+        }
+        hooks.push(h);
+    }
+    Ok(hooks)
+}
+
+// ---------------------------------------------------------------------------
+// 安装/移除/读取/执行
+// ---------------------------------------------------------------------------
+
 #[derive(Debug, Clone, Default)]
 pub struct InstallOptions {
     pub hook_name: String,
-    pub lua_file: String,
+    /// 脚本文件路径（shebang 驱动：shell/python/node）
     pub script: String,
 }
 
+/// CLI 安装：从脚本文件复制到 hooks 目录（上游 Install 语义）。
 pub fn install(repo: &Path, opts: &InstallOptions) -> Result<()> {
     if !HOOK_NAMES.contains(&opts.hook_name.as_str()) {
         bail!("未知钩子: {}（见 hook list）", opts.hook_name);
@@ -123,55 +303,84 @@ pub fn install(repo: &Path, opts: &InstallOptions) -> Result<()> {
     if hook_path.is_file() {
         bail!("钩子 {} 已存在，请先 hook remove", opts.hook_name);
     }
-    crate::util::AppPaths::ensure_dir(&dir)?;
-
-    if !opts.lua_file.is_empty() {
-        let abs = std::fs::canonicalize(&opts.lua_file)
-            .map_err(|_| anyhow::anyhow!("Lua 文件不存在: {}", opts.lua_file))?;
-        let exe = std::env::current_exe()
-            .map(|p| p.to_string_lossy().replace('/', "\\"))
-            .context("获取可执行文件路径失败")?;
-
-        // wrapper: .git/hooks/<name> → exec <本程序> hook exec <name> "$@"
-        let content = format!("#!/bin/sh\nexec \"{exe}\" hook exec {} \"$@\"\n", opts.hook_name);
-        std::fs::write(&hook_path, content).context("创建钩子失败")?;
-
-        let mut cfg = load_config(repo).unwrap_or_default();
-        cfg.hooks.insert(opts.hook_name.clone(), HookEntry {
-            ty: "lua".into(),
-            source: abs.to_string_lossy().into_owned(),
-        });
-        save_config(repo, &cfg)?;
-        println!("已安装 Lua 钩子: {} → {}", opts.hook_name, abs.display());
-        Ok(())
-    } else if !opts.script.is_empty() {
+    AppPaths::ensure_dir(&dir)?;
+    if !opts.script.is_empty() {
         let src = std::fs::read(&opts.script).with_context(|| format!("读取脚本失败: {}", opts.script))?;
         std::fs::write(&hook_path, src).context("安装钩子失败")?;
         println!("已安装脚本钩子: {}", opts.hook_name);
-        Ok(())
-    } else {
-        bail!("请指定 --lua <file> 或 --script <file>")
+        return Ok(());
     }
+    bail!("请指定 --script <file>")
 }
 
-pub fn remove(repo: &Path, name: &str) -> Result<()> {
-    let hook_path = hooks_dir(repo)?.join(name);
+/// 按作用域移除钩子（文件 + 对应配置项）。
+pub fn remove(repo: &Path, name: &str, scope: &str) -> Result<()> {
+    let dir = hooks_dir_for_scope(repo, scope)?;
+    let hook_path = dir.join(name);
     if !hook_path.exists() {
         bail!("钩子 {name} 不存在");
     }
     std::fs::remove_file(&hook_path).context("删除钩子失败")?;
-    let mut cfg = load_config(repo).unwrap_or_default();
-    cfg.hooks.remove(name);
-    save_config(repo, &cfg)?;
+    if scope == "global" {
+        let mut g = load_global_config();
+        g.hooks.remove(name);
+        save_global_config(&g)?;
+    } else {
+        let mut cfg = load_config(repo)?;
+        cfg.hooks.remove(name);
+        save_config(repo, &cfg)?;
+    }
     println!("已移除钩子: {name}");
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// exec：执行 Lua 钩子
-// ---------------------------------------------------------------------------
+/// 读首行 shebang 判定脚本语言；无识别 shebang 回落 "script"。
+pub fn detect_lang(path: &Path) -> String {
+    let Ok(mut f) = std::fs::File::open(path) else { return TYPE_SCRIPT.into() };
+    use std::io::Read;
+    let mut buf = [0u8; 256];
+    let n = f.read(&mut buf).unwrap_or(0);
+    let first_line = String::from_utf8_lossy(&buf[..n]);
+    let first_line = first_line.split('\n').next().unwrap_or("");
+    if first_line.contains("python") {
+        TYPE_PYTHON.into()
+    } else if first_line.contains("node") {
+        TYPE_NODE.into()
+    } else if first_line.contains("/sh") || first_line.contains("/bash") || first_line.contains("/zsh") {
+        TYPE_SHELL.into()
+    } else {
+        TYPE_SCRIPT.into()
+    }
+}
 
-#[derive(Debug, Clone, serde::Serialize)]
+/// GUI 安装：按语言直接写内容到作用域 hooks 目录（git 经 shebang 执行）。
+pub fn install_script(repo: &Path, hook_name: &str, lang: &str, content: &str, scope: &str) -> Result<()> {
+    let scope = if scope.is_empty() { "local" } else { scope };
+    if !matches!(lang, TYPE_SHELL | TYPE_PYTHON | TYPE_NODE) {
+        bail!("不支持的语言: {lang}（允许 shell/python/node）");
+    }
+    let dir = hooks_dir_for_scope(repo, scope)?;
+    AppPaths::ensure_dir(&dir)?;
+    std::fs::write(dir.join(hook_name), content).context("写入 hook 失败")?;
+    let entry = HookEntry { ty: lang.into(), source: String::new(), lang: lang.into() };
+    if scope == "global" {
+        let mut g = load_global_config();
+        g.hooks.insert(hook_name.into(), entry);
+        return save_global_config(&g);
+    }
+    let mut cfg = load_config(repo)?;
+    cfg.hooks.insert(hook_name.into(), entry);
+    save_config(repo, &cfg)
+}
+
+/// 读取钩子脚本内容（作用域目录未配置或文件不存在 → 空串，前端回落模板）。
+pub fn read_script(repo: &Path, hook_name: &str, scope: &str) -> String {
+    let scope = if scope.is_empty() { "local" } else { scope };
+    let Ok(dir) = hooks_dir_for_scope(repo, scope) else { return String::new() };
+    std::fs::read_to_string(dir.join(hook_name)).unwrap_or_default()
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct ExecResult {
     pub exit_code: i32,
     pub output: String,
@@ -179,89 +388,83 @@ pub struct ExecResult {
     pub error: String,
 }
 
-/// 执行钩子的 Lua 脚本：脚本须定义 `main(hook_name, ...args)`，
-/// 返回 0/nil/true = 成功，非零/false = 阻断。
-pub fn exec(repo: &Path, hook_name: &str, args: &[String]) -> Result<ExecResult> {
-    let cfg = load_config(repo).context("加载 hook 配置失败")?;
-    let Some(entry) = cfg.hooks.get(hook_name) else {
-        bail!("hook {hook_name:?} 未安装 Lua 脚本");
-    };
-    if entry.ty != "lua" || entry.source.is_empty() {
-        bail!("hook {hook_name:?} 未安装 Lua 脚本");
+/// 执行钩子：直接 spawn hook 文件（shebang 原生机制），cwd=仓库。
+/// 上游 GUI 测试执行语义：失败不返回 Err，以 ExecResult 反映。
+pub fn exec(repo: &Path, hook_name: &str, scope: &str, args: &[String]) -> Result<ExecResult> {
+    let dir = hooks_dir_for_scope(repo, scope)?;
+    let hook_path = dir.join(hook_name);
+    if !hook_path.exists() {
+        bail!("hook {hook_name:?} 未安装");
     }
-    let source = Path::new(&entry.source);
-    if !source.exists() {
-        bail!("Lua 脚本文件不存在: {}", entry.source);
-    }
-
-    let lua = mlua::Lua::new();
-    let code = std::fs::read_to_string(source).with_context(|| format!("读取 Lua 失败: {}", source.display()))?;
-    if let Err(e) = lua.load(code).set_name(&format!("{hook_name}.lua")).exec() {
-        return Ok(ExecResult {
-            exit_code: 1,
-            output: String::new(),
-            error: format!("Lua 脚本加载失败: {e}"),
-        });
-    }
-
-    let main: Option<mlua::Function> = lua.globals().get("main").ok();
-    let Some(main) = main else {
-        return Ok(ExecResult {
-            exit_code: 1,
-            output: String::new(),
-            error: "Lua 脚本未定义 main 函数".into(),
-        });
-    };
-
-    // main(hook_name, ...args) —— 展开为多值参数（Vec 会被编组成单个 table）
-    let mk_str = |s: &str| -> mlua::Value {
-        lua.create_string(s)
-            .map(mlua::Value::String)
-            .unwrap_or(mlua::Value::Nil)
-    };
-    let mut multi = mlua::MultiValue::new();
-    multi.push_front(mk_str(hook_name));
-    for a in args {
-        multi.push_back(mk_str(a));
-    }
-    match main.call::<mlua::Value>(multi) {
-        Ok(mlua::Value::Integer(n)) => Ok(ExecResult {
-            exit_code: n as i32,
-            output: format!("hook {hook_name} 执行完成 (exit {n})"),
-            error: String::new(),
-        }),
-        Ok(mlua::Value::Boolean(ok)) => {
-            let code = if ok { 0 } else { 1 };
-            Ok(ExecResult { exit_code: code, output: format!("hook {hook_name} 执行完成 (exit {code})"), error: String::new() })
+    let mut cmd = std::process::Command::new(&hook_path);
+    cmd.args(args).current_dir(repo);
+    match cmd.output() {
+        Ok(out) => {
+            let mut combined = String::from_utf8_lossy(&out.stdout).into_owned();
+            combined.push_str(&String::from_utf8_lossy(&out.stderr));
+            let code = out.status.code().unwrap_or(1);
+            Ok(ExecResult {
+                exit_code: code,
+                output: combined,
+                error: if out.status.success() { String::new() } else { format!("exit {code}") },
+            })
         }
-        // nil / 其它返回值 = 成功
-        Ok(_) => Ok(ExecResult {
-            exit_code: 0,
-            output: format!("hook {hook_name} 执行完成 (exit 0)"),
-            error: String::new(),
-        }),
         Err(e) => Ok(ExecResult {
             exit_code: 1,
             output: String::new(),
-            error: format!("Lua main() 执行失败: {e}"),
+            error: e.to_string(),
         }),
     }
 }
 
-/// 把 Lua 脚本保存到 `.git/byte-git/hook-scripts/<name>.lua` 并返回路径。
-pub fn save_lua_script(repo: &Path, hook_name: &str, content: &str) -> Result<PathBuf> {
-    let dir = repo_data_dir(repo)?.join("hook-scripts");
-    crate::util::AppPaths::ensure_dir(&dir)?;
-    let path = dir.join(format!("{hook_name}.lua"));
-    std::fs::write(&path, content).context("写入脚本失败")?;
-    Ok(path)
+// ---------------------------------------------------------------------------
+// core.hooksPath 配置面板（GUI HookConfigInfo / HookSetHooksPath）
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct HookConfigInfo {
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub hooks_path_local: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub hooks_path_global: String,
+    pub hooks_path_effective: String,
+    pub default_hooks_dir: String,
+    pub has_local_hooks_path: bool,
+    pub has_global_hooks_path: bool,
 }
 
-/// 读取已安装钩子的 Lua 源码。
-pub fn read_lua_script(repo: &Path, hook_name: &str) -> Result<String> {
-    let cfg = load_config(repo)?;
-    match cfg.hooks.get(hook_name) {
-        Some(e) if !e.source.is_empty() => Ok(std::fs::read_to_string(&e.source)?),
-        _ => Ok(String::new()),
+/// 当前 core.hooksPath 配置全貌（local/global/effective + 默认目录）。
+pub fn config_info(repo: &Path) -> HookConfigInfo {
+    let mut info = HookConfigInfo {
+        hooks_path_effective: config_get_layered("", repo, "core.hooksPath").unwrap_or_default(),
+        ..Default::default()
+    };
+    if let Some(v) = config_get_layered("local", repo, "core.hooksPath") {
+        info.hooks_path_local = v;
+        info.has_local_hooks_path = true;
     }
+    if let Some(v) = config_get_layered("global", repo, "core.hooksPath") {
+        info.hooks_path_global = v;
+        info.has_global_hooks_path = true;
+    }
+    if let Ok((dir, _)) = hooks_dir_with_scope(repo) {
+        info.default_hooks_dir = dir.display().to_string();
+    }
+    info
+}
+
+/// 设置（空值=清除）core.hooksPath。scope = "local" | "global"。
+pub fn set_hooks_path(repo: &Path, scope: &str, value: &str) -> Result<()> {
+    let layer = if scope == "global" { "--global" } else { "--local" };
+    let args: Vec<String> = if value.is_empty() {
+        vec!["config".into(), layer.into(), "--unset".into(), "core.hooksPath".into()]
+    } else {
+        vec!["config".into(), layer.into(), "core.hooksPath".into(), value.into()]
+    };
+    let refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    // --unset 在未设置时 exit 5 —— 幂等视为成功
+    if run_capture(repo, refs).is_err() && !value.is_empty() {
+        bail!("设置 core.hooksPath 失败");
+    }
+    Ok(())
 }
