@@ -214,7 +214,7 @@ const expandedWidth = 200
     <div class="sidebar-logo" @click="router.push('/')">
       <img :src="logoUrl" alt="byte-git" class="logo-img" />
       <span v-if="!layout.sidebarCollapsed" class="logo-text">
-        <span class="logo-git">git</span><span class="logo-mate">-mate</span>
+        <span class="logo-git">byte</span><span class="logo-mate">-git</span>
       </span>
       <div class="logo-actions" v-if="!layout.sidebarCollapsed">
         <button class="logo-btn" @click.stop="theme.toggleTheme()" :title="theme.isDark ? '切换亮色' : '切换暗色'">
