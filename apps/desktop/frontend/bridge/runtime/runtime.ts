@@ -1,9 +1,8 @@
 /**
- * Wails runtime 事件 API → Tauri v2 事件适配层。
+ * 事件桥：前端事件订阅 API → Tauri v2 事件。
  *
- * git-mate 前端通过 Wails 生成的 `wailsjs/runtime/runtime` 订阅后端事件；
- * byte-git 桌面端改用 Tauri，本模块保持同名导出，内部转发到
- * @tauri-apps/api/event，前端代码零改动。
+ * 前端沿用 `EventsOn/EventsOff/EventsEmit` 调用约定，
+ * 本模块内部转发到 @tauri-apps/api/event，调用方无感。
  */
 
 import { emit, listen, type UnlistenFn } from '@tauri-apps/api/event'

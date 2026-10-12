@@ -1,5 +1,5 @@
 import { onUnmounted } from 'vue'
-import { EventsOn } from '../../wailsjs/runtime/runtime'
+import { EventsOn } from '../../bridge/runtime/runtime'
 
 /**
  * Subscribe to backend filesystem-watch events ("live:changed").

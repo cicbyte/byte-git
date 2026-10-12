@@ -1,9 +1,9 @@
 /**
- * Wails Go 绑定 → Tauri invoke 适配层。
+ * 后端调用桥：`window.go.main.ByteGitApp.Method(args...)` → Tauri invoke。
  *
- * git-mate 前端通过 `window.go.main.ByteGitApp.Method(args...)` 调用后端；
- * byte-git 桌面端改用 Tauri。本模块导出同名 Proxy 对象，由 main.ts 安装到
- * `window.go.main.ByteGitApp`，方法调用转发为 `invoke(命令名, 参数)`：
+ * 前端保持既定调用约定（全局 ByteGitApp 对象 + PascalCase 方法名），
+ * 本模块导出同名 Proxy，由 main.ts 安装到 `window.go.main.ByteGitApp`，
+ * 方法调用转发为 `invoke(命令名, 参数)`：
  * - 方法名 PascalCase → Tauri 命令 snake_case（GitStatus → git_status）
  * - 位置参数按 SIGNATURES 表映射为命令形参（未登记的命令回退 argN 映射）
  * - Rust 侧尾部 repo: Option<String> 参数由后端当前仓库状态解析，无需前端传
