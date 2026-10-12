@@ -83,7 +83,7 @@ pub fn fetch_releases(owner: &str, repo: &str) -> Result<Vec<Release>> {
     Ok(releases)
 }
 
-/// 默认下载目录：~/.cicbyte/byte-git/downloads/<owner>/<repo>/<tag>/。
+/// 默认下载目录：~/.cicbyte/apps/byte-git/downloads/<owner>/<repo>/<tag>/。
 pub fn default_download_dir(owner: &str, repo: &str, tag: &str) -> Result<std::path::PathBuf> {
     Ok(AppPaths::new()?.downloads_dir().join(owner).join(repo).join(tag))
 }

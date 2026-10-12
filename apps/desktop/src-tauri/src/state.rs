@@ -2,7 +2,7 @@
 //! 与 RepoModule 的 recent repos）。
 //!
 //! Go 侧 Wails 绑定多数方法无 repo 参数，靠 Core 内部状态；
-//! Rust 侧用全局 Mutex 状态 + `~/.cicbyte/byte-git/recent-repos.json` 持久化。
+//! Rust 侧用全局 Mutex 状态 + `~/.cicbyte/apps/byte-git/recent-repos.json` 持久化。
 //! 前端 SwitchRepo(path) 切换时更新；无状态时回落 "."。
 
 use byte_git_core::util::AppPaths;

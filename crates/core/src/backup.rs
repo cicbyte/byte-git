@@ -1,4 +1,4 @@
-//! 完整仓库备份：`git clone --mirror` 到 `~/.cicbyte/byte-git/backups/<repo-name>/`。
+//! 完整仓库备份：`git clone --mirror` 到 `~/.cicbyte/apps/byte-git/backups/<repo-name>/`。
 //!
 //! 移植自 git-mate `internal/backup`。备份不占用项目空间，可整目录拷回恢复。
 

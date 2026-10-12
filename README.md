@@ -85,7 +85,7 @@ byte-git/
 ## 配置与数据
 
 ```
-~/.cicbyte/byte-git/
+~/.cicbyte/apps/byte-git/  # 应用根（旧 ~/.cicbyte/byte-git/ 首次运行自动迁移）
   config/config.yaml    # 全局配置（AI 模型、GitHub Token、功能开关）
   backups/              # 完整仓库备份
   prompts/              # AI 提示词模板（可自定义）

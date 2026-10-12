@@ -8,21 +8,24 @@ use std::process::Command;
 
 /// 应用目录布局（惰性解析，`BYTE_GIT_HOME` 可覆盖根目录）。
 ///
-/// 布局契约（与 git-mate 一致）：
-/// - `~/.cicbyte/byte-git/`            应用根
-/// - `~/.cicbyte/byte-git/config/`     全局配置 config.yaml
-/// - `~/.cicbyte/byte-git/backups/`    完整仓库备份
-/// - `~/.cicbyte/byte-git/prompts/`    AI 提示词模板
-/// - `~/.cicbyte/byte-git/downloads/`  下载归档
-/// - `~/.cicbyte/byte-git/rules/`      Lua 代理规则
-/// - `~/.cicbyte/data/`                跨项目共享数据（所有 cicbyte 工具复用）
+/// 布局契约（对齐上游 cef8f58 的 apps 层级）：
+/// - `~/.cicbyte/apps/byte-git/`            应用根
+/// - `~/.cicbyte/apps/byte-git/config/`     全局配置 config.yaml
+/// - `~/.cicbyte/apps/byte-git/backups/`    完整仓库备份
+/// - `~/.cicbyte/apps/byte-git/prompts/`    AI 提示词模板
+/// - `~/.cicbyte/apps/byte-git/downloads/`  下载归档
+/// - `~/.cicbyte/apps/byte-git/rules/`      Lua 代理规则
+/// - `~/.cicbyte/data/`                     跨项目共享数据（所有 cicbyte 工具复用）
+///
+/// 旧布局 `~/.cicbyte/byte-git/` 在首次解析时自动迁移（原子 rename）。
 #[derive(Debug, Clone)]
 pub struct AppPaths {
     root: PathBuf,
 }
 
 impl AppPaths {
-    /// 解析应用根目录：`BYTE_GIT_HOME` > `~/.cicbyte/byte-git`。
+    /// 解析应用根目录：`BYTE_GIT_HOME` > `~/.cicbyte/apps/byte-git`。
+    /// 旧根 `~/.cicbyte/byte-git` 存在且新根不存在时整体迁移。
     pub fn new() -> Result<Self> {
         if let Ok(custom) = std::env::var("BYTE_GIT_HOME") {
             if !custom.is_empty() {
@@ -30,9 +33,17 @@ impl AppPaths {
             }
         }
         let home = dirs::home_dir().context("无法定位用户主目录")?;
-        Ok(Self {
-            root: home.join(".cicbyte").join("byte-git"),
-        })
+        let cicbyte = home.join(".cicbyte");
+        let root = cicbyte.join("apps").join("byte-git");
+        let legacy = cicbyte.join("byte-git");
+        if !root.exists() && legacy.exists() {
+            // 一次性迁移：同卷 rename 原子完成；失败（文件被占用等）保留旧目录，
+            // 继续用新路径（数据仍在旧目录，用户可手动搬移）。
+            if let Err(e) = std::fs::rename(&legacy, &root) {
+                eprintln!("迁移旧数据目录 {} → {} 失败: {e}", legacy.display(), root.display());
+            }
+        }
+        Ok(Self { root })
     }
 
     pub fn root(&self) -> &Path {

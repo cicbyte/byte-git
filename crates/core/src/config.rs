@@ -1,4 +1,4 @@
-//! 全局配置：`~/.cicbyte/byte-git/config/config.yaml`。
+//! 全局配置：`~/.cicbyte/apps/byte-git/config/config.yaml`。
 //!
 //! Schema 与 git-mate 完全一致（serde_yaml 版），首次读取自动写入默认值。
 
