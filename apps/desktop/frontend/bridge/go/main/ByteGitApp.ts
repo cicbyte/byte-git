@@ -292,6 +292,8 @@ const SIGNATURES: Record<string, string[]> = {
     WallpaperThumbURL: ['filename'],
     WallpaperPickFile: [],
     Abs: ['filename'],
+    GhIssueComments: ['number'],
+    TeardownPtyLocked: [],
 }
 
 /** PascalCase/camelCase → snake_case。

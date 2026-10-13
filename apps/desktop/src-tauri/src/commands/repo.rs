@@ -20,7 +20,7 @@ const GIT_TIMEOUT: Duration = Duration::from_secs(60);
 /// 前端文件读取上限（对齐 Go MaxSecretFileSize = 1MB）。
 const MAX_SECRET_FILE_SIZE: usize = 1 << 20;
 /// 前端图片读取上限（对齐 Go MaxImageSize = 5MB）。
-const MAX_IMAGE_SIZE: usize = 5 << 20;
+pub(crate) const MAX_IMAGE_SIZE: usize = 5 << 20;
 
 // ---------------------------------------------------------------------------
 // 基础设施（与 commit.rs 同款约定）
@@ -176,7 +176,7 @@ pub struct FileNode {
     pub size: i64,
 }
 
-/// FileResult（文件内容读取结果：内容/二进制/未找到）。
+/// FileResult（文件内容读取结果：内容/二进制/未找到/dataUrl 内联图片）。
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileResult {
@@ -184,6 +184,9 @@ pub struct FileResult {
     pub lines: i64,
     pub binary: bool,
     pub not_found: bool,
+    /// 图片文件内联为 base64 data URL（前端直接 <img> 展示；仅图片填）
+    #[serde(default)]
+    pub data_url: String,
 }
 
 /// ImageResult（本地图片内联为 base64 data URL；标志位说明未内联的原因）。
@@ -498,19 +501,32 @@ pub fn repo_file_list(sub_path: String, repo: Option<String>) -> Result<Vec<File
     }
     let target = if sub_path.is_empty() { root.clone() } else { root.join(&sub_path) };
 
-    let entries = match std::fs::read_dir(&target) {
-        Ok(rd) => rd,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(e) => return Err(format!("读取目录失败: {e}")),
-    };
+    match read_dir_nodes(&target, &sub_path) {
+        Ok(nodes) => Ok(nodes),
+        // 目录不存在 → 空列表（对齐 Go IsNotExist 特判）
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(format!("读取目录失败: {e}")),
+    }
+}
 
+/// 共享目录列表（对齐上游 core.ReadDirNodes）：过滤 .git/node_modules/.DS_Store，
+/// 符号链接指向目录时按目录上报（可继续浏览），目录在前、名称不区分大小写排序。
+/// repo / reference / backup 三浏览器复用。
+pub(crate) fn read_dir_nodes(dir: &Path, sub_path: &str) -> std::io::Result<Vec<FileNode>> {
+    let entries = std::fs::read_dir(dir)?;
     let mut nodes: Vec<FileNode> = Vec::new();
     for e in entries.flatten() {
         let name = e.file_name().to_string_lossy().into_owned();
         if name == ".git" || name == "node_modules" || name == ".DS_Store" {
             continue;
         }
-        let is_dir = e.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        let mut is_dir = e.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        // 跟随符号链接：指向目录的链接应可作为目录浏览
+        if e.file_type().map(|t| t.is_symlink()).unwrap_or(false) {
+            if let Ok(st) = std::fs::metadata(e.path()) {
+                is_dir = st.is_dir();
+            }
+        }
         let size = e.metadata().map(|m| m.len()).unwrap_or(0) as i64;
         let rel = if sub_path.is_empty() {
             name.clone()
@@ -519,13 +535,21 @@ pub fn repo_file_list(sub_path: String, repo: Option<String>) -> Result<Vec<File
         };
         nodes.push(FileNode { name, path: rel, is_dir, size });
     }
-    // 目录在前，名称小写序
     nodes.sort_by(|a, b| match (a.is_dir, b.is_dir) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
         _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
     Ok(nodes)
+}
+
+/// 图片内联 data URL（对齐上游 core.EncodeImageDataURL）：
+/// 识别图片扩展返回 "data:<mime>;base64,..."，否则空串。各文件读取器复用。
+pub(crate) fn encode_image_data_url(path: &str, data: &[u8]) -> String {
+    match image_mime(path) {
+        Some(mime) => format!("data:{mime};base64,{}", base64_encode(data)),
+        None => String::new(),
+    }
 }
 
 /// RepoFileSearch 递归搜索仓库名称包含 query（不区分大小写）的文件，
@@ -690,4 +714,39 @@ fn open_url_cmd(url: &str) -> Command {
     let mut c = Command::new(program);
     c.arg(url);
     c
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encode_image_data_url_dispatch() {
+        let png = encode_image_data_url("logo.PNG", b"\x89PNG");
+        assert!(png.starts_with("data:image/png;base64,"));
+        assert_eq!(encode_image_data_url("notes.txt", b"hi"), "");
+        assert_eq!(encode_image_data_url("noext", b"hi"), "");
+        let svg = encode_image_data_url("icon.svg", b"<svg/>");
+        assert!(svg.starts_with("data:image/svg+xml;base64,"));
+        assert!(encode_image_data_url("shot.jpeg", b"x").starts_with("data:image/jpeg;base64,"));
+    }
+
+    #[test]
+    fn read_dir_nodes_filters_and_sorts() {
+        let dir = std::env::temp_dir().join(format!("bg-nodes-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("zdir")).unwrap();
+        std::fs::create_dir_all(dir.join(".git")).unwrap();
+        std::fs::write(dir.join("afile.txt"), b"x").unwrap();
+        std::fs::write(dir.join(".DS_Store"), b"x").unwrap();
+
+        let nodes = read_dir_nodes(&dir, "sub").unwrap();
+        // 过滤 .git/.DS_Store；目录在前；path 带 subPath 前缀
+        assert_eq!(nodes.len(), 2);
+        assert!(nodes[0].is_dir);
+        assert_eq!(nodes[0].name, "zdir");
+        assert_eq!(nodes[0].path, "sub/zdir");
+        assert_eq!(nodes[1].name, "afile.txt");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

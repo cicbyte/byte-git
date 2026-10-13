@@ -51,6 +51,9 @@ pub struct FileResult {
     pub lines: i64,
     pub binary: bool,
     pub not_found: bool,
+    /// 图片内联 data URL（前端直接 <img> 展示；仅图片填）
+    #[serde(default)]
+    pub data_url: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -274,6 +277,14 @@ pub fn secret_file_content(repo: Option<String>, commit: String, file_path: Stri
         return Err(format!("git show 失败: {msg}"));
     }
     let raw = out.stdout;
+    // 图片？内联 data URL（对齐上游 ReadFileAtCommit；超大图回落 binary）
+    let url = super::repo::encode_image_data_url(&file_path, &raw);
+    if !url.is_empty() {
+        if raw.len() > super::repo::MAX_IMAGE_SIZE {
+            return Ok(FileResult { binary: true, ..Default::default() });
+        }
+        return Ok(FileResult { data_url: url, ..Default::default() });
+    }
     // 二进制检测：前 8KB 出现 NUL 即视为二进制
     let scan_len = raw.len().min(8192);
     if raw[..scan_len].contains(&0) {

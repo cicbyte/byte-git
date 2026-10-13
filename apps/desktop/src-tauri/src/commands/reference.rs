@@ -326,6 +326,9 @@ pub struct FileResult {
     pub lines: i64,
     pub binary: bool,
     pub not_found: bool,
+    /// 图片内联 data URL（仅图片填；working-tree 读者恒为空，字段为 wire 对齐）
+    #[serde(default)]
+    pub data_url: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -1002,8 +1005,7 @@ pub fn reference_cache_path(name: String, file_path: String, repo: Option<String
 }
 
 /// ReferenceFileList 列出引用缓存内某目录的直接子项（subPath 空串 = 根）。
-/// 目录懒加载（前端点击展开）；根级跳过 .git，任意层级跳过
-/// node_modules/.DS_Store；目录在前、名称不区分大小写排序。
+/// 共享 ReadDirNodes（上游统一过滤 + symlink 跟随）；目录在前、名称小写序。
 #[tauri::command]
 pub fn reference_file_list(name: String, sub_path: String, repo: Option<String>) -> Result<Vec<FileNode>, String> {
     let dir = repo_path(repo);
@@ -1019,34 +1021,14 @@ pub fn reference_file_list(name: String, sub_path: String, repo: Option<String>)
     let root = PathBuf::from(&root);
     let target = if sub_path.is_empty() { root.clone() } else { root.join(&sub_path) };
 
-    let entries = match std::fs::read_dir(&target) {
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(e) => return Err(format!("读取目录失败: {e}")),
-        Ok(rd) => rd,
-    };
-
-    let mut nodes: Vec<FileNode> = Vec::new();
-    for e in entries.flatten() {
-        let nm = e.file_name().to_string_lossy().into_owned();
-        // VCS 内部 + 常见噪声（对齐 Go：仅根级跳 .git）
-        if sub_path.is_empty() && nm == ".git" {
-            continue;
-        }
-        if nm == "node_modules" || nm == ".DS_Store" {
-            continue;
-        }
-        let is_dir = e.file_type().map(|t| t.is_dir()).unwrap_or(false);
-        let size = e.metadata().map(|m| m.len()).unwrap_or(0) as i64;
-        let rel = if sub_path.is_empty() { nm.clone() } else { format!("{sub_path}/{nm}") };
-        nodes.push(FileNode { name: nm, path: rel, is_dir, size });
+    match super::repo::read_dir_nodes(&target, &sub_path) {
+        Ok(nodes) => Ok(nodes
+            .into_iter()
+            .map(|n| FileNode { name: n.name, path: n.path, is_dir: n.is_dir, size: n.size })
+            .collect()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(format!("读取目录失败: {e}")),
     }
-    // VSCode 风格：目录在前，名称小写序
-    nodes.sort_by(|a, b| match (a.is_dir, b.is_dir) {
-        (true, false) => std::cmp::Ordering::Less,
-        (false, true) => std::cmp::Ordering::Greater,
-        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-    });
-    Ok(nodes)
 }
 
 /// ReferenceFileRead 读取引用缓存内文件（二进制检测 + 1MB 截断，
@@ -1070,6 +1052,11 @@ pub fn reference_file_read(name: String, file_path: String, repo: Option<String>
     }
     let data = match std::fs::read(&full) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(FileResult { not_found: true, ..Default::default() });
+        }
+        // Windows 对目录（含指向目录的 symlink/junction 组合，前置检查可能漏掉）
+        // 报 "Incorrect function"——按"非文件"处理，UI 显示干净空态而非原始错误
+        Err(e) if e.to_string().contains("Incorrect function") => {
             return Ok(FileResult { not_found: true, ..Default::default() });
         }
         Err(e) => return Err(format!("读取文件失败: {e}")),

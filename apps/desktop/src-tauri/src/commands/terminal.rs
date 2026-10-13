@@ -382,6 +382,14 @@ pub fn terminal_stop() -> Result<(), String> {
     Ok(())
 }
 
+/// TeardownPtyLocked 关闭 PTY 并通知读线程停止（上游导出的裸 teardown 绑定，
+/// 与 TerminalStop 等价；供前端在会话重建前显式调用）。
+#[tauri::command]
+pub fn teardown_pty_locked() {
+    let mut guard = TERM.lock().unwrap();
+    teardown_locked(&mut guard);
+}
+
 /// TerminalDetectShell 自动探测最佳可用 shell：优先用户设置
 /// （terminal.shell_path，存在时），否则按 git-bash → wsl → cmd 探测。
 #[tauri::command]

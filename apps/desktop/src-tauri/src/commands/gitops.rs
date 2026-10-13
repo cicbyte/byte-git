@@ -267,10 +267,10 @@ pub struct StashEntryDto {
 // Git Config（gitconfig.go）
 // ---------------------------------------------------------------------------
 
-/// gitconfig.CommonKeys：UI 呈现的高频配置键。
+/// gitconfig.CommonKeys：UI 呈现的高频配置键（上游新增 core.hooksPath）。
 const COMMON_CONFIG_KEYS: &[&str] = &[
     "user.name", "user.email",
-    "core.editor", "core.autocrlf", "core.quotepath",
+    "core.editor", "core.autocrlf", "core.quotepath", "core.hooksPath",
     "pull.rebase", "init.defaultBranch",
     "commit.gpgsign", "http.proxy",
 ];

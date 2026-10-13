@@ -58,6 +58,9 @@ pub struct FileResult {
     pub lines: i64,
     pub binary: bool,
     pub not_found: bool,
+    /// 图片内联 data URL（wire 对齐 core.FileResult；本读者恒为空）
+    #[serde(default)]
+    pub data_url: String,
 }
 
 // ---------------------------------------------------------------------------

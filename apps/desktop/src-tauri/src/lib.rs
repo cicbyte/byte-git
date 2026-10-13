@@ -282,6 +282,8 @@ pub fn run() {
             commands::wallpaper::wallpaper_thumb_url,
             commands::wallpaper::wallpaper_pick_file,
             commands::wallpaper::abs,
+            commands::github::gh_issue_comments,
+            commands::terminal::teardown_pty_locked,
         ])
         .run(tauri::generate_context!())
         .expect("byte-git 桌面端启动失败");

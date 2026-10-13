@@ -241,6 +241,9 @@ pub struct FileResultDto {
     pub lines: i64,
     pub binary: bool,
     pub not_found: bool,
+    /// 图片内联 data URL（前端直接 <img> 展示；仅图片填）
+    #[serde(default)]
+    pub data_url: String,
 }
 
 impl FileResultDto {
@@ -936,7 +939,7 @@ pub fn full_backup_delete(name: String, repo: Option<String>) -> Result<(), Stri
 }
 
 /// 顶层永不出示的目录（VCS 内部数据，非用户代码）。
-const SKIP_BACKUP_ROOT_DIRS: &[&str] = &[".git"];
+// （根层 VCS 目录过滤已由共享 read_dir_nodes 统一处理）
 
 /// FullBackupFileList lists the immediate children of a directory inside a
 /// full-clone backup（subPath="" 为备份根；目录懒加载，前端点击展开）。
@@ -955,33 +958,13 @@ pub fn full_backup_file_list(
     };
     ensure_within(&backup_root, &target)?;
 
-    let entries = std::fs::read_dir(&target).map_err(|e| format!("读取目录失败: {e}"))?;
-    let mut nodes = Vec::new();
-    for e in entries.flatten() {
-        let name = e.file_name().to_string_lossy().into_owned();
-        // 根层隐藏 VCS 内部目录；全层过滤常见噪音
-        if sub_path.is_empty() && SKIP_BACKUP_ROOT_DIRS.contains(&name.as_str()) {
-            continue;
-        }
-        if name == "node_modules" || name == ".DS_Store" {
-            continue;
-        }
-        let is_dir = e.file_type().map(|t| t.is_dir()).unwrap_or(false);
-        let size = e.metadata().map(|m| m.len() as i64).unwrap_or(0);
-        let rel_path = if sub_path.is_empty() {
-            name.clone()
-        } else {
-            format!("{sub_path}/{name}")
-        };
-        nodes.push(FileNodeDto { name, path: rel_path, is_dir, size });
-    }
-    // VSCode 风格排序：目录在前，组内按名称不区分大小写
-    nodes.sort_by(|a, b| {
-        b.is_dir
-            .cmp(&a.is_dir)
-            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
-    });
-    Ok(nodes)
+    // 共享 ReadDirNodes（上游统一：.git/node_modules/.DS_Store 全层过滤 + symlink 跟随）
+    let nodes = super::repo::read_dir_nodes(&target, &sub_path)
+        .map_err(|e| format!("读取目录失败: {e}"))?;
+    Ok(nodes
+        .into_iter()
+        .map(|n| FileNodeDto { name: n.name, path: n.path, is_dir: n.is_dir, size: n.size })
+        .collect())
 }
 
 /// FullBackupFileRead reads a file's content from a full-clone backup.
@@ -1233,7 +1216,12 @@ pub fn commit_stat(commit: String, repo: Option<String>) -> Result<Vec<CommitSta
 #[tauri::command]
 pub fn commit_file_tree(commit: String, repo: Option<String>) -> Result<Vec<CommitFileTreeEntryDto>, String> {
     let repo = repo_path(repo);
-    let res = git_exec(&repo, &["ls-tree", "-r", "--name-only", commit.as_str()], LOG_TIMEOUT);
+    // core.quotepath=false：非 ASCII 路径（中文等）否则返回八进制转义，树名乱码
+    let res = git_exec(
+        &repo,
+        &["-c", "core.quotepath=false", "ls-tree", "-r", "--name-only", commit.as_str()],
+        LOG_TIMEOUT,
+    );
     if !res.success {
         return Err(format!("git ls-tree 失败: {}", res.combined().trim()));
     }
@@ -1258,7 +1246,16 @@ fn read_file_at_commit(repo: &Path, commit: &str, file_path: &str) -> Result<Fil
         }
         return Err(format!("git show 失败: {msg}"));
     }
-    Ok(file_result_from_bytes(res.stdout.as_bytes()))
+    let raw = res.stdout.as_bytes();
+    // 图片？内联 data URL（对齐上游 ReadFileAtCommit；超大图回落 binary）
+    let url = super::repo::encode_image_data_url(file_path, raw);
+    if !url.is_empty() {
+        if raw.len() > super::repo::MAX_IMAGE_SIZE {
+            return Ok(FileResultDto { binary: true, ..Default::default() });
+        }
+        return Ok(FileResultDto { data_url: url, ..Default::default() });
+    }
+    Ok(file_result_from_bytes(raw))
 }
 
 /// CommitReadFile reads a file's content at a given commit

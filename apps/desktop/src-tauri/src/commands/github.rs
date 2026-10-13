@@ -1106,6 +1106,51 @@ pub async fn gh_issue_comment(
     })?
 }
 
+/// Issue 评论条目（区别于 PR review 评论：不挂在文件/行上）。
+#[derive(Debug, Clone, Serialize)]
+pub struct IssueCommentItem {
+    pub id: i64,
+    pub author: String,
+    pub body: String,
+    pub created_at: String,
+}
+
+/// GhIssueComments：某 Issue 的评论列表（非 GitHub 远端返回空，对齐上游）。
+#[tauri::command]
+pub async fn gh_issue_comments(number: i32, repo: Option<String>) -> Result<Vec<IssueCommentItem>, String> {
+    let repo = repo.unwrap_or_default();
+    run_blocking(move || {
+        let Some(owner_repo) = detect_remote(&repo) else {
+            return Ok(Vec::new());
+        };
+        let token = gh_token()?;
+        let (o, r) = split_owner_repo(&owner_repo)?;
+        let v = gh_request(
+            "GET",
+            &format!("{API_BASE}/repos/{o}/{r}/issues/{number}/comments"),
+            &[],
+            None,
+            &token,
+            GH_ACCEPT,
+            T_STD,
+        )
+        .map_err(|e| format!("获取 Issue 评论失败: {e}"))?;
+        let comments = v
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|c| IssueCommentItem {
+                id: c.get("id").and_then(|x| x.as_i64()).unwrap_or(0),
+                author: vptr(&c, "/user/login"),
+                body: vs(&c, "body"),
+                created_at: fmt_md_hm(&vs(&c, "created_at")),
+            })
+            .collect();
+        Ok(comments)
+    })?
+}
+
 /// GhIssueLabels：仓库可用标签列表（per_page=100）。
 #[tauri::command]
 pub async fn gh_issue_labels(repo: Option<String>) -> Result<Vec<Label>, String> {
