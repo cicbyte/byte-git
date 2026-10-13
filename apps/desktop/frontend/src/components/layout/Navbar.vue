@@ -251,11 +251,25 @@ function close() { app?.WindowClose() }
   color: var(--color-primary);
 }
 
-/* Breadcrumb */
+/* Breadcrumb：窄窗单行显示——不换行，末项溢出省略（防导航栏被撑高重叠） */
 .breadcrumb {
   font-size: 13px;
   min-width: 0;
+  overflow: hidden;
+  flex-shrink: 1;
   --wails-draggable: no-drag;
+}
+.breadcrumb :deep(ol) {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.breadcrumb :deep(.ant-breadcrumb-link) {
+  white-space: nowrap;
+}
+.breadcrumb :deep(li:last-child .ant-breadcrumb-link) {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* SCM (source control) trigger button */
