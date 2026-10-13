@@ -468,3 +468,112 @@ pub fn set_hooks_path(repo: &Path, scope: &str, value: &str) -> Result<()> {
     }
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// hook run（run.go：husky 式入口——钩子脚本内调 `byte-git hook run commit-msg --ai`）
+// ---------------------------------------------------------------------------
+
+/// `hook run` 选项（对齐上游 RunOptions）。
+#[derive(Debug, Clone, Default)]
+pub struct HookRunOptions {
+    pub repo: String,
+    pub hook_name: String,
+    pub ai: bool,
+    pub model: String,
+    pub base_url: String,
+    pub lang: String,
+}
+
+/// `hook run` 入口：目前仅支持 commit-msg（其余钩子上游同样未支持）。
+pub fn run_hook(opts: &HookRunOptions) -> Result<()> {
+    match opts.hook_name.as_str() {
+        "commit-msg" => run_commit_msg(opts),
+        other => bail!("hook run 暂不支持 {other:?}，目前支持: commit-msg"),
+    }
+}
+
+/// commit-msg 钩子：非 AI 模式打印消息；AI 模式改写后写回（保留 # 注释块）。
+/// 消息文件路径：env BYTE_GIT_COMMIT_MSG_FILE / GIT_MATE_COMMIT_MSG_FILE >
+/// 进程尾参（git 调用钩子时传入，CLI 以 trailing arg 透传）。
+fn run_commit_msg(opts: &HookRunOptions) -> Result<()> {
+    let mut commit_msg_file = std::env::var("BYTE_GIT_COMMIT_MSG_FILE")
+        .or_else(|_| std::env::var("GIT_MATE_COMMIT_MSG_FILE"))
+        .unwrap_or_default();
+    if commit_msg_file.is_empty() {
+        let args: Vec<String> = std::env::args().collect();
+        if args.len() > 1 {
+            commit_msg_file = args[args.len() - 1].clone();
+        }
+    }
+    if commit_msg_file.is_empty() {
+        bail!("无法获取 commit-msg 文件路径");
+    }
+
+    let data = std::fs::read_to_string(&commit_msg_file)
+        .with_context(|| format!("读取 commit message 文件失败: {commit_msg_file}"))?;
+    let original = data.trim().to_string();
+    let comment_start = original.find('#');
+    let msg = match comment_start {
+        Some(i) => original[..i].trim().to_string(),
+        None => original.clone(),
+    };
+    if msg.is_empty() {
+        return Ok(());
+    }
+
+    if !opts.ai {
+        println!("{msg}");
+        return Ok(());
+    }
+
+    let repo = Path::new(if opts.repo.is_empty() { "." } else { opts.repo.as_str() });
+    let diff = staged_diff(repo).unwrap_or_else(|e| {
+        eprintln!("警告: 获取 diff 失败: {e:#}");
+        String::new()
+    });
+    let files = staged_files(repo);
+
+    let entry = crate::airewrite::AICommitEntry {
+        original: msg.clone(),
+        files: files.clone(),
+        diff_summary: format!("{} files changed", files.len()),
+        diff,
+        ..Default::default()
+    };
+    let lang = if opts.lang.is_empty() { "zh".into() } else { opts.lang.clone() };
+    let prompt = crate::airewrite::build_prompt_for_hook(&entry, &entry.diff, &lang, 8000);
+    let model = if opts.model.is_empty() { "gemma4:e4b".into() } else { opts.model.clone() };
+    let base_url = if opts.base_url.is_empty() { "http://localhost:11434".into() } else { opts.base_url.clone() };
+    let client = crate::ai::ChatClient::new(&base_url, "", &model);
+    let suggested = match client.chat(&[crate::ai::ChatMessage::user(prompt)]) {
+        Ok(s) => s.trim().to_string(),
+        Err(e) => {
+            eprintln!("AI 改写失败，保留原始消息: {e:#}");
+            return Ok(());
+        }
+    };
+    if suggested.is_empty() {
+        return Ok(());
+    }
+
+    let comment_block = match comment_start {
+        Some(i) => format!("\n{}", &original[i..]),
+        None => String::new(),
+    };
+    let new_content = format!("{suggested}{comment_block}\n");
+    std::fs::write(&commit_msg_file, new_content).context("写入 commit message 失败")?;
+    eprintln!("AI 改写: {msg} → {suggested}");
+    Ok(())
+}
+
+fn staged_diff(repo: &Path) -> Result<String> {
+    let stat = run_capture(repo, ["diff", "--cached", "--stat"])?;
+    let full = run_capture(repo, ["diff", "--cached"])?;
+    Ok(format!("{stat}\n{full}"))
+}
+
+fn staged_files(repo: &Path) -> Vec<String> {
+    run_capture(repo, ["diff", "--cached", "--name-only"])
+        .map(|o| o.lines().map(|l| l.to_string()).filter(|l| !l.is_empty()).collect())
+        .unwrap_or_default()
+}

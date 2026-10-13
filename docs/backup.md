@@ -2,7 +2,7 @@
 
 通过 `git clone` 创建完整仓库备份，方便手动回滚。
 
-备份存储在 `~/.cicbyte/byte-git/backups/<repo-name>/` 下，不占用项目空间。
+备份存储在 `~/.cicbyte/apps/byte-git/backups/<repo-name>/` 下，不占用项目空间。
 
 ## 基本用法
 
@@ -39,7 +39,7 @@ byte-git backup rm <name>
 ## 存储位置
 
 ```
-~/.cicbyte/byte-git/backups/
+~/.cicbyte/apps/byte-git/backups/
   <repo-name>/
     <timestamp>/      # 每次备份一个独立目录
 ```

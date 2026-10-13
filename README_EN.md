@@ -85,7 +85,7 @@ byte-git/
 ## Config & Data
 
 ```
-~/.cicbyte/byte-git/
+~/.cicbyte/apps/byte-git/
   config/config.yaml    # Global config (AI model, GitHub token, feature toggles)
   backups/              # Full repo backups
   prompts/              # AI prompt templates (customizable)

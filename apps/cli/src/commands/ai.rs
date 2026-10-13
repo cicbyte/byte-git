@@ -188,7 +188,7 @@ fn run_rewrite(repo: &Path, cmd: AiRewriteSub) -> anyhow::Result<()> {
         }
         AiRewriteSub::Rules { .. } => {
             let rules = airewrite::load_rules()?;
-            println!("检测规则（{}）：~/.cicbyte/byte-git/airewrite/rules.json", rules.len());
+            println!("检测规则（{}）：~/.cicbyte/apps/byte-git/airewrite/rules.json", rules.len());
             for r in &rules {
                 println!("  {:<10} /{}/  {}", r.name, r.pattern, r.desc);
             }

@@ -1,6 +1,6 @@
 # config — 配置管理
 
-管理 byte-git 的全局配置。配置存储在 `~/.cicbyte/byte-git/config.yaml`。
+管理 byte-git 的全局配置。配置存储在 `~/.cicbyte/apps/byte-git/config.yaml`。
 
 ## 基本用法
 
@@ -52,12 +52,12 @@ byte-git config set ai.api_key
 ## 配置文件位置
 
 ```
-~/.cicbyte/byte-git/config.yaml
+~/.cicbyte/apps/byte-git/config.yaml
 ```
 
 ## AI 提示词自定义
 
-AI 提示词模板存储在 `~/.cicbyte/byte-git/prompts/` 下，可直接编辑：
+AI 提示词模板存储在 `~/.cicbyte/apps/byte-git/prompts/` 下，可直接编辑：
 
 | 文件 | 用途 |
 |---|---|

@@ -23,7 +23,7 @@ struct Cli {
 enum Commands {
     /// 查看版本信息
     Version,
-    /// 管理全局配置（~/.cicbyte/byte-git/config/config.yaml）
+    /// 管理全局配置（~/.cicbyte/apps/byte-git/config/config.yaml）
     Config(commands::config::ConfigCmd),
     /// 批量清理已合并分支、列出孤立分支
     Branch(commands::branch::BranchCmd),
@@ -53,7 +53,7 @@ enum Commands {
     Review(commands::review::ReviewCmd),
     /// 密钥泄露扫描（集成 gitleaks）
     Secret(commands::secret::SecretCmd),
-    /// Git 钩子管理（Lua 脚本）
+    /// Git 钩子管理（shebang 脚本：shell/python/node）
     Hook(commands::hook::HookCmd),
     /// Rebase 预览与自动 squash
     Rebase(commands::rebase::RebaseCmd),

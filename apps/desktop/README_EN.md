@@ -150,9 +150,9 @@ The GUI shares configuration with the CLI:
 
 | Path | Content |
 |---|---|
-| `~/.cicbyte/byte-git/config.yaml` | Global config (AI model, proxy, Token) |
-| `~/.cicbyte/byte-git/backups/` | Full repository backups |
-| `~/.cicbyte/byte-git/prompts/` | AI prompt templates |
+| `~/.cicbyte/apps/byte-git/config.yaml` | Global config (AI model, proxy, Token) |
+| `~/.cicbyte/apps/byte-git/backups/` | Full repository backups |
+| `~/.cicbyte/apps/byte-git/prompts/` | AI prompt templates |
 | `~/.opencodereview/config.json` | Code-review LLM config (12 preset providers + custom gateways) |
 | `.git/byte-git/` | Project-level data (hook config, rewrite JSON, AI cache) |
 

@@ -152,9 +152,9 @@ GUI 与 CLI 共享同一套配置，存储位置：
 
 | 路径 | 内容 |
 |---|---|
-| `~/.cicbyte/byte-git/config.yaml` | 全局配置（AI 模型、代理、Token） |
-| `~/.cicbyte/byte-git/backups/` | 完整仓库备份 |
-| `~/.cicbyte/byte-git/prompts/` | AI 提示词模板 |
+| `~/.cicbyte/apps/byte-git/config.yaml` | 全局配置（AI 模型、代理、Token） |
+| `~/.cicbyte/apps/byte-git/backups/` | 完整仓库备份 |
+| `~/.cicbyte/apps/byte-git/prompts/` | AI 提示词模板 |
 | `~/.opencodereview/config.json` | 代码审查 LLM 配置（12 家预设 Provider + 自定义网关） |
 | `.git/byte-git/` | 项目级数据（hook 配置、改写 JSON、AI 缓存） |
 

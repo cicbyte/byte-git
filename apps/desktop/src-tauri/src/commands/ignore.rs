@@ -3,7 +3,7 @@
 //!
 //! 移植自 git-mate `gui/internal/ignore/{ignore,check,templates}.go` +
 //! `internal/gitignore`（template/categories/updater/parser/source），
-//! 行为对齐 Go 实现；模板目录迁移到 `~/.cicbyte/byte-git/gitignore/`：
+//! 行为对齐 Go 实现；模板目录迁移到 `~/.cicbyte/apps/byte-git/gitignore/`：
 //! - template/          本地模板（首次由内置模板播种，之后尊重用户改动）
 //! - template_github/   `github/gitignore` 仓库的 depth-1 克隆
 //! - categories.json    用户自定义分类规则
@@ -118,9 +118,9 @@ const BUNDLED_TEMPLATES: &[(&str, &str)] = &[
 ];
 
 struct TemplateManager {
-    /// ~/.cicbyte/byte-git/gitignore/template
+    /// ~/.cicbyte/apps/byte-git/gitignore/template
     local_dir: PathBuf,
-    /// ~/.cicbyte/byte-git/gitignore/template_github
+    /// ~/.cicbyte/apps/byte-git/gitignore/template_github
     remote_dir: PathBuf,
 }
 

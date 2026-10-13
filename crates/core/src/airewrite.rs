@@ -258,6 +258,11 @@ fn write_cache(repo: &Path, e: &CacheEntry) -> Result<()> {
     Ok(())
 }
 
+/// hook run（commit-msg AI 改写）复用的 prompt 构建入口。
+pub fn build_prompt_for_hook(entry: &AICommitEntry, diff: &str, lang: &str, max_chars: usize) -> String {
+    build_prompt(entry, diff, lang, max_chars)
+}
+
 fn build_prompt(entry: &AICommitEntry, diff: &str, lang: &str, max_chars: usize) -> String {
     let lang_str = match lang {
         "en" => "English",

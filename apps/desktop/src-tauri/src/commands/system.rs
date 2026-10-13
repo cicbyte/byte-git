@@ -2,10 +2,10 @@
 //! 命令片段（snippets.json）与 GitHub Release 查询。
 //!
 //! 移植自 git-mate `gui/internal/system/{settings,rules,snippets,download}.go`，
-//! 行为对齐 Go 实现；存储布局迁移到 `~/.cicbyte/byte-git/`：
+//! 行为对齐 Go 实现；存储布局迁移到 `~/.cicbyte/apps/byte-git/`：
 //! - 设置：core::config::Settings（config/config.yaml）
 //! - 规则：core::clone::ensure_rules_file（rules/rules.lua，内嵌默认模板）
-//! - 片段：`~/.cicbyte/byte-git/snippets.json`（应用级、跨仓库）
+//! - 片段：`~/.cicbyte/apps/byte-git/snippets.json`（应用级、跨仓库）
 
 use byte_git_core::config::Settings;
 use byte_git_core::util::AppPaths;
@@ -245,7 +245,7 @@ pub struct Snippet {
     pub created_at: i64,
 }
 
-/// snippets.json 路径：`~/.cicbyte/byte-git/snippets.json`。
+/// snippets.json 路径：`~/.cicbyte/apps/byte-git/snippets.json`。
 fn snippets_file() -> Result<PathBuf, String> {
     Ok(AppPaths::new().map_err(|e| e.to_string())?.root().join("snippets.json"))
 }
