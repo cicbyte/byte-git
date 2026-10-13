@@ -25,6 +25,7 @@ pub mod rewrite;
 pub mod secret;
 pub mod system;
 pub mod terminal;
+pub mod wallpaper;
 
 fn repo_path(repo: &str) -> PathBuf {
     PathBuf::from(if repo.is_empty() { "." } else { repo })

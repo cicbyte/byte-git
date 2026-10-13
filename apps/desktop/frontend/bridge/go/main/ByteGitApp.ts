@@ -283,6 +283,15 @@ const SIGNATURES: Record<string, string[]> = {
     NpmManage: ['action'],
     ReferenceClearCache: [],
     ShowFileAt: ['commitRef', 'filePath'],
+    // ---- wallpaper 域（壁纸管理）----
+    WallpaperUpload: ['srcPath'],
+    WallpaperList: [],
+    WallpaperDelete: ['filename'],
+    WallpaperDataDir: [],
+    WallpaperDataURL: ['filename'],
+    WallpaperThumbURL: ['filename'],
+    WallpaperPickFile: [],
+    Abs: ['filename'],
 }
 
 /** PascalCase/camelCase → snake_case。

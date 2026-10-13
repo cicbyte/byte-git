@@ -274,6 +274,14 @@ pub fn run() {
             commands::system::npm_manage,
             commands::reference::reference_clear_cache,
             commands::backup::show_file_at,
+            commands::wallpaper::wallpaper_upload,
+            commands::wallpaper::wallpaper_list,
+            commands::wallpaper::wallpaper_delete,
+            commands::wallpaper::wallpaper_data_dir,
+            commands::wallpaper::wallpaper_data_url,
+            commands::wallpaper::wallpaper_thumb_url,
+            commands::wallpaper::wallpaper_pick_file,
+            commands::wallpaper::abs,
         ])
         .run(tauri::generate_context!())
         .expect("byte-git 桌面端启动失败");

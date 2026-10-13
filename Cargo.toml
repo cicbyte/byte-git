@@ -44,6 +44,8 @@ portable-pty = "0.9"
 base64 = "0.22"
 # === tar 容器（archive full 模式打包工作区 + ExportToDir 解包）===
 tar = "0.4"
+# === 图像编解码/缩放（wallpaper 缩略图：png/jpeg/gif/webp/bmp 解码 + CatmullRom 缩放 + jpeg 编码）===
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp"] }
 
 [profile.release]
 opt-level = "z"      # 体积优先
