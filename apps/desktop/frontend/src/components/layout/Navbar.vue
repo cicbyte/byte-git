@@ -85,8 +85,10 @@ function close() { app?.WindowClose() }
 </script>
 
 <template>
-  <div class="navbar">
-    <div class="navbar-left">
+  <!-- data-tauri-drag-region：Tauri 原生拖拽（Wails 的 --wails-draggable CSS 不生效）。
+       属性按 mousedown 目标生效，容器标注可拖，按钮/面包屑等子元素自动不受影响。 -->
+  <div class="navbar" data-tauri-drag-region>
+    <div class="navbar-left" data-tauri-drag-region>
       <!-- ProjectRail toggle (show/hide the project switcher rail) -->
       <button
         v-show="!layout.isMobile"
@@ -117,7 +119,7 @@ function close() { app?.WindowClose() }
       </a-breadcrumb>
     </div>
 
-    <div class="navbar-center">
+    <div class="navbar-center" data-tauri-drag-region>
       <!-- 仓库切换已移至项目轨道 -->
     </div>
 
@@ -127,7 +129,7 @@ function close() { app?.WindowClose() }
     <!-- Global SCM drawer -->
     <ScmDrawer v-model:open="scmOpen" />
 
-    <div class="navbar-right">
+    <div class="navbar-right" data-tauri-drag-region>
       <!-- Live changes (实时变更) — high-frequency entry, pinned next to SCM -->
       <button
         class="scm-btn"
