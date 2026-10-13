@@ -483,22 +483,29 @@ watch(() => repo.repoEpoch, () => {
 </template>
 
 <style scoped>
-.rv-view { width: 100%; height: 100%; display: flex; flex-direction: column; gap: var(--spacing-sm); min-height: 0; }
+.rv-view {
+  width: calc(100% + var(--spacing-lg) * 2);
+  height: calc(100% + var(--spacing-lg) * 2);
+  margin: calc(-1 * var(--spacing-lg));
+  display: flex; flex-direction: column;
+  min-height: 0;
+  background: transparent;
+}
 
 /* top bar */
-.rv-top { display: flex; align-items: center; gap: var(--spacing-sm); flex-shrink: 0; }
+.rv-top { display: flex; align-items: center; gap: var(--spacing-sm); flex-shrink: 0; height: 38px; padding: 0 var(--spacing-md); background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
 .rv-spacer { flex: 1; }
 
 /* body: left scope + right result */
-.rv-body { flex: 1; display: flex; gap: var(--spacing-sm); min-height: 0; }
+.rv-body { flex: 1; display: flex; gap: 1px; min-height: 0; background: var(--color-border); }
 
 /* left: scope picker */
 .rv-scope {
   width: 340px; flex-shrink: 0; display: flex; flex-direction: column; gap: var(--spacing-xs);
-  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-surface);
   min-height: 0; overflow: hidden;
 }
-.rv-scope-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) var(--spacing-md); border-bottom: 1px solid var(--color-border); font-size: 12px; font-weight: 600; color: var(--color-text-secondary); flex-shrink: 0; }
+.rv-scope-head { display: flex; align-items: center; justify-content: space-between; height: 34px; padding: 0 var(--spacing-md); border-bottom: 1px solid var(--color-border); font-size: 12px; font-weight: 600; color: var(--color-text-secondary); flex-shrink: 0; }
 .rv-scope-count { font-weight: 400; color: var(--color-text-tertiary); }
 .rv-scope-list { flex: 1; overflow-y: auto; padding: var(--spacing-xs); min-height: 0; }
 .rv-scope-center { display: flex; justify-content: center; padding: var(--spacing-xl); }
@@ -528,7 +535,7 @@ watch(() => repo.repoEpoch, () => {
 .rv-sel-muted { color: var(--color-text-tertiary); }
 
 /* right: result area */
-.rv-result { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); min-height: 0; }
+.rv-result { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; min-height: 0; background: var(--color-border); }
 
 /* placeholder / guide */
 .rv-placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--color-text-tertiary); }
@@ -548,11 +555,11 @@ watch(() => repo.repoEpoch, () => {
 .sm-item { font-size: 12px; color: var(--color-text-secondary); display: inline-flex; align-items: center; gap: 4px; }
 
 /* result columns */
-.rv-cols { flex: 1; display: flex; gap: var(--spacing-sm); min-height: 0; }
+.rv-cols { flex: 1; display: flex; gap: 1px; min-height: 0; background: var(--color-border); }
 
 /* file tree (left of result) */
-.rv-files { width: 260px; flex-shrink: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; flex-direction: column; min-height: 0; }
-.rv-files-head { display: flex; justify-content: space-between; padding: var(--spacing-sm) var(--spacing-md); border-bottom: 1px solid var(--color-border); font-size: 12px; font-weight: 600; color: var(--color-text-secondary); flex-shrink: 0; }
+.rv-files { width: 260px; flex-shrink: 0; background: var(--color-surface); display: flex; flex-direction: column; min-height: 0; }
+.rv-files-head { display: flex; justify-content: space-between; height: 34px; padding: 0 var(--spacing-md); border-bottom: 1px solid var(--color-border); font-size: 12px; font-weight: 600; color: var(--color-text-secondary); flex-shrink: 0; }
 .rv-files-body { flex: 1; overflow-y: auto; padding: var(--spacing-xs); min-height: 0; }
 .rv-file-item { display: flex; gap: 8px; padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer; border-left: 2px solid transparent; }
 .rv-file-item:hover { background: var(--color-hover); }
@@ -563,8 +570,8 @@ watch(() => repo.repoEpoch, () => {
 .rv-file-preview { font-size: 10px; color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
 
 /* comment stream (right of result) */
-.rv-stream { flex: 1; min-width: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; flex-direction: column; min-height: 0; }
-.rv-stream-head { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
+.rv-stream { flex: 1; min-width: 0; background: var(--color-surface); display: flex; flex-direction: column; min-height: 0; }
+.rv-stream-head { display: flex; align-items: center; gap: var(--spacing-sm); height: 34px; padding: 0 var(--spacing-md); border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
 .rv-stream-path { font-family: 'Cascadia Code', monospace; font-size: 12px; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .rv-stream-body { flex: 1; overflow-y: auto; padding: var(--spacing-sm) var(--spacing-md); min-height: 0; }
 

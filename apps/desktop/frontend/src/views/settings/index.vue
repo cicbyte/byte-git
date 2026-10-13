@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { SettingOutlined, GithubOutlined, InfoCircleOutlined, BranchesOutlined, FileSearchOutlined, SafetyCertificateOutlined, CodeOutlined, GlobalOutlined, AppstoreOutlined, ApartmentOutlined, EyeOutlined } from '@ant-design/icons-vue'
+import { ref, onMounted } from 'vue'
+import { SettingOutlined, GithubOutlined, InfoCircleOutlined, BranchesOutlined, FileSearchOutlined, SafetyCertificateOutlined, CodeOutlined, GlobalOutlined, AppstoreOutlined, ApartmentOutlined, SkinOutlined, BgColorsOutlined, PictureOutlined, ThunderboltOutlined, LayoutOutlined } from '@ant-design/icons-vue'
 import AiSparkIcon from '../../components/common/AiSparkIcon.vue'
 import SettingsForm from '../../components/settings/SettingsForm.vue'
 import GitConfigForm from '../../components/settings/GitConfigForm.vue'
@@ -8,20 +8,21 @@ import OcrForm from '../../components/settings/OcrForm.vue'
 import GitleaksForm from '../../components/settings/GitleaksForm.vue'
 import ReferenceForm from '../../components/settings/ReferenceForm.vue'
 import DisplayForm from '../../components/settings/DisplayForm.vue'
+import AppearanceForm from '../../components/settings/AppearanceForm.vue'
+import WallpaperSection from '../../components/settings/WallpaperSection.vue'
+import AnimationForm from '../../components/settings/AnimationForm.vue'
 import HookForm from '../../components/settings/HookForm.vue'
 import RulesForm from '../../components/settings/RulesForm.vue'
 import TerminalForm from '../../components/settings/TerminalForm.vue'
 import FeatureMatrix from '../../components/settings/FeatureMatrix.vue'
 import GhForm from '../../components/settings/GhForm.vue'
 import { useSettings } from '../../composables/useSettings'
-import { usePageFooter } from '../../composables/usePageFooter'
 
 const { load } = useSettings()
-const { hideFooter, showFooter } = usePageFooter()
 
 const tabs = [
   { key: 'ai', icon: AiSparkIcon, label: 'AI 设置' },
-  { key: 'display', icon: EyeOutlined, label: '显示' },
+  { key: 'appearance', icon: SkinOutlined, label: '外观', hasSub: true },
   { key: 'gitconfig', icon: BranchesOutlined, label: 'Git 配置' },
   { key: 'ocr', icon: FileSearchOutlined, label: '代码审查' },
   { key: 'gitleaks', icon: SafetyCertificateOutlined, label: '密钥扫描' },
@@ -35,20 +36,23 @@ const tabs = [
 ]
 const activeTab = ref('ai')
 
+// Sub-tabs under the "外观" group: theme / wallpaper / animation / layout.
+const appearanceSubs = [
+  { key: 'theme', icon: BgColorsOutlined, label: '主题' },
+  { key: 'wallpaper', icon: PictureOutlined, label: '壁纸' },
+  { key: 'animation', icon: ThunderboltOutlined, label: '动画' },
+  { key: 'layout', icon: LayoutOutlined, label: '布局' },
+]
+const appearanceSub = ref('theme')
+
 onMounted(() => {
   load()
-  hideFooter()
-})
-
-
-onUnmounted(() => {
-  showFooter()
 })
 </script>
 
 <template>
   <div class="settings-view">
-    <!-- Left: group menu -->
+    <!-- Column 1: group menu -->
     <aside class="settings-sider">
       <div class="sider-title">
         <SettingOutlined />
@@ -68,9 +72,34 @@ onUnmounted(() => {
       </ul>
     </aside>
 
-    <!-- Right: form content -->
+    <!-- Column 2: sub-menu (only for groups that have sub-categories, e.g. 外观) -->
+    <aside v-if="activeTab === 'appearance'" class="settings-subsider">
+      <div class="subsider-title">
+        <SkinOutlined />
+        <span>外观</span>
+      </div>
+      <ul class="group-menu">
+        <li v-for="s in appearanceSubs" :key="s.key">
+          <a
+            class="menu-item"
+            :class="{ active: appearanceSub === s.key }"
+            @click="appearanceSub = s.key"
+          >
+            <component :is="s.icon" />
+            <span>{{ s.label }}</span>
+          </a>
+        </li>
+      </ul>
+    </aside>
+
+    <!-- Column 3: form content -->
     <GitConfigForm v-if="activeTab === 'gitconfig'" class="settings-content" />
-    <DisplayForm v-else-if="activeTab === 'display'" class="settings-content" />
+    <template v-else-if="activeTab === 'appearance'">
+      <AppearanceForm v-if="appearanceSub === 'theme'" class="settings-content" />
+      <WallpaperSection v-else-if="appearanceSub === 'wallpaper'" class="settings-content" />
+      <AnimationForm v-else-if="appearanceSub === 'animation'" class="settings-content" />
+      <DisplayForm v-else class="settings-content" />
+    </template>
     <OcrForm v-else-if="activeTab === 'ocr'" class="settings-content" />
     <GitleaksForm v-else-if="activeTab === 'gitleaks'" class="settings-content" />
     <ReferenceForm v-else-if="activeTab === 'reference'" class="settings-content" />
@@ -88,9 +117,13 @@ onUnmounted(() => {
 <style scoped>
 .settings-view {
   display: flex;
-  height: 100%;
+  /* Negate the parent .content-wrapper's padding (--spacing-lg = 24px) so
+     the sider + content fill the whole region: flush with the navbar on
+     top, the global Sidebar on the left, and the footer on the bottom. */
+  height: calc(100% + var(--spacing-lg) * 2);
+  margin: calc(-1 * var(--spacing-lg));
   overflow: hidden;
-  background: var(--color-background);
+  background: var(--bg-content);
 }
 
 /* Right content area: fill remaining space after sidebar */
@@ -106,7 +139,7 @@ onUnmounted(() => {
 .features-page {
   overflow-y: auto;
   padding: 20px 24px;
-  background: var(--color-background);
+  background: var(--bg-content);
 }
 
 /* Left group menu */
@@ -116,10 +149,16 @@ onUnmounted(() => {
   min-width: 200px;
   width: 200px;
   border-right: 1px solid var(--color-border);
-  padding: 10px;
+  /* Comfortable inner padding on all sides; slightly more on top to separate
+     the title from the navbar. */
+  padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) var(--spacing-md);
   user-select: none;
   flex-shrink: 0;
-  background: var(--color-surface);
+  /* Use the base surface color (not the sider region var) — the settings
+     sider is a sub-panel INSIDE the content area, not the global sidebar.
+     Keeping it on --bg-surface decouples it from the "菜单栏" region override
+     so editing 菜单栏 background no longer affects the settings tab strip. */
+  background: var(--bg-surface);
 }
 
 .sider-title {
@@ -176,12 +215,42 @@ onUnmounted(() => {
   border-color: var(--color-border);
 }
 
+/* Column 2 — sub-sider (e.g. 外观 → 主题/壁纸/动画/布局).
+   Mirrors .settings-sider styling but slightly narrower. */
+.settings-subsider {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  width: 160px;
+  border-right: 1px solid var(--color-border);
+  /* Match .settings-sider padding for visual consistency. */
+  padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) var(--spacing-md);
+  user-select: none;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+}
+.subsider-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.subsider-title .anticon { color: var(--color-primary); font-size: 14px; }
+
 @media (max-width: 768px) {
   .settings-sider {
     min-width: 64px;
     width: 64px;
   }
+  .settings-subsider {
+    min-width: 56px;
+    width: 56px;
+  }
   .sider-title span,
+  .subsider-title span,
   .menu-item span {
     display: none;
   }

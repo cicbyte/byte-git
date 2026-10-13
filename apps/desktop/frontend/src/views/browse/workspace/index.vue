@@ -79,7 +79,7 @@ async function openFile(node) {
   mdViewMode.value = 'render'
   try {
     const res = await app.RepoReadFile(node.path)
-    fileInfo.value = { binary: !!res.binary, notFound: !!res.notFound, lines: res.lines || 0 }
+    fileInfo.value = { binary: !!res.binary, notFound: !!res.notFound, lines: res.lines || 0, dataUrl: res.dataUrl || '' }
     fileContent.value = res.content || ''
   } catch (e) {
     AMessage.error('读取文件失败: ' + String(e?.message || e))
@@ -276,10 +276,12 @@ onBeforeUnmount(() => {
             <div>从左侧选择文件查看内容</div>
           </div>
           <div v-else-if="fileInfo.notFound" class="wc-state">该文件不存在</div>
+          <img v-else-if="fileInfo.dataUrl" :src="fileInfo.dataUrl" style="max-width:100%;max-height:100%;object-fit:contain;padding:16px;display:block;margin:auto" />
           <div v-else-if="fileInfo.binary" class="wc-state">二进制文件，无法显示</div>
           <MarkdownView
             v-else-if="isMarkdown && mdViewMode === 'render'"
             :source="fileContent"
+            :filename="selectedFile"
             class="wc-md"
           />
           <CodeViewer
@@ -295,7 +297,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.ws-view { width: 100%; height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.ws-view { width: calc(100% + var(--spacing-lg) * 2); height: calc(100% + var(--spacing-lg) * 2); margin: calc(-1 * var(--spacing-lg)); display: flex; flex-direction: column; min-height: 0; background: transparent; }
 .ws-main { flex: 1; display: flex; min-height: 0; gap: 1px; background: var(--color-border-light); }
 
 /* left tree */

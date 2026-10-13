@@ -291,11 +291,18 @@ watch(
 
 <style scoped>
 .term-view {
-  width: 100%; height: 100%;
-  background: #0f172a;
+  /* Full-bleed: negate .content-wrapper's 24px padding so the terminal fills
+     the whole region (navbar / Sidebar / footer). The terminal wants maximum
+     space, and fitAddon recalculates rows/cols on mount + on keep-alive
+     re-activation, so the size change is picked up automatically. */
+  width: calc(100% + var(--spacing-lg) * 2);
+  height: calc(100% + var(--spacing-lg) * 2);
+  margin: calc(-1 * var(--spacing-lg));
+  background: var(--bg-base);
+  display: flex;          /* make .term-host-wrap's flex:1 actually work */
+  flex-direction: column;
   min-height: 0;
 }
-.term-view:not(.is-dark) { background: #f8fafc; }
 
 /* ---- terminal host ---- */
 .term-host-wrap { flex: 1; min-height: 0; position: relative; overflow: hidden; }

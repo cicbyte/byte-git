@@ -49,6 +49,17 @@ const mdViewMode = ref('render') // 'render' | 'source'
 
 const isMarkdown = computed(() => /\.md$/i.test(selectedFile.value))
 
+// resolve a relative image inside the referenced repo cache → data URL, for
+// MarkdownView's local-image inlining. The cache lives outside the current
+// repo, so read via ReferenceFileRead instead of RepoReadImage.
+async function resolveRefImage(rel) {
+  if (!app?.ReferenceFileRead || !props.repoName) return ''
+  try {
+    const r = await app.ReferenceFileRead(props.repoName, rel)
+    return r.dataUrl || ''
+  } catch { return '' }
+}
+
 async function loadDir(subPath) {
   if (!app?.ReferenceFileList || !props.repoName) return
   // mark this dir as loading by setting an empty array first
@@ -316,6 +327,8 @@ onBeforeUnmount(() => {
         <MarkdownView
           v-else-if="isMarkdown && mdViewMode === 'render'"
           :source="fileContent"
+          :filename="selectedFile"
+          :resolve-image="resolveRefImage"
           class="sc-md"
         />
         <!-- source / code -->

@@ -15,6 +15,8 @@ import { marked } from 'marked'
  */
 const props = defineProps({
   source: { type: String, default: '' },
+  filename: { type: String, default: '' }, // .md 路径,用于解析相对图片的基准目录
+  resolveImage: { type: Function, default: null }, // (rel)=>Promise<dataUrl>;不传则用 RepoReadImage(当前仓库)
 })
 
 // configure marked once: no mangle/ids (cleaner URLs), GFM tables
@@ -53,10 +55,18 @@ async function resolveLocalImages() {
       // Windows-drive paths — only resolve repo-relative references.
       if (!raw || /^(https?:|data:|blob:|\/\/)/i.test(raw)) return
       if (raw.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(raw)) return
-      let rel = raw
-      try { rel = decodeURIComponent(raw) } catch {}
-      const res = await backend.RepoReadImage(rel)
-      if (res?.dataUrl) img.src = res.dataUrl
+      // resolve relative to the markdown file's own directory, not the repo
+      // root — e.g. gui/README.md + images/x.png → gui/images/x.png
+      const baseDir = props.filename ? props.filename.replace(/[^/]+$/, '') : ''
+      let rel = baseDir + raw.replace(/^\.\//, '')
+      try { rel = decodeURIComponent(rel) } catch {}
+      let dataUrl = ''
+      if (props.resolveImage) {
+        dataUrl = await props.resolveImage(rel)
+      } else if (backend?.RepoReadImage) {
+        dataUrl = (await backend.RepoReadImage(rel))?.dataUrl || ''
+      }
+      if (dataUrl) img.src = dataUrl
     } catch { /* leave the original src on any failure */ }
   }))
 }

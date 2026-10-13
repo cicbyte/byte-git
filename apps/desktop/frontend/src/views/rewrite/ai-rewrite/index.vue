@@ -5,6 +5,7 @@ import {
   ThunderboltOutlined, ReloadOutlined,
   ExclamationCircleOutlined,
   SettingOutlined, PlusOutlined, DeleteOutlined, ArrowRightOutlined,
+  HistoryOutlined, ProfileOutlined,
 } from '@ant-design/icons-vue'
 import { useRepoStore } from '../../../stores/repo'
 import { useRewriteStream } from '../../../composables/useRewriteStream'
@@ -295,7 +296,7 @@ watch(() => repo.repoEpoch, () => { clearStat(); loadTree() })
           @hover-item="onCommitHover"
         >
           <template #header>
-            <span>提交树</span>
+            <span class="ar-head-title"><HistoryOutlined /> 提交树</span>
             <span>{{ entries.length }} 条</span>
           </template>
           <template #item="{ entry: e, index }">
@@ -333,7 +334,7 @@ watch(() => repo.repoEpoch, () => { clearStat(); loadTree() })
       <!-- 中栏：改写任务列表 -->
       <aside class="ar-tasks">
         <div class="ar-tasks-head">
-          <span>改写任务</span>
+          <span class="ar-head-title"><ProfileOutlined /> 改写任务</span>
           <span>{{ taskCount }} 条</span>
         </div>
         <div class="ar-tasks-body">
@@ -414,21 +415,44 @@ watch(() => repo.repoEpoch, () => { clearStat(); loadTree() })
 </template>
 
 <style scoped>
-.ar-view { width: 100%; height: 100%; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+/* Full-bleed: negate .content-wrapper's 24px padding — flush with navbar /
+   Sidebar / footer, matching the other multi-column pages. */
+.ar-view {
+  width: calc(100% + var(--spacing-lg) * 2);
+  height: calc(100% + var(--spacing-lg) * 2);
+  margin: calc(-1 * var(--spacing-lg));
+  display: flex; flex-direction: column;
+  min-height: 0;
+  background: transparent;
+}
 
-/* 顶部工具栏 */
-.ar-toolbar { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+/* 顶部工具栏 — flush strip rather than floating */
+.ar-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
 .ar-spacer { flex: 1; }
 .ar-stat { font-size: 12px; color: var(--color-text-secondary); }
 .ar-stat b { color: var(--color-text); }
 .ar-stat .ok { color: var(--color-success); }
 .ar-batch-bar { flex-shrink: 0; }
 
-/* 三栏 */
+/* shared column-header title (icon + label) */
+.ar-head-title { display: inline-flex; align-items: center; gap: 6px; }
+.ar-head-title .anticon { font-size: 13px; opacity: 0.85; }
+
+/* 三栏 — 1px gap (parent border colour shows as divider) */
 .ar-cols { flex: 1; display: grid; grid-template-columns: 280px 300px 1fr; gap: 1px; background: var(--color-border); min-height: 0; overflow: hidden; }
 
 /* 左栏：提交树 */
 .ar-tree { background: var(--color-background); overflow: hidden; display: flex; flex-direction: column; }
+/* Flatten CommitTree's card chrome + force its header to 34px to align with
+   the middle column's .ar-tasks-head. */
+.ar-tree :deep(.ct-list) { border-radius: 0; border: none; }
+.ar-tree :deep(.ct-head) { height: 34px; padding: 0 12px; }
 .ar-tree :deep(.ct-host) { flex: 1; }
 .ar-tree-row { display: flex; gap: 6px; padding: 6px 8px; }
 .ar-num { font-family: 'Cascadia Code', monospace; font-size: 10px; font-weight: 700; color: var(--color-text-tertiary); flex-shrink: 0; min-width: 26px; margin-top: 1px; }

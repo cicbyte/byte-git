@@ -12,6 +12,7 @@
 import { ref, computed, watch } from 'vue'
 import {
   ThunderboltOutlined, CheckOutlined, CloseOutlined, DeleteOutlined, EditOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons-vue'
 import FileTreeNode from '../../../../components/common/FileTreeNode.vue'
 import DiffViewer from '../../../../components/common/DiffViewer.vue'
@@ -111,6 +112,12 @@ watch(() => props.activeTask?.hash, (hash) => {
 
 <template>
   <section class="ar-detail">
+    <!-- 34px column header — aligns with the left/middle column headers. -->
+    <div class="ar-detail-head">
+      <FileTextOutlined />
+      <span>任务详情</span>
+      <span v-if="activeTask" class="ar-detail-hash">{{ activeTask.hash.slice(0, 7) }}</span>
+    </div>
     <template v-if="activeTask">
       <!-- 原始 vs 改写 -->
       <div class="ar-msg-area">
@@ -184,6 +191,24 @@ watch(() => props.activeTask?.hash, (hash) => {
 <style scoped>
 /* 右栏：详情 */
 .ar-detail { background: var(--color-surface); display: flex; flex-direction: column; overflow: hidden; }
+.ar-detail-head {
+  display: flex; align-items: center; gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.ar-detail-head .anticon { font-size: 13px; opacity: 0.85; }
+.ar-detail-hash {
+  margin-left: auto;
+  font-family: 'Cascadia Code', monospace;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-hash);
+}
 .ar-detail-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-text-tertiary); font-size: 13px; }
 
 /* message 编辑区 */

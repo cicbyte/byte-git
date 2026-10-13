@@ -1,10 +1,11 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { MinusOutlined, BorderOutlined, CloseOutlined, MenuFoldOutlined, MenuUnfoldOutlined, BranchesOutlined, EyeOutlined, CodeOutlined, AppstoreOutlined } from '@ant-design/icons-vue'
+import { MinusOutlined, BorderOutlined, CloseOutlined, MenuFoldOutlined, MenuUnfoldOutlined, BranchesOutlined, EyeOutlined, CodeOutlined, AppstoreOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import { useLayoutStore } from '../../stores/layout'
 import { useRepoStore } from '../../stores/repo'
 import { useScmStore } from '../../stores/scm'
+import { useThemeStore } from '../../stores/theme'
 import { storeToRefs } from 'pinia'
 import DownloadBar from './DownloadBar.vue'
 import RepoModal from './RepoModal.vue'
@@ -15,6 +16,7 @@ const router = useRouter()
 const layout = useLayoutStore()
 const repo = useRepoStore()
 const scm = useScmStore()
+const theme = useThemeStore()
 const { totalChanges } = storeToRefs(scm)
 const app = window.go?.main?.ByteGitApp
 
@@ -152,6 +154,24 @@ function close() { app?.WindowClose() }
       </a-badge>
       <!-- Global download (GitHub Release), independent of current repo -->
       <DownloadBar />
+      <!-- 主题切换 -->
+      <button
+        class="scm-btn"
+        :title="theme.isDark ? '切换亮色' : '切换暗色'"
+        @click="theme.toggleTheme()"
+      >
+        <svg v-if="theme.isDark" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        <svg v-else viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg>
+      </button>
+      <!-- 设置 -->
+      <button
+        class="scm-btn"
+        :class="{ active: route.path === '/settings' }"
+        title="设置"
+        @click="router.push('/settings')"
+      >
+        <SettingOutlined />
+      </button>
       <button class="win-btn" title="最小化" @click="minimize">
         <MinusOutlined />
       </button>
@@ -172,7 +192,7 @@ function close() { app?.WindowClose() }
   height: var(--navbar-height);
   padding: 0 var(--spacing-md);
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--bg-navbar);
   flex-shrink: 0;
   /* Whole navbar is a drag region; only specific interactive elements opt out below */
   --wails-draggable: drag;

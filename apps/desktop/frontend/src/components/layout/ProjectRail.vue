@@ -56,17 +56,6 @@ function initials(name) {
   return name.trim()[0].toUpperCase() || '?'
 }
 
-// distinct background colors per project (deterministic from name hash)
-const palette = [
-  '#7d6cf8', '#ff79c6', '#8be9fd', '#50fa7b',
-  '#f1fa8c', '#ffb86c', '#bd93f9', '#ff7733',
-]
-function avatarColor(name) {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  return palette[Math.abs(hash) % palette.length]
-}
-
 async function addProject() {
   const dir = await repo.pickFolder()
   if (dir) await repo.switchTo(dir)
@@ -89,7 +78,7 @@ async function addProject() {
         @click="repo.switchTo(r.path)"
         @contextmenu.prevent="onItemContextmenu($event, r)"
       >
-        <div class="rail-avatar" :style="{ background: avatarColor(r.name) }">
+        <div class="rail-avatar">
           {{ initials(r.name) }}
         </div>
         <div class="rail-info">
@@ -123,11 +112,13 @@ async function addProject() {
 
 <style scoped>
 .project-rail {
+  position: relative;
+  z-index: 2;  /* sit above wallpaper layer (.wp-layer z:0, .wp-mask z:1) */
   width: 160px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: var(--color-surface);
+  background: var(--bg-rail);
   border-right: 1px solid var(--color-border);
   overflow: hidden;
   transition: width var(--transition-normal);
@@ -177,17 +168,28 @@ async function addProject() {
 .rail-avatar {
   width: 24px;
   height: 24px;
-  border-radius: 5px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  font-weight: 700;
-  color: #fff;
+  font-weight: 600;
+  /* 透明自绘风格：透明背景 + 细描边 + 次要文字色 */
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
   flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+.rail-item:hover .rail-avatar {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 .rail-item.active .rail-avatar {
-  box-shadow: 0 0 0 2px var(--color-primary);
+  /* active 态：填充轻微主色底 + 主色描边 + 主色文字 */
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .rail-info {

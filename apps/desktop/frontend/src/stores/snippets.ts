@@ -5,7 +5,7 @@ import { message as AMessage } from 'ant-design-vue'
 /**
  * Snippet store — personal git command library.
  *
- * Backed by ~/.cicbyte/byte-git/snippets.json (Go side). The store loads once
+ * Backed by ~/.cicbyte/apps/byte-git/snippets.json (Go side). The store loads once
  * and mutates optimistically; every add/update/delete/toggle calls the
  * backend to persist.
  */

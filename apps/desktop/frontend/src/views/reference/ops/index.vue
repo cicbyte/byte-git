@@ -12,7 +12,7 @@
  *
  * 布局仿 SettingsView:左侧分类菜单,右侧按选中分类切换。
  */
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, h } from 'vue'
 import {
   ToolOutlined, HeartOutlined, CloudOutlined, ApartmentOutlined,
   ExclamationCircleOutlined, DeleteOutlined,
@@ -25,9 +25,16 @@ import WikiSection from '../../../components/reference/sections/WikiSection.vue'
 import TrashSection from '../../../components/reference/sections/TrashSection.vue'
 
 const { reference: refStatus, ensureLoaded } = useToolStatus()
-const { hideFooter, showFooter } = usePageFooter()
+const { setFooter, clearFooter } = usePageFooter()
 
 const available = ref(false)
+
+// footer 注意事项(幂等操作等)— 从 InitSection 移到全局 footer,让整页
+// 可见,section 主体更干净。
+const NoteFooter = () => h('span', { style: 'font-size:12px;color:var(--color-text-tertiary)' }, [
+  h('b', { style: 'color:var(--color-text-secondary)' }, '幂等操作'),
+  ' · 重复执行安全,已存在的 .reference/ 与配置会保留,仅补全缺失项;重新选择 Agent 会更新注入的 AI 配置文件',
+])
 
 const sections = [
   { key: 'init', icon: ToolOutlined, label: '初始化' },
@@ -38,11 +45,11 @@ const sections = [
 const active = ref('init')
 
 onMounted(async () => {
-  hideFooter()
   await ensureLoaded()
   available.value = !!refStatus.value.available
+  if (available.value) setFooter(NoteFooter, () => ({}))
 })
-onBeforeUnmount(() => showFooter())
+onBeforeUnmount(() => clearFooter())
 </script>
 
 <template>
@@ -92,7 +99,13 @@ onBeforeUnmount(() => showFooter())
 
 <style scoped>
 .rops-view {
-  width: 100%; height: 100%;
+  /* Negate the parent .content-wrapper's padding (--spacing-lg = 24px) so
+     the sider + content fill the whole region: flush with the navbar on top,
+     the global Sidebar on the left, and the footer on the bottom — same
+     full-bleed treatment as the Settings page. */
+  width: calc(100% + var(--spacing-lg) * 2);
+  height: calc(100% + var(--spacing-lg) * 2);
+  margin: calc(-1 * var(--spacing-lg));
   display: flex; flex-direction: column;
   min-height: 0;
   background: var(--color-background);
@@ -125,12 +138,18 @@ onBeforeUnmount(() => showFooter())
   display: flex; flex-direction: column;
   width: 180px; flex-shrink: 0;
   border-right: 1px solid var(--color-border);
-  padding: 10px; user-select: none;
+  /* Match Settings sider padding for visual consistency. */
+  padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) var(--spacing-md);
+  user-select: none;
   background: var(--color-surface);
 }
 .sider-title {
+  /* 34px fixed header — aligns with Settings sider-title and the column
+     headers across Git Log / Time-Travel / Cheat Sheet. */
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px 14px;
+  height: 34px;
+  padding: 0 12px;
+  margin-bottom: var(--spacing-sm);
   font-size: 14px; font-weight: 600; color: var(--color-text);
 }
 .sider-title :deep(.anticon) { color: var(--color-primary); }

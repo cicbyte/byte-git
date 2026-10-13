@@ -251,7 +251,7 @@ async function openFile(node) {
   fileContent.value = ''
   try {
     const res = await app.CommitReadFile(activeCommit.value, node.path)
-    fileInfo.value = { binary: res.binary, notFound: res.notFound, lines: res.lines }
+    fileInfo.value = { binary: res.binary, notFound: res.notFound, lines: res.lines, dataUrl: res.dataUrl || '' }
     fileContent.value = res.content
   } catch (e) {
     AMessage.error('读取文件失败: ' + String(e?.message || e))
@@ -397,6 +397,10 @@ onBeforeUnmount(() => { clearFooter() })
 
     <!-- Column 2: file tree -->
     <aside class="tt-files">
+      <div class="tt-files-head">
+        <FileOutlined />
+        <span>文件</span>
+      </div>
       <div class="tt-files-body">
         <div v-if="loadingTree" class="tt-center"><a-spin size="small" /></div>
         <div v-else-if="!activeCommit" class="tt-center muted">← 选择一个提交</div>
@@ -432,9 +436,10 @@ onBeforeUnmount(() => { clearFooter() })
           <FileOutlined style="font-size:32px;opacity:0.4" />
           <div style="margin-top:8px">选择文件查看源码</div>
         </div>
+        <img v-else-if="fileInfo.dataUrl" :src="fileInfo.dataUrl" style="max-width:100%;max-height:100%;object-fit:contain;padding:16px;display:block;margin:auto" />
         <div v-else-if="fileInfo.binary" class="tt-center">⚠️ 二进制文件</div>
         <div v-else-if="fileInfo.notFound" class="tt-center">⚠️ 文件不存在</div>
-        <MarkdownView v-else-if="isMarkdown && mdViewMode === 'render'" :source="fileContent" class="tt-md" />
+        <MarkdownView v-else-if="isMarkdown && mdViewMode === 'render'" :source="fileContent" :filename="selectedFile" class="tt-md" />
         <CodeViewer v-else :code="fileContent" :filename="selectedFile" :highlight-lines="[]" />
       </div>
     </section>
@@ -442,7 +447,7 @@ onBeforeUnmount(() => { clearFooter() })
 </template>
 
 <style scoped>
-.tt-view { width: 100%; height: 100%; display: flex; gap: 1px; background: var(--color-border); min-height: 0; }
+.tt-view { width: calc(100% + var(--spacing-lg) * 2); height: calc(100% + var(--spacing-lg) * 2); margin: calc(-1 * var(--spacing-lg)); display: flex; gap: 1px; background: transparent; min-height: 0; }
 
 /* shared column chrome */
 .tt-commits, .tt-files, .tt-code { background: var(--color-surface); display: flex; flex-direction: column; min-height: 0; }
@@ -477,7 +482,20 @@ onBeforeUnmount(() => { clearFooter() })
 .type-test { color: var(--color-warning); background: rgba(255,184,108,0.08); }
 
 /* column 2: files (medium) */
-.tt-files { width: 260px; flex-shrink: 0; background: var(--color-background); }
+.tt-files { width: 260px; flex-shrink: 0; background: var(--color-background); display: flex; flex-direction: column; }
+.tt-files-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;          /* align with .tt-col-head / .tt-code-head */
+  padding: 0 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.tt-files-head .anticon { font-size: 13px; opacity: 0.85; }
 .tt-files-body { flex: 1; overflow-y: auto; padding: 4px; }
 
 /* column 3: code (fills rest) */

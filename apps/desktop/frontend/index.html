@@ -5,10 +5,87 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <link href="/icon.png" rel="icon" type="image/png"/>
     <title>byte-git-gui</title>
+    <!--
+      FOUC defence line #1 — inline synchronous script.
+
+      Runs BEFORE CSS parses. Reads localStorage 'byte-git-theme', resolves
+      the mode (honoring prefers-color-scheme for mode=auto), and injects
+      the base palette as CSS variables on :root + sets data-theme.
+
+      Embedded Dracula/dark fallback palette: this is what most users see,
+      so non-dracula presets flash Dracula for ONE frame, then main.ts
+      corrects it on mount. For dracula users there is zero flash.
+
+      Failures are swallowed silently — lines #2 (derivation.css :root
+      fallback) and #3 (store.initialize() before mount) catch any gaps.
+    -->
+    <script>
+      (function () {
+        try {
+          var KEY = 'byte-git-theme';
+          var raw = localStorage.getItem(KEY);
+          var mode = 'dark';
+          var preset = 'dracula';
+
+          if (raw === 'dark' || raw === 'light') {
+            // legacy string
+            mode = raw;
+          } else if (raw) {
+            try {
+              var p = JSON.parse(raw);
+              if (p && typeof p === 'object') {
+                if (typeof p.mode === 'string') mode = p.mode;
+                if (typeof p.preset === 'string') preset = p.preset;
+              }
+            } catch (_) {}
+          }
+
+          if (mode === 'auto') {
+            mode = (window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+              ? 'dark' : 'light';
+          }
+
+          // Embedded Dracula palette (mirrors themes/derivation.css :root).
+          // Even if user picks another preset, dracula for one frame is
+          // nearly imperceptible; main.ts corrects immediately.
+          var PAL = {
+            dark: {
+              bgBase: '#0f172a', bgSurface: '#1e293b', bgElevated: '#3d4d63', bgInput: '#1e293b',
+              primary: '#BD93F9', accent: '#FF79C6',
+              textPrimary: '#f1f5f9', textSecondary: '#94a3b8', textTertiary: '#64748b',
+              borderBase: '#3d4d63', borderLight: '#2d3e50'
+            },
+            light: {
+              bgBase: '#ffffff', bgSurface: '#f8fafc', bgElevated: '#f1f5f9', bgInput: '#f8fafc',
+              primary: '#BD93F9', accent: '#FF79C6',
+              textPrimary: '#0f172a', textSecondary: '#64748b', textTertiary: '#94a3b8',
+              borderBase: '#e2e8f0', borderLight: '#f1f5f9'
+            }
+          };
+          var pal = PAL[mode] || PAL.dark;
+
+          var root = document.documentElement;
+          root.style.setProperty('--bg-base-orig', pal.bgBase);
+          root.style.setProperty('--bg-surface-orig', pal.bgSurface);
+          root.style.setProperty('--bg-elevated-orig', pal.bgElevated);
+          root.style.setProperty('--bg-input-orig', pal.bgInput);
+          root.style.setProperty('--color-primary', pal.primary);
+          root.style.setProperty('--color-accent', pal.accent);
+          root.style.setProperty('--text-primary', pal.textPrimary);
+          root.style.setProperty('--text-secondary', pal.textSecondary);
+          root.style.setProperty('--text-tertiary', pal.textTertiary);
+          root.style.setProperty('--border-base-orig', pal.borderBase);
+          root.style.setProperty('--border-light-orig', pal.borderLight);
+          root.setAttribute('data-theme', mode);
+        } catch (_) {
+          // Swallow; derivation.css :root fallback + store.initialize() cover us.
+        }
+      })();
+    </script>
 </head>
 <body>
 <div id="app"></div>
 <script src="./src/main.ts" type="module"></script>
 </body>
 </html>
-

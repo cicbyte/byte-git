@@ -4,15 +4,16 @@ import { useGitConfig } from '../../composables/useGitConfig'
 
 const { entries, loading, load, queueSave } = useGitConfig()
 
-// per-entry editable state: { [key]: { scope, value } }
+// active tab: 'global' | 'local'
+const activeScope = ref('global')
+
+// per-entry editable state: { [key]: value }
 const edits = ref({})
 
 function syncEdits() {
   const next = {}
   entries.value.forEach((e) => {
-    // default scope: keep existing layer if set, else global
-    const scope = e.hasLocal ? 'local' : 'global'
-    next[e.key] = { scope, value: e.effectiveValue }
+    next[e.key] = e.effectiveValue
   })
   edits.value = next
 }
@@ -25,6 +26,7 @@ const sections = [
   { title: '身份', keys: ['user.name', 'user.email'] },
   { title: '编辑器 / 换行', keys: ['core.editor', 'core.autocrlf', 'core.quotepath'] },
   { title: '行为', keys: ['pull.rebase', 'init.defaultBranch', 'commit.gpgsign'] },
+  { title: 'Hook', keys: ['core.hooksPath'] },
   { title: '网络', keys: ['http.proxy'] },
 ]
 
@@ -37,10 +39,10 @@ const keyLabel = {
   'pull.rebase': '拉取时变基',
   'init.defaultBranch': '默认分支',
   'commit.gpgsign': '签名提交',
+  'core.hooksPath': 'Hooks 目录',
   'http.proxy': 'HTTP 代理',
 }
 
-// options for enum-typed keys
 const enumOptions = {
   'core.autocrlf': [
     { label: 'true (签入转 CRLF, 签出转 LF)', value: 'true' },
@@ -64,34 +66,48 @@ function findEntry(key) {
 function isEnum(key) {
   return !!enumOptions[key]
 }
-function sourceTag(e) {
+
+// value for the current tab scope
+function scopeValue(key) {
+  const e = findEntry(key)
   if (!e) return ''
-  if (e.hasLocal && e.hasGlobal) return 'local 覆盖 global'
-  if (e.hasLocal) return 'local'
-  if (e.hasGlobal) return 'global'
-  return '默认'
+  return activeScope.value === 'local' ? e.localValue : e.globalValue
 }
-function isOverridden(e) {
+function hasScopeValue(key) {
+  const e = findEntry(key)
+  if (!e) return false
+  return activeScope.value === 'local' ? e.hasLocal : e.hasGlobal
+}
+// overridden = both local and global set (local shadows global)
+function isOverridden(key) {
+  const e = findEntry(key)
   return e && e.hasLocal && e.hasGlobal
 }
 
-// input change handlers
 function onValueChange(key, v) {
-  if (!edits.value[key]) return
-  edits.value[key].value = v
-  queueSave(key, edits.value[key].scope, v)
-}
-function onScopeChange(key, v) {
-  if (!edits.value[key]) return
-  edits.value[key].scope = v
-  // re-save current value at the new scope
-  queueSave(key, v, edits.value[key].value)
+  edits.value[key] = v
+  // write at the current tab's scope
+  queueSave(key, activeScope.value, v)
 }
 </script>
 
 <template>
   <div class="settings-form">
     <a-spin :spinning="loading">
+      <!-- scope tabs -->
+      <div class="gc-scope-tabs">
+        <a-radio-group v-model:value="activeScope" button-style="solid" size="small">
+          <a-radio-button value="global">全局</a-radio-button>
+          <a-radio-button value="local">仓库级</a-radio-button>
+        </a-radio-group>
+        <span v-if="activeScope === 'local'" class="gc-scope-hint">
+          仓库级设置覆盖全局，仅影响当前仓库
+        </span>
+        <span v-else class="gc-scope-hint">
+          全局设置对所有仓库生效
+        </span>
+      </div>
+
       <div v-for="s in sections" :key="s.title" class="setting-group">
         <div class="group-title">{{ s.title }}</div>
 
@@ -104,35 +120,29 @@ function onScopeChange(key, v) {
           <div class="gc-control">
             <a-select
               v-if="isEnum(key)"
-              :value="edits[key]?.value"
+              :value="scopeValue(key)"
               :options="enumOptions[key]"
               size="small"
               style="width: 260px"
+              :placeholder="hasScopeValue(key) ? '' : '(未设置)'"
               @change="(v) => onValueChange(key, v)"
             />
             <a-input
               v-else
-              :value="edits[key]?.value"
-              :placeholder="`(未设置)`"
+              :value="scopeValue(key)"
+              :placeholder="hasScopeValue(key) ? '' : '(未设置)'"
               size="small"
               style="width: 260px"
               @change="(e) => onValueChange(key, e.target.value)"
             />
           </div>
 
-          <div class="gc-scope">
-            <span class="src-tag" :class="{ override: isOverridden(findEntry(key)) }">
-              {{ sourceTag(findEntry(key)) }}
+          <div class="gc-status">
+            <span v-if="isOverridden(key) && activeScope === 'global'" class="src-tag override" title="仓库级覆盖了此项">
+              被覆盖
             </span>
-            <a-select
-              :value="edits[key]?.scope || 'global'"
-              size="small"
-              style="width: 100px"
-              @change="(v) => onScopeChange(key, v)"
-            >
-              <a-select-option value="global">全局</a-select-option>
-              <a-select-option value="local">仓库</a-select-option>
-            </a-select>
+            <span v-else-if="hasScopeValue(key)" class="src-tag">已设置</span>
+            <span v-else class="src-tag muted">未设置</span>
           </div>
         </div>
       </div>
@@ -146,6 +156,17 @@ function onScopeChange(key, v) {
   overflow-y: auto;
   padding: 20px 24px;
   background: var(--color-background);
+}
+
+.gc-scope-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+.gc-scope-hint {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
 }
 
 .setting-group {
@@ -192,11 +213,8 @@ function onScopeChange(key, v) {
   flex-shrink: 0;
 }
 
-.gc-scope {
+.gc-status {
   margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .src-tag {
@@ -206,7 +224,7 @@ function onScopeChange(key, v) {
   border-radius: 8px;
   background: var(--color-surface-raised);
 }
-
+.src-tag.muted { opacity: 0.5; }
 .src-tag.override {
   color: var(--color-warning);
   background: var(--color-warning-bg);

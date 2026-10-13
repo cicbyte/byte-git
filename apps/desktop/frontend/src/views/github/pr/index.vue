@@ -367,7 +367,7 @@ watch(() => repo.repoEpoch, () => { invalidateAll(); loadPRs() })
 </template>
 
 <style scoped>
-.gh-view { width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--color-background); overflow: hidden; }
+.gh-view { width: calc(100% + var(--spacing-lg) * 2); height: calc(100% + var(--spacing-lg) * 2); margin: calc(-1 * var(--spacing-lg)); display: flex; flex-direction: column; background: transparent; overflow: hidden; }
 
 .gh-guide { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
 .gh-guide-icon { font-size: 48px; opacity: 0.4; color: var(--color-text-tertiary); }
@@ -379,7 +379,7 @@ watch(() => repo.repoEpoch, () => { invalidateAll(); loadPRs() })
 
 /* left: PR list */
 .gh-list-pane { width: 300px; flex-shrink: 0; background: var(--color-surface); display: flex; flex-direction: column; min-height: 0; }
-.gh-head { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
+.gh-head { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
 .gh-repo { font-family: 'Cascadia Code', monospace; font-size: 13px; font-weight: 600; color: var(--color-text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gh-head-btns { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .gh-filter-bar { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-bottom: 1px solid var(--color-border-light); flex-shrink: 0; }
@@ -405,7 +405,7 @@ watch(() => repo.repoEpoch, () => { invalidateAll(); loadPRs() })
 /* right: PR detail */
 .gh-detail-pane { flex: 1; min-width: 0; background: var(--color-surface); display: flex; flex-direction: column; min-height: 0; }
 .gh-detail-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--color-text-tertiary); font-size: 14px; }
-.gh-detail-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
+.gh-detail-head { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
 .gh-detail-title { font-size: 14px; font-weight: 600; color: var(--color-text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gh-detail-actions { display: flex; gap: 2px; flex-shrink: 0; }
 .gh-detail-body-preview { padding: 8px 14px; border-bottom: 1px solid var(--color-border-light); font-size: 13px; max-height: 120px; overflow-y: auto; flex-shrink: 0; }

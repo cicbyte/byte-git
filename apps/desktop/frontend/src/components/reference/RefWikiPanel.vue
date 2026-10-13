@@ -25,9 +25,28 @@ const theme = useThemeStore()
 const mdTheme = computed(() => (theme.isDark ? 'dark' : 'light'))
 
 const selected = ref('')
-const content = ref('')
+const rawContent = ref('')
 const loading = ref(false)
 const error = ref('')
+
+// Parse YAML frontmatter from markdown content.
+// Returns { frontmatter: [{key, value}], body: markdown-without-frontmatter }
+function parseFrontmatter(md) {
+  const fmMatch = md.match(/^---\n([\s\S]*?)\n---\n?/)
+  if (!fmMatch) return { frontmatter: [], body: md }
+  const yamlBlock = fmMatch[1]
+  const body = md.slice(fmMatch[0].length)
+  const rows = []
+  for (const line of yamlBlock.split('\n')) {
+    const m = line.match(/^(\w[\w.-]*)\s*:\s*(.*)$/)
+    if (m) rows.push({ key: m[1], value: m[2].replace(/^["']|["']$/g, '') })
+  }
+  return { frontmatter: rows, body }
+}
+
+const frontmatter = ref([])
+const mdBody = ref('')
+const content = computed(() => mdBody.value)
 
 // merged + deduped file list. reference.md is pinned first if present.
 const files = computed(() => {
@@ -60,7 +79,10 @@ async function openFile(file) {
   error.value = ''
   content.value = ''
   try {
-    content.value = await app.ReferenceWikiFile(props.repoName, file)
+    rawContent.value = await app.ReferenceWikiFile(props.repoName, file)
+    const parsed = parseFrontmatter(rawContent.value)
+    frontmatter.value = parsed.frontmatter
+    mdBody.value = parsed.body
   } catch (e) {
     error.value = String(e?.message || e)
   } finally {
@@ -116,8 +138,19 @@ watch(
         <div>从左侧选择一个文件查看内容</div>
       </div>
       <div v-else class="wc-md">
+        <!-- YAML frontmatter rendered as a metadata table -->
+        <div v-if="frontmatter.length" class="wc-frontmatter">
+          <table class="fm-table">
+            <tbody>
+              <tr v-for="row in frontmatter" :key="row.key">
+                <td class="fm-key">{{ row.key }}</td>
+                <td class="fm-val">{{ row.value }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <MdPreview
-          :model-value="content"
+          :model-value="mdBody"
           :theme="mdTheme"
         />
       </div>
@@ -190,4 +223,31 @@ watch(
 /* md-editor-v3 ships z-index up to 100001 (code-block header / copy btn),
  * which sits above our sidebar/header. Clamp to keep it within the panel. */
 .wc-md :deep(.md-editor) * { z-index: auto !important; }
+
+/* YAML frontmatter table */
+.wc-frontmatter {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-background);
+}
+.fm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.fm-table td {
+  padding: 3px 8px;
+  border: none;
+  vertical-align: top;
+}
+.fm-key {
+  color: var(--color-text-tertiary);
+  font-family: 'Cascadia Code', monospace;
+  white-space: nowrap;
+  width: 1%;
+}
+.fm-val {
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
 </style>

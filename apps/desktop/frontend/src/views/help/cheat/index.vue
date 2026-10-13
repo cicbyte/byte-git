@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, h, watch, nextTick } from 'vue'
 import { message as AMessage } from 'ant-design-vue'
 import {
-  ExclamationCircleOutlined,
+  ExclamationCircleOutlined, AppstoreOutlined, ProfileOutlined, FileTextOutlined,
 } from '@ant-design/icons-vue'
 import { MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
@@ -176,21 +176,30 @@ onUnmounted(() => {
     <div v-else class="cv-cols">
       <!-- left: categories -->
       <aside class="cv-cats" ref="catsRef">
-        <div
-          v-for="c in categories"
-          :key="c.name"
-          class="cv-cat"
-          :class="{ active: c.name === activeCategory }"
-          @click="selectCategory(c.name)"
-        >
-          <span class="cv-cat-name">{{ c.name }}</span>
-          <span class="cv-cat-count">{{ c.entries.length }}</span>
+        <div class="cv-col-head">
+          <AppstoreOutlined />
+          <span>分类</span>
+        </div>
+        <div class="cv-cats-body">
+          <div
+            v-for="c in categories"
+            :key="c.name"
+            class="cv-cat"
+            :class="{ active: c.name === activeCategory }"
+            @click="selectCategory(c.name)"
+          >
+            <span class="cv-cat-name">{{ c.name }}</span>
+            <span class="cv-cat-count">{{ c.entries.length }}</span>
+          </div>
         </div>
       </aside>
 
       <!-- middle: titles -->
       <aside class="cv-titles">
-        <div class="cv-titles-head">{{ activeCategory }}</div>
+        <div class="cv-titles-head">
+          <ProfileOutlined />
+          <span>{{ activeCategory }}</span>
+        </div>
         <div class="cv-titles-body">
           <div
             v-for="t in titles"
@@ -207,6 +216,10 @@ onUnmounted(() => {
 
       <!-- right: content -->
       <section class="cv-content">
+        <div class="cv-content-head">
+          <FileTextOutlined />
+          <span class="cv-content-title">{{ activeEntry ? activeEntry.title : '详情' }}</span>
+        </div>
         <template v-if="activeEntry">
           <!-- markdown body (title/command/description are all in the md itself) -->
           <div class="cv-md" ref="mdRef">
@@ -233,7 +246,28 @@ onUnmounted(() => {
 .cv-cols { flex: 1; display: flex; gap: 1px; min-height: 0; overflow: hidden; }
 
 /* left: categories */
-.cv-cats { width: 180px; flex-shrink: 0; background: var(--color-surface); overflow-y: auto; padding: 6px; }
+.cv-cats { width: 180px; flex-shrink: 0; background: var(--color-surface); display: flex; flex-direction: column; min-height: 0; }
+.cv-cats-body { flex: 1; overflow-y: auto; padding: 6px; }
+
+/* shared column header — 34px, aligns across all three columns */
+.cv-col-head, .cv-titles-head, .cv-content-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+.cv-col-head .anticon, .cv-titles-head .anticon, .cv-content-head .anticon {
+  font-size: 13px;
+  opacity: 0.85;
+}
+.cv-content-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cv-cat { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: var(--radius-sm); cursor: pointer; color: var(--color-text-secondary); font-size: 13px; transition: all var(--transition-fast); border-left: 2px solid transparent; }
 .cv-cat:hover { background: var(--color-hover); color: var(--color-primary); }
 .cv-cat.active { background: var(--color-primary-bg); color: var(--color-primary); border-left-color: var(--color-primary); font-weight: 500; }
@@ -242,7 +276,6 @@ onUnmounted(() => {
 
 /* middle: titles */
 .cv-titles { width: 260px; flex-shrink: 0; background: var(--color-background); display: flex; flex-direction: column; min-height: 0; }
-.cv-titles-head { padding: 8px 14px; font-size: 12px; font-weight: 600; color: var(--color-text-tertiary); border-bottom: 1px solid var(--color-border-light); flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.03em; }
 .cv-titles-body { flex: 1; overflow-y: auto; padding: 4px; }
 .cv-title-item { padding: 8px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition-fast); }
 .cv-title-item:hover { background: var(--color-hover); }

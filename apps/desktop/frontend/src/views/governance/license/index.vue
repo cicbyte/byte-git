@@ -252,7 +252,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.lic-page { width: 100%; height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.lic-page { width: calc(100% + var(--spacing-lg) * 2); height: calc(100% + var(--spacing-lg) * 2); margin: calc(-1 * var(--spacing-lg)); display: flex; flex-direction: column; min-height: 0; background: transparent; }
 .lic-bar { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 34px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
 .lic-bar-title { font-size: 13px; font-weight: 600; color: var(--color-text); display: flex; align-items: center; gap: 6px; }
 .lic-conf { font-size: 11px; color: var(--color-success); font-weight: 600; }

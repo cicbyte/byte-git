@@ -9,11 +9,10 @@ import {
 } from '@ant-design/icons-vue'
 
 const app = window.go?.main?.ByteGitApp
-const agent = ref('none')
+const agents = ref([]) // 多选注入的 agent(空 = 不注入,仅创建 .reference/)
 const loading = ref(false)
 const settings = ref(null) // ReferenceSettings | null (null = loading)
 const agentOptions = [
-  { value: 'none', label: '不注入' },
   { value: 'claude', label: 'Claude' },
   { value: 'codex', label: 'Codex' },
   { value: 'opencode', label: 'OpenCode' },
@@ -33,8 +32,8 @@ async function loadSettings() {
 async function submit() {
   loading.value = true
   try {
-    await app.ReferenceInit({ agent: agent.value })
-    message.success(`已初始化(当前项目, agent=${agent.value})`)
+    await app.ReferenceInit({ agents: agents.value })
+    message.success(`已初始化(agents: ${agents.value.length ? agents.value.join(', ') : '无'})`)
     await loadSettings() // refresh status
   } catch (e) {
     message.error('初始化失败: ' + String(e?.message || e))
@@ -85,16 +84,11 @@ onMounted(loadSettings)
         <!-- init form -->
         <div class="form-row">
           <label>AI Agent</label>
-          <a-select v-model:value="agent" :options="agentOptions" style="width: 200px" />
+          <a-select v-model:value="agents" mode="multiple" :options="agentOptions" style="min-width: 260px" placeholder="选择要注入的 Agent(可多选,留空则不注入)" />
           <a-button type="primary" :loading="loading" @click="submit">
             <template #icon><ThunderboltOutlined /></template>执行初始化
           </a-button>
         </div>
-
-        <a-alert type="info" show-icon style="margin-top: 16px">
-          <template #message>幂等操作</template>
-          <template #description>重复执行安全。已存在的 <code>.reference/</code> 与配置会保留,仅补全缺失项。重新选择 Agent 会更新注入的 AI 配置文件。</template>
-        </a-alert>
       </div>
     </div>
   </div>

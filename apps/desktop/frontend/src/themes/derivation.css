@@ -1,0 +1,229 @@
+/**
+ * derivation.css — Theme color variables (the heart of the theme system).
+ *
+ * Three-layer architecture (ported from byte-stash, localised for byte-git):
+ *
+ *   Layer 1  base palette  : --bg-*-orig / --color-primary / --text-* / --border-*
+ *                            (token.ts → applyColorsToDOM() injects runtime values)
+ *   Layer 2  derivation    : --bg-*  =  color-mix(in srgb, --bg-*-orig,
+ *                            transparent var(--wp-panel-alpha, 0%))
+ *                            When wallpaper is on, --wp-panel-alpha > 0 makes
+ *                            every panel translucent automatically. 0% = opaque.
+ *   Layer 3  region        : header / sider / navbar / footer / content / card
+ *                            default to var() backrefs of base layer; can be
+ *                            overridden per-region without touching presets.
+ *
+ * Fallback strategy (FOUC defence line #2):
+ *   :root carries the full Dracula/dark palette as fallback so the page is
+ *   correct even before token.ts injects anything. index.html inline script
+ *   (defence #1) and store.initialize() (defence #3) cover the rest.
+ *
+ * Compatibility aliases:
+ *   Legacy `--color-background` / `--color-surface` etc. are kept as aliases
+ *   of the new `--bg-*` names so existing components keep working without a
+ *   big-bang rename.
+ */
+
+:root {
+  /* ============================================================
+   * Layer 1 — base palette originals (FOUC fallback = Dracula/dark)
+   * Real values are injected at runtime by applyColorsToDOM().
+   * ============================================================ */
+  --bg-base-orig: #0f172a;
+  --bg-surface-orig: #1e293b;
+  --bg-elevated-orig: #3d4d63;
+  --bg-input-orig: #1e293b;
+
+  /* Base non-bg colors (single layer, no derivation needed) */
+  --color-primary: #BD93F9;
+  --color-primary-hover: #caa8fd;
+  --color-primary-active: #a87bf0;
+  --color-primary-border: rgba(189, 147, 249, 0.4);
+  --color-primary-bg: rgba(189, 147, 249, 0.15);
+
+  --color-accent: #FF79C6;
+  --color-accent-bg: rgba(255, 121, 198, 0.18);
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --text-disabled: #475569;
+
+  --border-base-orig: #3d4d63;
+  --border-light-orig: #2d3e50;
+  /* Borders are also wallpaper-aware: many multi-column pages use
+     --color-border as the 1px gap background between columns. Without
+     derivation the gap would be an opaque strip blocking the wallpaper.
+     Uses --wp-panel-alpha (same as content) so columns sit on the wallpaper
+     consistently. Real `border: 1px solid` lines also soften, which is fine. */
+  --border-base: color-mix(in srgb, var(--border-base-orig), transparent var(--wp-panel-alpha, 0%));
+  --border-light: color-mix(in srgb, var(--border-light-orig), transparent var(--wp-panel-alpha, 0%));
+
+  /* Status colors (extension layer — fixed per mode, not per preset) */
+  --color-success: #50FA7B;  --color-success-bg: rgba(80, 250, 123, 0.18);
+  --color-warning: #FFB86C;  --color-warning-bg: rgba(255, 184, 108, 0.18);
+  --color-error:   #FF5555;  --color-error-bg:   rgba(255, 85, 85, 0.18);
+  --color-info:    #8BE9FD;  --color-info-bg:    rgba(139, 233, 253, 0.18);
+
+  --color-hover:  rgba(189, 147, 249, 0.08);
+  --color-active: rgba(189, 147, 249, 0.12);
+
+  /* ============================================================
+   * Layer 2 — derived bg (wallpaper driven)
+   * --wp-panel-alpha: 0% (default, opaque) → 70% (max translucent)
+   * Inject one variable, every panel follows. No backdrop-filter.
+   *
+   * --wp-panel-alpha-nav: a SEPARATE, much lower alpha for navigation-style
+   * regions (rail/sider/navbar/footer). These regions carry dense text on
+   * narrow strips; sharing the content area's alpha makes them illegible
+   * against a busy wallpaper. The wallpaper store sets this to a fraction
+   * of panel-alpha so nav regions stay nearly opaque.
+   * ============================================================ */
+  --wp-blur: 0px;
+  --wp-panel-alpha: 0%;
+  --wp-panel-alpha-nav: 0%;
+
+  --bg-base:     color-mix(in srgb, var(--bg-base-orig),     transparent var(--wp-panel-alpha, 0%));
+  --bg-surface:  color-mix(in srgb, var(--bg-surface-orig),  transparent var(--wp-panel-alpha, 0%));
+  --bg-elevated: color-mix(in srgb, var(--bg-elevated-orig), transparent var(--wp-panel-alpha, 0%));
+  --bg-input:    color-mix(in srgb, var(--bg-input-orig),    transparent var(--wp-panel-alpha, 0%));
+
+  /* ============================================================
+   * Layer 3 — region semantics (default: backref base layer)
+   * token.ts can override per-region via applyColorsToDOM(..., regions).
+   * ============================================================ */
+  /* originals (region defaults point to surface/base) */
+  --bg-rail-orig:    var(--bg-surface-orig);
+  --bg-sider-orig:   var(--bg-surface-orig);
+  --bg-navbar-orig:  var(--bg-surface-orig);
+  --bg-footer-orig:  var(--bg-surface-orig);
+  --bg-content-orig: var(--bg-base-orig);
+  --bg-card-orig:    var(--bg-surface-orig);
+
+  /* derived (wallpaper aware).
+     Nav regions (rail/sider/navbar/footer) use --wp-panel-alpha-nav which
+     stays much lower than the content alpha, keeping navigation text legible
+     against busy wallpapers. Content/card follow the user's panel-alpha. */
+  --bg-rail:    color-mix(in srgb, var(--bg-rail-orig),    transparent var(--wp-panel-alpha-nav, 0%));
+  --bg-sider:   color-mix(in srgb, var(--bg-sider-orig),   transparent var(--wp-panel-alpha-nav, 0%));
+  --bg-navbar:  color-mix(in srgb, var(--bg-navbar-orig),  transparent var(--wp-panel-alpha-nav, 0%));
+  --bg-footer:  color-mix(in srgb, var(--bg-footer-orig),  transparent var(--wp-panel-alpha-nav, 0%));
+  --bg-content: color-mix(in srgb, var(--bg-content-orig), transparent var(--wp-panel-alpha, 0%));
+  --bg-card:    color-mix(in srgb, var(--bg-card-orig),    transparent var(--wp-panel-alpha, 0%));
+
+  /* Region text (default: backref primary/secondary) */
+  --text-rail:      var(--text-primary);
+  --text-rail-sub:  var(--text-secondary);
+  --text-sider:     var(--text-primary);
+  --text-sider-sub: var(--text-secondary);
+  --text-navbar:    var(--text-primary);
+  --text-navbar-sub: var(--text-secondary);
+  --text-footer:    var(--text-primary);
+  --text-footer-sub: var(--text-secondary);
+  --text-content:   var(--text-primary);
+  --text-content-sub: var(--text-secondary);
+  --text-card:      var(--text-primary);
+  --text-card-sub:  var(--text-secondary);
+
+  /* ============================================================
+   * Compatibility aliases — legacy variable names → new layer.
+   * Lets existing components consume var(--color-*) without a rename.
+   * CRITICAL: every name consumed by existing code MUST have an alias
+   * here, otherwise var() falls back to inherit and text stays black.
+   * ============================================================ */
+  --color-background:     var(--bg-base);
+  --color-surface:        var(--bg-surface);
+  --color-surface-raised: var(--bg-elevated);
+  --accent:               var(--color-primary);
+
+  /* Text aliases — old code uses --color-text* (not --text-*). Without
+     these, menus/labels rendered black in every theme. */
+  --color-text:           var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary:  var(--text-tertiary);
+
+  /* Border aliases — old code uses --color-border / --color-border-light. */
+  --color-border:         var(--border-base);
+  --color-border-light:   var(--border-light);
+
+  /* ============================================================
+   * Business-fixed semantics (NOT theme-derived — kept as-is)
+   * These are byte-git specific: heatmap gradient + commit-type
+   * (Dracula) syntax colors. They follow light/dark only, never
+   * change with preset.
+   * ============================================================ */
+  /* Heatmap scale (dark) - 0(empty) → 4(most active).
+     heat-0 must differ from both surface (#1e293b) and base (#0f172a)
+     so empty cells stay visible. */
+  --heat-0: #161b22;
+  --heat-1: #3a2a5a;
+  --heat-2: #6b3fb5;
+  --heat-3: #9a5de8;
+  --heat-4: #caa8fd;
+
+  /* Dracula syntax colors for log/diff (readable on dark). */
+  --color-hash: #6272A4;
+  --color-feat: #50FA7B;
+  --color-fix: #FFB86C;
+  --color-refactor: #BD93F9;
+  --color-perf: #FF79C6;
+  --color-docs: #8BE9FD;
+
+  /* ============================================================
+   * Light theme overrides
+   * ============================================================ */
+}
+
+/* ============================================================
+ * LIGHT MODE — Dracula light variant
+ * Override only the base originals + status + heat + syntax here;
+ * derived --bg-* and region vars recompute automatically.
+ * ============================================================ */
+[data-theme="light"] {
+  /* base originals — light variants */
+  --bg-base-orig: #ffffff;
+  --bg-surface-orig: #f8fafc;
+  --bg-elevated-orig: #f1f5f9;
+  --bg-input-orig: #f8fafc;
+
+  --color-primary: #BD93F9;
+  --color-primary-hover: #a87bf0;
+  --color-primary-active: #9170e6;
+  --color-primary-border: rgba(189, 147, 249, 0.4);
+  --color-primary-bg: rgba(189, 147, 249, 0.1);
+
+  --color-accent: #FF79C6;
+  --color-accent-bg: rgba(255, 121, 198, 0.1);
+
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-tertiary: #94a3b8;
+  --text-disabled: #cbd5e1;
+
+  --border-base-orig: #e2e8f0;
+  --border-light-orig: #f1f5f9;
+
+  /* status — deeper variants for light mode contrast */
+  --color-success: #16a34a;  --color-success-bg: rgba(22, 163, 74, 0.12);
+  --color-warning: #d97706;  --color-warning-bg: rgba(217, 119, 6, 0.12);
+  --color-error:   #dc2626;  --color-error-bg:   rgba(220, 38, 38, 0.12);
+  --color-info:    #0e7490;  --color-info-bg:    rgba(14, 116, 144, 0.12);
+
+  --color-hover:  rgba(189, 147, 249, 0.12);
+  --color-active: rgba(189, 147, 249, 0.18);
+
+  /* Heatmap scale (light) */
+  --heat-0: #ebedf0;
+  --heat-1: #d8c7f5;
+  --heat-2: #b88ef0;
+  --heat-3: #9a5de8;
+  --heat-4: #7c2de0;
+
+  /* Dracula syntax — deeper variants (raw neons have poor contrast on white) */
+  --color-hash: #6272A4;
+  --color-feat: #16a34a;
+  --color-fix: #d97706;
+  --color-refactor: #7c3aed;
+  --color-perf: #db2777;
+  --color-docs: #0e7490;
+}

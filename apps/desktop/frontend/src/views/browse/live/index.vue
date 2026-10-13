@@ -297,11 +297,12 @@ watch(() => repo.repoEpoch, async () => {
 
 <style scoped>
 .live-view {
-  width: 100%;
-  height: 100%;
+  width: calc(100% + var(--spacing-lg) * 2);
+  height: calc(100% + var(--spacing-lg) * 2);
+  margin: calc(-1 * var(--spacing-lg));
   display: flex;
   gap: 1px;
-  background: var(--color-border);
+  background: transparent;
   min-height: 0;
 }
 

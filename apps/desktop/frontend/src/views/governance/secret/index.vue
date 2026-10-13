@@ -85,7 +85,7 @@ async function loadFileContent() {
   fileContent.value = ''
   try {
     const res = await app.SecretFileContent(first.Commit, first.File)
-    fileInfo.value = { binary: res.binary, notFound: res.notFound, lines: res.lines }
+    fileInfo.value = { binary: res.binary, notFound: res.notFound, lines: res.lines, dataUrl: res.dataUrl || '' }
     fileContent.value = res.content
     if (!res.binary && !res.notFound && leakLines.value.length) {
       await nextTick()
@@ -424,6 +424,7 @@ function maskedSecret(s) {
                 <span v-if="activeFindings[0]?.Commit" class="sv-source-commit">@ {{ shortHash(activeFindings[0].Commit) }}</span>
               </div>
               <div v-if="fileLoading" class="sv-source-state"><a-spin /></div>
+              <img v-else-if="fileInfo.dataUrl" :src="fileInfo.dataUrl" style="max-width:100%;max-height:100%;object-fit:contain;padding:16px;display:block;margin:auto" />
               <div v-else-if="fileInfo.binary" class="sv-source-state">⚠️ 该文件是二进制文件，无法显示源码</div>
               <div v-else-if="fileInfo.notFound" class="sv-source-state">⚠️ 该文件在此 commit 中不存在（可能已被删除）</div>
               <CodeViewer
@@ -457,10 +458,17 @@ function maskedSecret(s) {
 </template>
 
 <style scoped>
-.sv-view { width: 100%; height: 100%; display: flex; flex-direction: column; gap: var(--spacing-sm); min-height: 0; }
+.sv-view {
+  width: calc(100% + var(--spacing-lg) * 2);
+  height: calc(100% + var(--spacing-lg) * 2);
+  margin: calc(-1 * var(--spacing-lg));
+  display: flex; flex-direction: column;
+  min-height: 0;
+  background: transparent;
+}
 
 /* toolbar */
-.sv-top { display: flex; align-items: center; gap: var(--spacing-sm); flex-shrink: 0; }
+.sv-top { display: flex; align-items: center; gap: var(--spacing-sm); flex-shrink: 0; height: 38px; padding: 0 var(--spacing-md); background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
 .sv-spacer { flex: 1; }
 .sv-count { font-size: 12px; color: var(--color-error); font-weight: 600; }
 .sv-install { margin-top: 6px; font-size: 12px; color: var(--color-text-secondary); line-height: 1.8; }
@@ -489,11 +497,11 @@ function maskedSecret(s) {
 .sv-rule-title { font-size: 12px; color: var(--color-text-tertiary); }
 
 /* two columns */
-.sv-cols { flex: 1; display: flex; gap: var(--spacing-md); min-height: 0; }
+.sv-cols { flex: 1; display: flex; gap: 1px; min-height: 0; background: var(--color-border); }
 
 /* left list */
-.sv-list { width: 280px; flex-shrink: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; flex-direction: column; }
-.sv-list-head { display: flex; justify-content: space-between; padding: var(--spacing-sm) var(--spacing-md); border-bottom: 1px solid var(--color-border); font-size: 12px; font-weight: 600; color: var(--color-text-secondary); flex-shrink: 0; }
+.sv-list { width: 280px; flex-shrink: 0; background: var(--color-surface); display: flex; flex-direction: column; }
+.sv-list-head { display: flex; justify-content: space-between; height: 34px; padding: 0 var(--spacing-md); border-bottom: 1px solid var(--color-border); font-size: 12px; font-weight: 600; color: var(--color-text-secondary); flex-shrink: 0; }
 .sv-list-body { flex: 1; overflow-y: auto; padding: var(--spacing-xs); }
 .sv-item { display: flex; gap: 6px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; border-left: 3px solid transparent; transition: background var(--transition-fast); }
 .sv-item:hover { background: var(--color-hover); }
@@ -511,7 +519,7 @@ function maskedSecret(s) {
 .sv-item-rules :deep(.ant-tag) { margin: 0; font-size: 9px; line-height: 14px; padding: 0 4px; }
 
 /* right detail + tabs */
-.sv-detail { flex: 1; min-width: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; flex-direction: column; overflow: hidden; }
+.sv-detail { flex: 1; min-width: 0; background: var(--color-surface); display: flex; flex-direction: column; overflow: hidden; }
 .sv-tabs { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .sv-tabs :deep(.ant-tabs-nav) { margin: 0; padding: 0 var(--spacing-sm); flex-shrink: 0; }
 .sv-tabs :deep(.ant-tabs-content-holder) { flex: 1; min-height: 0; overflow: hidden; }

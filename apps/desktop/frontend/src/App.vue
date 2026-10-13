@@ -16,18 +16,12 @@ dayjs.locale('zh-cn')
 const themeStore = useThemeStore()
 const layoutStore = useLayoutStore()
 
+// antd ConfigProvider theme — derived from the central palette so it follows
+// preset / custom / mode changes automatically. Algorithm is filled here
+// (token.ts intentionally stays free of antd imports).
 const antTheme = computed(() => ({
   algorithm: themeStore.isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
-  token: {
-    colorPrimary: '#BD93F9',
-    borderRadius: 8,
-    colorBgContainer: themeStore.isDark ? '#1e293b' : '#ffffff',
-    colorBgLayout: themeStore.isDark ? '#0f172a' : '#f8fafc',
-    colorBorder: themeStore.isDark ? '#334155' : '#e2e8f0',
-    colorText: themeStore.isDark ? '#f1f5f9' : '#0f172a',
-    colorTextSecondary: themeStore.isDark ? '#94a3b8' : '#64748b',
-    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
-  }
+  token: themeStore.antdToken.token,
 }))
 
 // ---- Command Palette (Ctrl+K) ----
@@ -40,7 +34,8 @@ function onGlobalKeydown(e) {
 }
 
 onMounted(() => {
-  themeStore.initializeTheme()
+  // themeStore.initializeTheme() is already called from main.ts BEFORE mount
+  // (FOUC defence line #3) — no need to re-init here.
   window.addEventListener('resize', layoutStore.handleResize)
   window.addEventListener('keydown', onGlobalKeydown)
 })

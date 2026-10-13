@@ -426,41 +426,44 @@ watch(() => repo.repoEpoch, async () => {
 
 <style scoped>
 .rde-view {
-  width: 100%;
-  height: 100%;
+  width: calc(100% + var(--spacing-lg) * 2);
+  height: calc(100% + var(--spacing-lg) * 2);
+  margin: calc(-1 * var(--spacing-lg));
   display: flex;
   flex-direction: column;
-  background: var(--color-surface);
+  background: transparent;
   min-height: 0;
 }
 
-/* toolbar */
+/* toolbar — flush strip, aligned with other pages' status bars */
 .rde-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
+  height: 38px;
+  padding: 0 var(--spacing-md);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
   flex-wrap: wrap;
   gap: 8px;
 }
-.rde-tb-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.rde-tb-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.rde-title { font-size: 13px; font-weight: 600; color: var(--color-text); }
+.rde-tb-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.rde-tb-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+.rde-title { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
 .rde-stat { font-size: 12px; color: var(--color-text-secondary); }
 .rde-stat b { color: var(--color-text); }
 .rde-changed { color: var(--color-primary); }
 .rde-dirty { font-size: 11px; color: var(--color-warning); font-weight: 600; }
 
-/* path bar */
+/* path bar — flush strip directly under the toolbar */
 .rde-path-bar {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 16px;
+  height: 28px;
+  padding: 0 var(--spacing-md);
   background: var(--color-background);
-  border-bottom: 1px solid var(--color-border-light);
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 .rde-path-label { font-size: 11px; color: var(--color-text-tertiary); flex-shrink: 0; }

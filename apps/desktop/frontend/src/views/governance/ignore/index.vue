@@ -398,7 +398,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.ig-page { width: 100%; height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.ig-page { width: calc(100% + var(--spacing-lg) * 2); height: calc(100% + var(--spacing-lg) * 2); margin: calc(-1 * var(--spacing-lg)); display: flex; flex-direction: column; min-height: 0; background: transparent; }
 
 /* top bar */
 .ig-bar { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 34px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }

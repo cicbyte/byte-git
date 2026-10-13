@@ -4,7 +4,7 @@ import { message as AMessage } from 'ant-design-vue'
 import {
   ExportOutlined, ExclamationCircleOutlined, UndoOutlined,
   EditOutlined, CloseOutlined, FolderOpenOutlined, CalendarOutlined,
-  ReloadOutlined
+  ReloadOutlined, HistoryOutlined
 } from '@ant-design/icons-vue'
 import { useRepoStore } from '../../../stores/repo'
 import ExportWizard from '../../../components/rewrite/ExportWizard.vue'
@@ -306,7 +306,7 @@ const committerFields = [
           @hover-item="onCommitHover"
         >
           <template #header>
-            <span>提交树</span>
+            <span class="mr-head-title"><HistoryOutlined /> 提交树</span>
             <span>{{ changedCount }}/{{ entries.length }} 已改</span>
           </template>
 
@@ -347,7 +347,7 @@ const committerFields = [
       <!-- Right: rewrite data editor -->
       <section class="mr-editor" v-if="activeEntry">
         <div class="mr-ed-head">
-          <span class="mr-ed-title">改写数据</span>
+          <span class="mr-ed-title"><EditOutlined /> 改写数据</span>
           <span class="mr-hash">{{ activeEntry.hash.slice(0, 7) }}</span>
           <span class="mr-date">{{ relTime(activeEntry.original.authorDate) }}</span>
           <a-button size="small" type="text" @click="restoreActive" title="恢复原值">
@@ -355,6 +355,7 @@ const committerFields = [
           </a-button>
         </div>
 
+        <div class="mr-ed-body">
         <!-- two-column compare: original (read-only) | rewrite (editable) -->
         <div class="mr-compare-head">
           <span>原始数据</span>
@@ -387,6 +388,7 @@ const committerFields = [
 
         <div class="mr-ed-changes" v-if="isChanged(activeEntry)">
           改动 {{ changedFields(activeEntry).length }} 项: {{ changedFields(activeEntry).map(f => f[0]).join('、') }}
+        </div>
         </div>
       </section>
     </div>
@@ -451,22 +453,44 @@ const committerFields = [
 </template>
 
 <style scoped>
-.mr-view { width: 100%; height: 100%; display: flex; flex-direction: column; gap: var(--spacing-sm); min-height: 0; }
+/* Full-bleed: negate .content-wrapper's 24px padding so the page is flush
+   with the navbar / Sidebar / footer, matching Settings + reference-ops. */
+.mr-view {
+  width: calc(100% + var(--spacing-lg) * 2);
+  height: calc(100% + var(--spacing-lg) * 2);
+  margin: calc(-1 * var(--spacing-lg));
+  display: flex; flex-direction: column;
+  min-height: 0;
+  background: transparent; /* 1px gap separator between columns */
+}
 /* empty state */
 .mr-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
 .empty-card { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-sm); padding: 48px 40px; text-align: center; max-width: 420px; }
 .empty-icon { font-size: 40px; color: var(--color-primary); opacity: 0.8; }
 .empty-title { font-size: 18px; font-weight: 600; color: var(--color-text); }
 .empty-desc { font-size: 13px; color: var(--color-text-secondary); line-height: 1.6; }
-/* status bar (after export) */
-.mr-statusbar { display: flex; align-items: center; gap: var(--spacing-sm); flex-shrink: 0; padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+/* status bar (after export) — flush strip, no card chrome */
+.mr-statusbar {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 var(--spacing-md);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
 .sb-count { font-size: 13px; color: var(--color-text-secondary); }
 .sb-count b { color: var(--color-text); }
 .mr-spacer { flex: 1; }
-/* columns */
-.mr-cols { flex: 1; display: flex; gap: var(--spacing-md); min-height: 0; }
+.mr-head-title { display: inline-flex; align-items: center; gap: 6px; }
+.mr-head-title .anticon { font-size: 13px; opacity: 0.85; }
+/* columns — 1px gap (the parent's border colour shows through as divider) */
+.mr-cols { flex: 1; display: flex; gap: 1px; min-height: 0; }
 /* list — width only; chrome lives in <CommitTree> */
-.mr-list { width: 320px; flex-shrink: 0; }
+.mr-list { width: 320px; flex-shrink: 0; background: var(--color-surface); display: flex; flex-direction: column; min-height: 0; }
+/* Flatten CommitTree's inner card so column 1 is flush with column 2. */
+.mr-list :deep(.ct-list) { border-radius: 0; border: none; }
+/* Force CommitTree's header to 34px so it aligns with .mr-ed-head. */
+.mr-list :deep(.ct-head) { height: 34px; padding: 0 12px; }
 .mr-item-row { display: flex; gap: 6px; padding: 6px 8px; }
 .mr-num { font-family: 'Cascadia Code', monospace; font-size: 10px; font-weight: 700; color: var(--color-text-tertiary); flex-shrink: 0; min-width: 26px; margin-top: 1px; }
 .mr-status { color: var(--color-text-tertiary); font-size: 10px; margin-top: 3px; }
@@ -478,11 +502,19 @@ const committerFields = [
 .mr-time { font-size: 10px; color: var(--color-text-tertiary); flex-shrink: 0; }
 .mr-subject { font-size: 12px; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mr-changes { font-size: 10px; color: var(--color-primary); margin-top: 2px; }
-/* editor */
-.mr-editor { flex: 1; min-width: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-md); overflow-y: auto; }
-.mr-ed-head { display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: var(--spacing-sm); border-bottom: 1px solid var(--color-border-light); margin-bottom: var(--spacing-md); }
-.mr-ed-title { font-size: 13px; font-weight: 600; color: var(--color-text); margin-right: auto; }
+/* editor — flush column, no card chrome. */
+.mr-editor { flex: 1; min-width: 0; background: var(--color-surface); padding: 0; overflow-y: auto; display: flex; flex-direction: column; }
+.mr-ed-head {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  height: 34px; padding: 0 var(--spacing-md);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.mr-ed-title { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); margin-right: auto; display: inline-flex; align-items: center; gap: 6px; }
+.mr-ed-title .anticon { font-size: 13px; opacity: 0.85; }
 .mr-date { font-size: 11px; color: var(--color-text-tertiary); flex: 1; }
+/* editor body gets its own scroll + padding (head is now fixed) */
+.mr-ed-body { padding: var(--spacing-md); flex: 1; overflow-y: auto; }
 .mr-ed-group { margin-bottom: var(--spacing-md); }
 .mr-ed-gtitle { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: var(--spacing-xs); }
 .mr-compare-head { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-sm); padding: var(--spacing-xs) 0 var(--spacing-xs); font-size: 11px; font-weight: 600; color: var(--color-text-tertiary); border-bottom: 1px solid var(--color-border-light); margin-bottom: var(--spacing-sm); }

@@ -53,7 +53,7 @@ onMounted(async () => {
     <!-- Scrollable page area -->
     <div class="content-wrapper">
       <router-view v-slot="{ Component }">
-        <transition mode="out-in" @enter="enterPage" @leave="leavePage">
+        <transition mode="out-in" :css="false" @enter="enterPage" @leave="leavePage">
           <keep-alive :include="['TerminalView']">
             <component :is="Component" />
           </keep-alive>
@@ -89,7 +89,12 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--color-background);
+  /* Single translucent content background. Full-bleed pages set their own
+     root background to transparent so this shows through (single layer);
+     non-full-bleed pages sit on .content-wrapper which is transparent and
+     inherits this. Either way there's exactly one translucent layer between
+     the wallpaper and the page content. */
+  background: var(--bg-content);
 }
 
 .content-wrapper {
@@ -106,7 +111,7 @@ onMounted(async () => {
   padding: 0 var(--spacing-lg);
   height: var(--footer-height);
   border-top: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--bg-footer);
   flex-shrink: 0;
   overflow: hidden;
 }

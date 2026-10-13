@@ -275,7 +275,7 @@ watch(() => repo.repoEpoch, () => { loadReleases() })
 </template>
 
 <style scoped>
-.gr-view { width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--color-background); padding: var(--spacing-md); overflow: hidden; }
+.gr-view { width: calc(100% + var(--spacing-lg) * 2); height: calc(100% + var(--spacing-lg) * 2); margin: calc(-1 * var(--spacing-lg)); display: flex; flex-direction: column; background: transparent; overflow: hidden; }
 
 .gr-guide { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
 .gr-guide-icon { font-size: 48px; color: var(--color-text-tertiary); opacity: 0.4; }
@@ -283,10 +283,10 @@ watch(() => repo.repoEpoch, () => { loadReleases() })
 .gr-guide-title { font-size: 16px; font-weight: 600; color: var(--color-text); }
 
 .gr-ready { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.gr-head { display: flex; align-items: center; gap: 8px; margin-bottom: var(--spacing-sm); flex-shrink: 0; }
+.gr-head { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 var(--spacing-md); background: var(--color-surface); border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
 .gr-repo { font-family: 'Cascadia Code', monospace; font-size: 14px; font-weight: 600; color: var(--color-text); margin-right: auto; }
 
-.gr-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.gr-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: var(--spacing-md); }
 .gr-center { display: flex; align-items: center; justify-content: center; height: 200px; }
 .gr-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-text-tertiary); font-size: 13px; height: 200px; }
 

@@ -5,7 +5,7 @@ import { SaveOutlined, UndoOutlined, GlobalOutlined } from '@ant-design/icons-vu
 import CodeViewer from '../common/CodeViewer.vue'
 
 /**
- * 代理规则管理 — 编辑 ~/.cicbyte/byte-git/rules/rules.lua
+ * 代理规则管理 — 编辑 ~/.cicbyte/apps/byte-git/rules/rules.lua
  * 定义 get_proxies() + get_accelerated_url()，供 byte-git clone 使用。
  */
 const app = window.go?.main?.ByteGitApp

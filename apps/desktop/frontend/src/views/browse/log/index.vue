@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRepoStore } from '../../../stores/repo'
 import { message as AMessage } from 'ant-design-vue'
-import { FileOutlined } from '@ant-design/icons-vue'
+import { FileOutlined, HistoryOutlined } from '@ant-design/icons-vue'
 import CommitTree from '../../../components/common/CommitTree.vue'
 import CommitHoverCard from '../../../components/common/CommitHoverCard.vue'
 import FileTreeNode from '../../../components/common/FileTreeNode.vue'
@@ -295,6 +295,11 @@ onBeforeUnmount(() => { clearFooter() })
         @hover-item="onCommitHover"
         @contextmenu="onTreeContextmenu"
       >
+        <template #header>
+          <span class="commit-head-title">
+            <HistoryOutlined /> 提交
+          </span>
+        </template>
         <template #item="{ entry: c, index }">
           <div class="commit-row">
             <div class="commit-line1">
@@ -332,6 +337,10 @@ onBeforeUnmount(() => { clearFooter() })
 
     <!-- Column 2: changed-file tree -->
     <aside class="files-panel">
+      <div class="files-head">
+        <FileOutlined />
+        <span>文件</span>
+      </div>
       <div class="files-body">
         <div v-if="statLoading" class="center-pad"><a-spin size="small" /></div>
         <div v-else-if="!selectedHash" class="center-pad muted">← 选择一个提交</div>
@@ -394,16 +403,25 @@ onBeforeUnmount(() => { clearFooter() })
 
 <style scoped>
 .log-view {
-  width: 100%;
-  height: 100%;
+  width: calc(100% + var(--spacing-lg) * 2);
+  height: calc(100% + var(--spacing-lg) * 2);
+  margin: calc(-1 * var(--spacing-lg));
   display: flex;
   gap: 1px;
-  background: var(--color-border);
+  background: transparent;
   min-height: 0;
 }
 
 /* column 1: commits */
 .commit-panel { width: 360px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--color-surface); }
+/* Flatten CommitTree's inner container so column 1 is flush with the
+   borderless, square column 2/3 — no rounded card look, no outer border
+   (the 1px gap on .log-view already separates the columns). */
+.commit-panel :deep(.ct-list) { border-radius: 0; border: none; }
+/* Force CommitTree's header to 34px so it aligns with .files-head / .diff-head. */
+.commit-panel :deep(.ct-head) { height: 34px; padding: 0 12px; }
+.commit-head-title { display: inline-flex; align-items: center; gap: 6px; }
+.commit-head-title .anticon { font-size: 13px; opacity: 0.85; }
 .commit-row { padding: 8px 12px; }
 .commit-line1 { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
 .commit-num { font-family: 'Cascadia Code', monospace; font-size: 10px; font-weight: 700; color: var(--color-text-tertiary); min-width: 26px; }
@@ -427,6 +445,19 @@ onBeforeUnmount(() => { clearFooter() })
 
 /* column 2: files */
 .files-panel { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--color-background); min-height: 0; }
+.files-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;          /* align with .diff-head */
+  padding: 0 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.files-head .anticon { font-size: 13px; opacity: 0.85; }
 .files-body { flex: 1; overflow-y: auto; padding: 4px; min-height: 0; }
 .fstat { margin-left: auto; }
 .fstatus { font-size: 9px; font-weight: 700; padding: 0 4px; border-radius: 3px; }

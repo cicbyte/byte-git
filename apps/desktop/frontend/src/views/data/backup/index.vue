@@ -90,7 +90,7 @@ async function openFile(node) {
   fileContent.value = ''
   try {
     const res = await app.FullBackupFileRead(activeId.value, node.path)
-    fileInfo.value = { binary: res.binary, notFound: res.notFound, lines: res.lines }
+    fileInfo.value = { binary: res.binary, notFound: res.notFound, lines: res.lines, dataUrl: res.dataUrl || '' }
     fileContent.value = res.content
   } catch (e) {
     AMessage.error('读取文件失败: ' + String(e?.message || e))
@@ -106,6 +106,16 @@ function resetBrowser() {
   selectedFile.value = ''
   fileContent.value = ''
   fileInfo.value = { binary: false, notFound: false, lines: 0 }
+}
+// resolve a relative image inside a full-clone backup → data URL, for
+// MarkdownView's local-image inlining. Backups live outside the current repo
+// so RepoReadImage can't reach them — read via FullBackupFileRead instead.
+async function resolveBackupImage(rel) {
+  if (!app?.FullBackupFileRead || !activeId.value) return ''
+  try {
+    const r = await app.FullBackupFileRead(activeId.value, rel)
+    return r.dataUrl || ''
+  } catch { return '' }
 }
 
 // ---- load ----
@@ -428,11 +438,14 @@ onBeforeUnmount(() => clearFooter())
                   <FileOutlined style="font-size:32px;color:var(--color-text-tertiary);opacity:0.4" />
                   <div style="margin-top:8px">只读浏览备份代码</div>
                 </div>
+                <img v-else-if="fileInfo.dataUrl" :src="fileInfo.dataUrl" style="max-width:100%;max-height:100%;object-fit:contain;padding:16px;display:block;margin:auto" />
                 <div v-else-if="fileInfo.binary" class="fb-code-state">⚠️ 二进制文件，无法显示</div>
                 <div v-else-if="fileInfo.notFound" class="fb-code-state">⚠️ 文件不存在</div>
                 <MarkdownView
                   v-else-if="isMarkdown && mdViewMode === 'render'"
                   :source="fileContent"
+                  :filename="selectedFile"
+                  :resolve-image="resolveBackupImage"
                   class="fb-md-render"
                 />
                 <CodeViewer
@@ -483,10 +496,24 @@ onBeforeUnmount(() => clearFooter())
 </template>
 
 <style scoped>
-.bv-view { width: 100%; height: 100%; display: flex; flex-direction: column; gap: var(--spacing-sm); min-height: 0; }
+.bv-view {
+  width: calc(100% + var(--spacing-lg) * 2);
+  height: calc(100% + var(--spacing-lg) * 2);
+  margin: calc(-1 * var(--spacing-lg));
+  display: flex; flex-direction: column;
+  min-height: 0;
+  background: transparent;
+}
 
-/* toolbar */
-.bv-top { display: flex; align-items: center; gap: var(--spacing-sm); flex-shrink: 0; flex-wrap: wrap; }
+/* toolbar — flush strip rather than floating */
+.bv-top {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 var(--spacing-md);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
 .bv-spacer { flex: 1; }
 .bv-count { font-size: 12px; color: var(--color-text-tertiary); }
 
@@ -496,11 +523,11 @@ onBeforeUnmount(() => clearFooter())
 .bv-empty-desc { font-size: 13px; color: var(--color-text-tertiary); max-width: 320px; text-align: center; }
 
 /* two columns */
-.bv-cols { flex: 1; display: flex; gap: var(--spacing-md); min-height: 0; }
+.bv-cols { flex: 1; display: flex; gap: 1px; min-height: 0; background: var(--color-border); }
 
 /* left list */
-.bv-list { width: 300px; flex-shrink: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; flex-direction: column; }
-.bv-list-head { display: flex; align-items: center; height: 38px; padding: 0 var(--spacing-md); border-bottom: 1px solid var(--color-border); font-size: 12px; font-weight: 600; color: var(--color-text-secondary); flex-shrink: 0; }
+.bv-list { width: 300px; flex-shrink: 0; background: var(--color-surface); display: flex; flex-direction: column; }
+.bv-list-head { display: flex; align-items: center; height: 34px; padding: 0 var(--spacing-md); border-bottom: 1px solid var(--color-border); font-size: 12px; font-weight: 600; color: var(--color-text-secondary); flex-shrink: 0; }
 .bv-list-body { flex: 1; overflow-y: auto; padding: var(--spacing-xs); }
 .bv-item { display: flex; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; border-left: 2px solid transparent; transition: background var(--transition-fast); margin-bottom: 2px; }
 .bv-item:hover { background: var(--color-hover); }
@@ -514,8 +541,8 @@ onBeforeUnmount(() => clearFooter())
 .bv-item-size { font-size: 10px; color: var(--color-text-tertiary); }
 
 /* right detail */
-.bv-detail { flex: 1; min-width: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; flex-direction: column; overflow: hidden; }
-.bv-detail-head { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 var(--spacing-md); border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
+.bv-detail { flex: 1; min-width: 0; background: var(--color-surface); display: flex; flex-direction: column; overflow: hidden; }
+.bv-detail-head { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 var(--spacing-md); border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
 .bv-detail-id { font-size: 13px; font-weight: 600; color: var(--color-text); font-family: 'Cascadia Code', monospace; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bv-detail-body { flex: 1; overflow-y: auto; padding: var(--spacing-md); }
 
@@ -539,14 +566,14 @@ onBeforeUnmount(() => clearFooter())
 /* VSCode-style file browser */
 .fb-browser { flex: 1; display: flex; min-height: 0; }
 .fb-tree { width: 260px; flex-shrink: 0; border-right: 1px solid var(--color-border); display: flex; flex-direction: column; min-height: 0; background: var(--color-background); }
-.fb-tree-head { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
+.fb-tree-head { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
 .fb-tree-path { margin-left: auto; font-family: 'Cascadia Code', monospace; font-weight: 400; font-size: 11px; color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fb-tree-body { flex: 1; overflow-y: auto; padding: 4px; }
 .fb-tree-empty { padding: 24px 12px; text-align: center; font-size: 12px; color: var(--color-text-tertiary); }
 
 /* code viewer pane */
 .fb-code { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; background: var(--color-surface); }
-.fb-code-head { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 36px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; background: var(--color-surface); }
+.fb-code-head { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 34px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; background: var(--color-surface); }
 .fb-md-toggle { margin-left: auto; }
 .fb-code-path { font-family: 'Cascadia Code', monospace; font-size: 12px; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fb-code-lines { font-size: 11px; color: var(--color-text-tertiary); flex-shrink: 0; }

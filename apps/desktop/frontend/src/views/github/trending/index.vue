@@ -164,11 +164,11 @@ function ctxCopyUrl() {
 </template>
 
 <style scoped>
-.gt-view { width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--color-background); padding: var(--spacing-md); overflow: hidden; }
+.gt-view { width: calc(100% + var(--spacing-lg) * 2); height: calc(100% + var(--spacing-lg) * 2); margin: calc(-1 * var(--spacing-lg)); display: flex; flex-direction: column; background: transparent; overflow: hidden; }
 
-.gt-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: var(--spacing-sm); flex-shrink: 0; }
+.gt-toolbar { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 var(--spacing-md); background: var(--color-surface); border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
 
-.gt-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.gt-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; min-height: 0; padding: var(--spacing-md); }
 .gt-center { display: flex; align-items: center; justify-content: center; height: 200px; }
 .gt-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-text-tertiary); font-size: 13px; height: 200px; }
 

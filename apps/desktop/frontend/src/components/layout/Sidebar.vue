@@ -2,7 +2,6 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLayoutStore } from '../../stores/layout'
-import { useThemeStore } from '../../stores/theme'
 import { useRepoStore } from '../../stores/repo'
 import {
   DashboardOutlined,
@@ -16,7 +15,6 @@ import {
   DatabaseOutlined,
   FieldTimeOutlined,
   BarChartOutlined,
-  SettingOutlined,
   EyeOutlined,
   HistoryOutlined,
   CaretRightFilled,
@@ -39,7 +37,6 @@ import { useFeatureFlags } from '../../composables/useSettings'
 const route = useRoute()
 const router = useRouter()
 const layout = useLayoutStore()
-const theme = useThemeStore()
 const repo = useRepoStore()
 const { githubEnabled, referenceEnabled, secretEnabled, reviewEnabled } = useFeatureFlags()
 
@@ -216,25 +213,6 @@ const expandedWidth = 200
       <span v-if="!layout.sidebarCollapsed" class="logo-text">
         <span class="logo-git">byte</span><span class="logo-mate">-git</span>
       </span>
-      <div class="logo-actions" v-if="!layout.sidebarCollapsed">
-        <button class="logo-btn" @click.stop="theme.toggleTheme()" :title="theme.isDark ? '切换亮色' : '切换暗色'">
-          <svg v-if="theme.isDark" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
-          <svg v-else viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg>
-        </button>
-        <button class="logo-btn" @click.stop="navigate('/settings')" :class="{ active: route.path === '/settings' }" title="设置">
-          <SettingOutlined />
-        </button>
-      </div>
-      <!-- collapsed: show icons stacked below logo -->
-      <div class="logo-actions-collapsed" v-if="layout.sidebarCollapsed">
-        <button class="logo-btn" @click.stop="theme.toggleTheme()" :title="theme.isDark ? '切换亮色' : '切换暗色'">
-          <svg v-if="theme.isDark" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
-          <svg v-else viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg>
-        </button>
-        <button class="logo-btn" @click.stop="navigate('/settings')" :class="{ active: route.path === '/settings' }" title="设置">
-          <SettingOutlined />
-        </button>
-      </div>
     </div>
 
     <!-- Navigation -->
@@ -319,10 +297,12 @@ const expandedWidth = 200
 
 <style scoped>
 .sidebar {
+  position: relative;
+  z-index: 2;  /* sit above wallpaper layer (.wp-layer z:0, .wp-mask z:1) */
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: var(--color-surface);
+  background-color: var(--bg-sider);
   border-right: 1px solid var(--color-border);
   transition: width var(--transition-normal);
   overflow: clip;
@@ -468,7 +448,7 @@ const expandedWidth = 200
   left: calc(100% + 8px);
   top: 0;
   min-width: 160px;
-  background: var(--color-background);
+  background: var(--bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);

@@ -13,7 +13,7 @@ const statusLoaded = ref(false)
 const prsLoaded = ref(false)
 
 export function useGitHubCache() {
-  const app = window.go?.main?.ByteGitApp
+  const app = window.go?.main?.GitMateApp
 
   async function ensureStatusLoaded() {
     if (statusLoaded.value) return status.value

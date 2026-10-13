@@ -152,13 +152,13 @@ function cleanFragment(fragment) {
 </template>
 
 <style scoped>
-.gs-view { width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--color-background); padding: var(--spacing-md); overflow: hidden; }
+.gs-view { width: calc(100% + var(--spacing-lg) * 2); height: calc(100% + var(--spacing-lg) * 2); margin: calc(-1 * var(--spacing-lg)); display: flex; flex-direction: column; background: transparent; overflow: hidden; }
 
-.gs-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-shrink: 0; }
+.gs-bar { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 var(--spacing-md); background: var(--color-surface); border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
 .gs-scope { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 8px; flex-shrink: 0; }
 .gs-scope code { font-family: 'Cascadia Code', monospace; color: var(--color-primary); background: var(--color-primary-bg); padding: 0 4px; border-radius: 3px; }
 
-.gs-results { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.gs-results { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; min-height: 0; padding: var(--spacing-md); }
 .gs-center { display: flex; align-items: center; justify-content: center; height: 200px; }
 .gs-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-text-tertiary); font-size: 13px; height: 200px; }
 
