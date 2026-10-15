@@ -1098,7 +1098,7 @@ fn parse_log_output(out: &str) -> Vec<LogCommitDto> {
 #[tauri::command]
 pub fn log_fetch(repo: String, limit: i64, before: String) -> Result<Vec<LogCommitDto>, String> {
     let repo = repo_path(Some(repo));
-    let mut args: Vec<String> = vec!["log".into(), LOG_FORMAT.into(), "--no-merges".into()];
+    let mut args: Vec<String> = vec!["log".into(), format!("--format={LOG_FORMAT}"), "--no-merges".into()];
     if limit > 0 {
         args.push(format!("-{limit}"));
     }
@@ -1144,7 +1144,8 @@ pub fn log_fetch_by_date(repo: String, date: String) -> Result<Vec<LogCommitDto>
     let next = (d + chrono::Duration::days(1)).format("%Y-%m-%d");
     let since = format!("--since={date} 00:00:00");
     let until = format!("--until={next} 00:00:00");
-    let args: Vec<&str> = vec!["log", LOG_FORMAT, "--no-merges", since.as_str(), until.as_str()];
+    let fmt = format!("--format={LOG_FORMAT}");
+    let args: Vec<&str> = vec!["log", fmt.as_str(), "--no-merges", since.as_str(), until.as_str()];
     let res = git_exec(&repo, &args, LONG_TIMEOUT);
     if !res.success {
         return Err(res.combined().trim().to_string());
