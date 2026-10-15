@@ -207,7 +207,8 @@ function close() { app?.WindowClose() }
 }
 
 .navbar-left {
-  flex: 1;
+  /* 唯一伸展段：面包屑可用全部富余空间（窄到极限才回落省略号） */
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
@@ -215,14 +216,13 @@ function close() { app?.WindowClose() }
 }
 
 .navbar-center {
-  flex: 2;
-  display: flex;
-  justify-content: center;
-  max-width: 400px;
+  /* 空占位（上游预留搜索框）——不再吃 2/4 宽度，避免面包屑被挤省略 */
+  flex: 0 0 0;
+  max-width: none;
 }
 
 .navbar-right {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   justify-content: flex-end;
   gap: 2px;
