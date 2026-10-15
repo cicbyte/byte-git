@@ -218,6 +218,21 @@ where
     Ok(())
 }
 
+/// 旧镜像备份（`--mirror` 裸仓库直接放在 backups/<repo>/ 下）的内部条目名——
+/// 迁移为标准条目后需清理，避免被 GUI 当成备份列表显示。
+pub const BACKUP_LEGACY_BARE_ENTRIES: &[&str] = &[
+    "HEAD",
+    "config",
+    "description",
+    "packed-refs",
+    "byte-git-source-path",
+    "info",
+    "hooks",
+    "refs",
+    "objects",
+    "logs",
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -860,6 +860,8 @@ fn backups_repo_dir(repo: &Path) -> Result<PathBuf, String> {
 pub fn full_backup_list(repo: Option<String>) -> Result<Vec<BackupEntryDto>, String> {
     let repo = repo_path(repo);
     let backup_dir = backups_repo_dir(&repo)?;
+    // 旧镜像模型（backups/<repo>/ 即裸仓库）自动转换——否则 refs/objects 等会被当成备份条目
+    byte_git_core::backup::migrate_legacy_mirror(&backup_dir);
     let entries = match std::fs::read_dir(&backup_dir) {
         Ok(rd) => rd,
         Err(_) => return Ok(Vec::new()), // 还没有备份——不算错误

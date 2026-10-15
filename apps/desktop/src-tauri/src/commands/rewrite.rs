@@ -735,8 +735,8 @@ fn sync_remote_refs_gui(repo: &Path, branch: &str) {
 }
 
 fn create_auto_backup(repo: &Path) -> Result<(), String> {
-    // 与 Go CreateBackupFull 等价：整库克隆备份（core 为固定路径镜像，update 增量刷新）
-    backup::create(&repo.to_string_lossy(), true)
+    // 与 Go CreateBackupFull 等价：整库克隆备份（时间戳条目，每次全新）
+    backup::create_full(&repo.to_string_lossy())
         .map(|_| ())
         .map_err(|e| format!("整库备份失败（已中止改写）: {e:#}"))
 }

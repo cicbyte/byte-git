@@ -524,7 +524,7 @@ pub fn secret_scrub_history(repo: Option<String>, secret: String, auto_backup: b
         return Err("密钥内容为空".into());
     }
     if auto_backup {
-        backup::create(&repo.to_string_lossy(), true).map_err(|e| format!("整库备份失败（已中止抹除）: {e:#}"))?;
+        backup::create_full(&repo.to_string_lossy()).map_err(|e| format!("整库备份失败（已中止抹除）: {e:#}"))?;
     }
 
     let exe = detect_filter_repo()?;
