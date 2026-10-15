@@ -80,10 +80,15 @@ html, body, #app {
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 4px;
+  /* 2px 透明边 + content-box 裁切：同为 8px 轨道，视觉滑块更纤细 */
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-tertiary);
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::selection {

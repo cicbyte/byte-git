@@ -13,7 +13,14 @@
  */
 
 import type { ThemeColors, RegionOverrides, ResolvedMode } from './types'
-import { REGION_DEFS, defaultRegions } from './presets'
+import { REGION_DEFS, defaultRegions, hexToRgb } from './presets'
+
+/** 主色是否偏亮（相对亮度 > 0.7）——亮主色（自定义强调色接近白/浅黄等）需要
+ * 深色反白文字，避免主按钮/选中态"白上白"（参考 byte-writer isLightPrimary）。 */
+function isLightPrimary(hex: string): boolean {
+  const { r, g, b } = hexToRgb(hex)
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.7
+}
 
 /** ThemeColors bg-typed keys that map to --bg-*-orig vars. */
 const BASE_BG = {
@@ -83,6 +90,11 @@ export function applyColorsToDOM(
   for (const key in BASE_DIRECT) {
     root.style.setProperty(BASE_DIRECT[key as keyof typeof BASE_DIRECT], colors[key as keyof ThemeColors] ?? '')
   }
+
+  // 2.5 主色 RGB 三元组（"r, g, b"）：供 rgba(var(--color-primary-rgb), α)
+  // 透明度梯度（光晕/进度条/主题色阴影）直接组合使用
+  const { r: pr, g: pg, b: pb } = hexToRgb(colors.primary)
+  root.style.setProperty('--color-primary-rgb', `${pr}, ${pg}, ${pb}`)
 
   // 3. extension layer
   for (const key in EXT_CSS_VARS) {
@@ -154,6 +166,8 @@ export function buildAntdToken(colors: ThemeColors, mode: ResolvedMode) {
       borderRadius: 8,
       fontFamily:
         'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+      // 反白文字（主按钮/选中态等）：亮主色时用墨字，避免白上白
+      colorTextLightSolid: isLightPrimary(colors.primary) ? '#1b1c1f' : '#ffffff',
     },
     // Hint callers so they know which mode this token was built for.
     _resolvedMode: mode,
