@@ -16,6 +16,7 @@ import { useRoute } from 'vue-router'
 import { Modal } from 'ant-design-vue'
 import {
   FolderOpenOutlined, PlusOutlined, DeleteOutlined,
+  PushpinFilled, PushpinOutlined,
 } from '@ant-design/icons-vue'
 import { useRepoStore } from '../../stores/repo'
 import ContextMenu from '../common/ContextMenu.vue'
@@ -25,17 +26,27 @@ const route = useRoute()
 const repo = useRepoStore()
 const app = window.go?.main?.ByteGitApp
 
+// 置顶分组渲染（置顶在前，各段带小标题）
+const pinnedList = computed(() => repo.recent.filter((r) => r.pinned))
+const recentList = computed(() => repo.recent.filter((r) => !r.pinned))
+
 // ---- context menu ----
-const ctxMenu = ref({ open: false, x: 0, y: 0, path: '', name: '' })
+const ctxMenu = ref({ open: false, x: 0, y: 0, path: '', name: '', pinned: false })
 
 function onItemContextmenu(evt, r) {
-  ctxMenu.value = { open: true, x: evt.clientX, y: evt.clientY, path: r.path, name: r.name }
+  ctxMenu.value = { open: true, x: evt.clientX, y: evt.clientY, path: r.path, name: r.name, pinned: !!r.pinned }
 }
 
 function ctxOpenExplorer() {
   const p = ctxMenu.value.path
   ctxMenu.value.open = false
   if (p && app?.OpenInExplorer) app.OpenInExplorer(p).catch(() => {})
+}
+
+function ctxTogglePin() {
+  const { path, pinned } = ctxMenu.value
+  ctxMenu.value.open = false
+  repo.setPinned(path, !pinned)
 }
 
 function ctxRemove() {
@@ -67,10 +78,32 @@ async function addProject() {
     <!-- header -->
     <div class="rail-head">项目</div>
 
-    <!-- project list -->
+    <!-- project list：置顶区（若有）+ 最近区，均带小标题 -->
     <div class="rail-items">
+      <template v-if="pinnedList.length">
+        <div class="rail-section-title">置顶</div>
+        <div
+          v-for="r in pinnedList"
+          :key="r.path"
+          class="rail-item pinned"
+          :class="{ active: repo.path === r.path }"
+          :title="r.path"
+          @click="repo.switchTo(r.path)"
+          @contextmenu.prevent="onItemContextmenu($event, r)"
+        >
+          <div class="rail-avatar">
+            {{ initials(r.name) }}
+          </div>
+          <div class="rail-info">
+            <div class="rail-name">{{ r.name }}</div>
+          </div>
+          <PushpinFilled class="rail-pin" />
+        </div>
+      </template>
+
+      <div v-if="recentList.length" class="rail-section-title">最近</div>
       <div
-        v-for="r in repo.recent"
+        v-for="r in recentList"
         :key="r.path"
         class="rail-item"
         :class="{ active: repo.path === r.path }"
@@ -99,6 +132,10 @@ async function addProject() {
 
     <!-- context menu -->
     <ContextMenu v-model:open="ctxMenu.open" :x="ctxMenu.x" :y="ctxMenu.y" :title="ctxMenu.name">
+      <CtxItem @click="ctxTogglePin">
+        <PushpinOutlined v-if="!ctxMenu.pinned" /> <PushpinFilled v-else />
+        {{ ctxMenu.pinned ? '取消置顶' : '置顶' }}
+      </CtxItem>
       <CtxItem @click="ctxOpenExplorer">
         <FolderOpenOutlined /> 在文件管理器中打开
       </CtxItem>
@@ -148,6 +185,33 @@ async function addProject() {
 }
 .rail-items::-webkit-scrollbar { width: 4px; }
 .rail-items::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }
+
+/* 分组小标题（置顶/最近） */
+.rail-section-title {
+  padding: 10px 6px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-tertiary);
+  user-select: none;
+  white-space: nowrap;
+}
+.rail-section-title:first-child { padding-top: 4px; }
+
+/* 置顶项：主色钉标 + 微主色底，与普通项区分 */
+.rail-item.pinned .rail-avatar {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.rail-item.pinned .rail-name { color: var(--color-primary); }
+.rail-pin {
+  font-size: 11px;
+  color: var(--color-primary);
+  flex-shrink: 0;
+  opacity: 0.85;
+}
 
 .rail-item {
   display: flex;

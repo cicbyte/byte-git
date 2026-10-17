@@ -5,6 +5,8 @@ export interface RecentRepo {
   path: string
   name: string
   lastOpened: string
+  /** byte-git 扩展：置顶项稳定显示在项目栏顶部 */
+  pinned?: boolean
 }
 
 export interface RepoInfo {
@@ -99,8 +101,18 @@ export const useRepoStore = defineStore('repo', () => {
     }
   }
 
+  /** Pin/unpin a repo (persists on backend; pinned items float to the top). */
+  async function setPinned(p: string, pinned: boolean) {
+    if (!app?.SetRecentPinned) return
+    try {
+      recent.value = (await app.SetRecentPinned(p, pinned)) || recent.value
+    } catch {
+      // ignore
+    }
+  }
+
   return {
     path, name, branch, recent, switching, repoEpoch,
-    repoArg, detectCurrent, loadRecent, switchTo, pickFolder, removeRecent,
+    repoArg, detectCurrent, loadRecent, switchTo, pickFolder, removeRecent, setPinned,
   }
 })

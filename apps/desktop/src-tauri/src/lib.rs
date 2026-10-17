@@ -178,6 +178,7 @@ pub fn run() {
             commands::repo::current_repo_info,
             commands::repo::switch_repo,
             commands::repo::list_recent_repos,
+            commands::repo::set_recent_pinned,
             commands::repo::remove_recent_repo,
             commands::repo::pick_repo_folder,
             commands::repo::repo_file_list,

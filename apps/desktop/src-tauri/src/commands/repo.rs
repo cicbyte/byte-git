@@ -138,6 +138,7 @@ where
 // ---------------------------------------------------------------------------
 
 /// RecentRepo（gui repo/repos.go）。state 只持久化路径，lastOpened 恒为空串。
+/// byte-git 扩展：pinned 标记（置顶项目，列表置前）。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecentRepo {
@@ -145,6 +146,8 @@ pub struct RecentRepo {
     pub name: String,
     /// RFC3339 时间戳；偏差：state 未持久化时间戳，恒为 ""。
     pub last_opened: String,
+    /// 是否置顶（byte-git 扩展：置顶项稳定显示在项目栏顶部）。
+    pub pinned: bool,
 }
 
 /// SwitchResult（SwitchRepo 返回：解析后的绝对 toplevel + 展示信息 + 最近列表）。
@@ -273,17 +276,23 @@ fn resolve_current(explicit: Option<&str>) -> String {
     String::new()
 }
 
-/// state 的路径列表 → 前端 RecentRepo DTO（name 取路径最后一段）。
+/// state 的路径列表 → 前端 RecentRepo DTO（置顶在前 + pinned 标记）。
 fn load_recent_dtos() -> Vec<RecentRepo> {
-    crate::state::load_recent()
-        .unwrap_or_default()
+    let rf = crate::state::load_recent().unwrap_or_default();
+    rf.pinned
         .into_iter()
-        .map(|p| RecentRepo {
-            name: repo_base_name(&p),
-            path: p,
-            last_opened: String::new(),
-        })
+        .map(|p| to_recent_dto(p, true))
+        .chain(rf.recent.into_iter().map(|p| to_recent_dto(p, false)))
         .collect()
+}
+
+fn to_recent_dto(path: String, pinned: bool) -> RecentRepo {
+    RecentRepo {
+        name: repo_base_name(&path),
+        path,
+        pinned,
+        last_opened: String::new(),
+    }
 }
 
 /// 相对路径是否越出仓库根（对齐 Go Clean+HasPrefix 守卫的意图）：
@@ -456,9 +465,18 @@ pub fn switch_repo(dir: String) -> Result<SwitchResult, String> {
     Ok(SwitchResult { path: top, name, branch, recent: load_recent_dtos() })
 }
 
-/// ListRecentRepos 最近仓库列表（最新在前，上限 10；state 持久化）。
+/// ListRecentRepos 最近仓库列表（置顶在前 + pinned 标记；无上限，state 持久化）。
 #[tauri::command]
 pub fn list_recent_repos() -> Result<Vec<RecentRepo>, String> {
+    Ok(load_recent_dtos())
+}
+
+/// SetRecentPinned 置顶/取消置顶最近仓库（byte-git 扩展）。
+/// 置顶 = 移到置顶区头部且打开不改变其位置；取消 = 回到 recent 队首。
+/// 返回更新后的完整列表（前端直接替换渲染）。
+#[tauri::command]
+pub fn set_recent_pinned(path: String, pinned: bool) -> Result<Vec<RecentRepo>, String> {
+    crate::state::set_recent_pinned(&path, pinned).map_err(|e| e.to_string())?;
     Ok(load_recent_dtos())
 }
 

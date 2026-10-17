@@ -36,42 +36,82 @@ fn recent_file() -> anyhow::Result<PathBuf> {
     Ok(AppPaths::new()?.root().join("recent-repos.json"))
 }
 
-/// 记录最近仓库（最新在前，去重，上限 30）。
-/// 上游 maxRecent=10；byte-git 提高到 30——项目栏可滚动（rail-items
-/// overflow-y:auto），10 个对多仓库切换场景偏紧。有意偏差。
-pub fn record_recent(path: &str) -> anyhow::Result<()> {
+/// recent-repos.json 结构：recent（按时间倒序）+ pinned（置顶，按置顶时间倒序）。
+/// 旧格式为纯路径数组（迁移见 load_recent_file）。
+#[derive(Default, serde::Serialize, serde::Deserialize)]
+pub struct RecentFile {
+    #[serde(default)]
+    pub recent: Vec<String>,
+    #[serde(default)]
+    pub pinned: Vec<String>,
+}
+
+/// 读取（兼容旧格式：纯路径数组 → 全部视作 recent，无置顶）。
+fn load_recent_file() -> RecentFile {
+    let Ok(s) = std::fs::read_to_string(recent_file().unwrap_or_default()) else {
+        return RecentFile::default();
+    };
+    if let Ok(rf) = serde_json::from_str::<RecentFile>(&s) {
+        return rf;
+    }
+    // 旧格式：["pathA", "pathB"]
+    if let Ok(list) = serde_json::from_str::<Vec<String>>(&s) {
+        return RecentFile { recent: list, pinned: Vec::new() };
+    }
+    RecentFile::default()
+}
+
+fn save_recent_file(rf: &RecentFile) -> anyhow::Result<()> {
     let file = recent_file()?;
-    let mut list: Vec<String> = std::fs::read_to_string(&file)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default();
-    list.retain(|p| p != path);
-    list.insert(0, path.to_string());
-    list.truncate(30);
     if let Some(parent) = file.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&file, serde_json::to_string_pretty(&list)?)?;
+    std::fs::write(&file, serde_json::to_string_pretty(rf)?)?;
     Ok(())
 }
 
-/// 读最近仓库列表。
-pub fn load_recent() -> anyhow::Result<Vec<String>> {
-    let file = recent_file()?;
-    Ok(std::fs::read_to_string(&file)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default())
+impl RecentFile {
+    /// 从 recent 中摘出 path 并插到最前（取消置顶时回到队首）。
+    fn retain_front(&mut self, path: &str) {
+        self.recent.retain(|p| p != path);
+        self.recent.insert(0, path.to_string());
+    }
 }
 
-/// 移除最近仓库记录。
+/// 记录最近仓库（最新在前，去重，无上限——byte-git 有意偏差上游 maxRecent=10）。
+/// 置顶项位置稳定：打开置顶项目不改变其置顶序，也不进入 recent。
+pub fn record_recent(path: &str) -> anyhow::Result<()> {
+    let mut rf = load_recent_file();
+    if rf.pinned.iter().any(|p| p == path) {
+        return Ok(()); // 已置顶：保持不动
+    }
+    rf.recent.retain(|p| p != path);
+    rf.recent.insert(0, path.to_string());
+    save_recent_file(&rf)
+}
+
+/// 读最近仓库（recent + pinned 两个列表）。
+pub fn load_recent() -> anyhow::Result<RecentFile> {
+    Ok(load_recent_file())
+}
+
+/// 置顶/取消置顶：置顶 = recent→pinned 头部；取消 = pinned→recent 头部。
+pub fn set_recent_pinned(path: &str, pinned: bool) -> anyhow::Result<()> {
+    let mut rf = load_recent_file();
+    if pinned {
+        rf.recent.retain(|p| p != path);
+        rf.pinned.retain(|p| p != path);
+        rf.pinned.insert(0, path.to_string());
+    } else {
+        rf.retain_front(path);
+    }
+    save_recent_file(&rf)
+}
+
+/// 移除最近仓库记录（两列表都清）。
 pub fn remove_recent(path: &str) -> anyhow::Result<()> {
-    let file = recent_file()?;
-    let mut list: Vec<String> = std::fs::read_to_string(&file)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default();
-    list.retain(|p| p != path);
-    std::fs::write(&file, serde_json::to_string_pretty(&list)?)?;
-    Ok(())
+    let mut rf = load_recent_file();
+    rf.recent.retain(|p| p != path);
+    rf.pinned.retain(|p| p != path);
+    save_recent_file(&rf)
 }
