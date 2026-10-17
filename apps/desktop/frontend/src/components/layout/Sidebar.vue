@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLayoutStore } from '../../stores/layout'
 import { useRepoStore } from '../../stores/repo'
@@ -17,7 +17,6 @@ import {
   BarChartOutlined,
   EyeOutlined,
   HistoryOutlined,
-  CaretRightFilled,
   LockOutlined,
   CloudServerOutlined,
   TableOutlined,
@@ -144,55 +143,6 @@ const visibleMenuGroups = computed(() => {
     })
 })
 
-function groupOf(path) {
-  for (const g of visibleMenuGroups.value) {
-    if (g.children.some((c) => c.key === path)) return g.key
-  }
-  return null
-}
-
-// expanded state — current route's group is always expanded; others collapse
-// by default but the user can expand/collapse them. Stored as a Set of keys.
-const expanded = ref(new Set([groupOf(route.path)]))
-// when collapsed (icon-only mode) we track the hovered/focused group for a flyout
-const collapsedHover = ref(null)
-
-watch(
-  () => route.path,
-  (p) => {
-    const g = groupOf(p)
-    if (g) {
-      // ensure the active group is expanded (don't force-collapse others)
-      expanded.value.add(g)
-      // trigger reactivity on the Set
-      expanded.value = new Set(expanded.value)
-    }
-  },
-  { immediate: true },
-)
-
-// when feature flags load (async from config.yaml), a previously-hidden group
-// may become visible — re-expand the current route's group so the user lands
-// in the right context instead of seeing no active group.
-watch(visibleMenuGroups, () => {
-  const g = groupOf(route.path)
-  if (g && !expanded.value.has(g)) {
-    expanded.value.add(g)
-    expanded.value = new Set(expanded.value)
-  }
-})
-
-function toggleGroup(key) {
-  const next = new Set(expanded.value)
-  if (next.has(key)) next.delete(key)
-  else next.add(key)
-  expanded.value = next
-}
-
-function isExpanded(key) {
-  return expanded.value.has(key)
-}
-
 function navigate(key) {
   router.push(key)
 }
@@ -215,66 +165,55 @@ const expandedWidth = 200
       </span>
     </div>
 
-    <!-- Navigation -->
+    <!-- Navigation：平铺模式（参考 byte-writer）——全部菜单项常显直达，
+         小标题仅作视觉分隔不折叠；分组折叠只增加点击成本且收起时当前
+         路由高亮不可见。折叠态为纯图标列（小标题隐藏，tooltip 补全名）。 -->
     <nav class="sidebar-nav">
       <template v-for="group in visibleMenuGroups" :key="group.key">
-        <!-- Collapsed mode: flyout (hover to show children in a popover) -->
-        <div
-          v-if="layout.sidebarCollapsed"
-          class="nav-group-collapsed"
-          @mouseenter="collapsedHover = group.key"
-          @mouseleave="collapsedHover = null"
-        >
+        <!-- 单子项组：提升为独立项（略重，无小标题） -->
+        <template v-if="group.children.length === 1">
           <div
-            class="nav-item group-head"
-            :class="{ 'has-active': groupOf(route.path) === group.key }"
-            @click="toggleGroup(group.key)"
+            v-for="child in group.children"
+            :key="child.key"
+            class="nav-item solo"
+            :class="{ active: route.path === child.key }"
+            :title="layout.sidebarCollapsed ? child.label : undefined"
+            @click="navigate(child.key)"
           >
-            <component :is="group.icon" class="nav-icon" />
+            <component :is="child.icon" class="nav-icon" />
+            <span v-if="!layout.sidebarCollapsed" class="nav-label">{{ child.label }}</span>
           </div>
-          <transition name="flyout">
-            <div v-if="collapsedHover === group.key" class="flyout">
-              <div class="flyout-title">{{ group.label }}</div>
-              <div
-                v-for="child in group.children"
-                :key="child.key"
-                class="nav-item flyout-item"
-                :class="{ active: route.path === child.key }"
-                @click="navigate(child.key)"
-              >
-                <component :is="child.icon" class="nav-icon" />
-                <span class="nav-label">{{ child.label }}</span>
-              </div>
-            </div>
-          </transition>
-        </div>
+        </template>
 
-        <!-- Expanded mode: inline collapsible group -->
-        <div v-else class="nav-group">
-          <div
-            class="nav-group-head"
-            :class="{ 'has-active': groupOf(route.path) === group.key }"
-            @click="toggleGroup(group.key)"
-          >
-            <component :is="group.icon" class="group-head-icon" />
-            <span class="group-head-label">{{ group.label }}</span>
-            <CaretRightFilled class="group-caret" :class="{ open: isExpanded(group.key) }" />
-          </div>
-          <transition name="expand">
-            <div v-show="isExpanded(group.key)" class="nav-children">
-              <div
-                v-for="child in group.children"
-                :key="child.key"
-                class="nav-item child"
-                :class="{ active: route.path === child.key }"
-                @click="navigate(child.key)"
-              >
-                <component :is="child.icon" class="nav-icon" />
-                <span class="nav-label">{{ child.label }}</span>
-              </div>
+        <!-- 多子项组：小标题分隔 + 子项常显 -->
+        <template v-else>
+          <div v-if="!layout.sidebarCollapsed" class="nav-group">
+            <div class="nav-label-title">{{ group.label }}</div>
+            <div
+              v-for="child in group.children"
+              :key="child.key"
+              class="nav-item"
+              :class="{ active: route.path === child.key }"
+              @click="navigate(child.key)"
+            >
+              <component :is="child.icon" class="nav-icon" />
+              <span class="nav-label">{{ child.label }}</span>
             </div>
-          </transition>
-        </div>
+          </div>
+          <!-- 折叠态：子项并入图标列 -->
+          <template v-else>
+            <div
+              v-for="child in group.children"
+              :key="child.key"
+              class="nav-item icon-only"
+              :class="{ active: route.path === child.key }"
+              :title="child.label"
+              @click="navigate(child.key)"
+            >
+              <component :is="child.icon" class="nav-icon" />
+            </div>
+          </template>
+        </template>
       </template>
     </nav>
 
@@ -366,113 +305,48 @@ const expandedWidth = 200
 .sidebar-nav::-webkit-scrollbar { width: 5px; }
 .sidebar-nav::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
 
-/* ---- group head (expanded mode) ---- */
+/* ---- 分组小标题：仅视觉分隔，不可点击（平铺模式） ---- */
 .nav-group { margin-bottom: 2px; }
-.nav-group-head {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: 7px 10px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  color: var(--color-text-tertiary);
+.nav-label-title {
+  padding: 14px 10px 4px;
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
+  color: var(--color-text-tertiary);
   letter-spacing: 0.05em;
-  transition: all var(--transition-fast);
-  white-space: nowrap;
+  text-transform: uppercase;
   user-select: none;
+  white-space: nowrap;
 }
-.nav-group-head:hover { color: var(--color-text-secondary); background: var(--color-hover); }
-.nav-group-head.has-active { color: var(--color-primary); }
-.group-head-icon { font-size: 14px; flex-shrink: 0; }
-.group-head-label { flex: 1; }
-.group-caret {
-  font-size: 9px;
-  transition: transform var(--transition-fast);
-  opacity: 0.7;
-}
-.group-caret.open { transform: rotate(90deg); }
+.nav-group:first-of-type .nav-label-title { padding-top: 6px; }
 
-/* ---- children ---- */
-.nav-children {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding-left: 14px;
-  overflow: hidden;
-}
-
+/* ---- 菜单项：30px 行高胶囊，低透明度层次 ---- */
 .nav-item {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  padding: 8px 12px;
+  height: 30px;
+  padding: 0 10px;
+  margin-bottom: 2px;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
   color: var(--color-text-secondary);
   white-space: nowrap;
+  user-select: none;
 }
-.nav-item:hover { background: var(--color-hover); color: var(--color-primary); }
-.nav-item.active { background: var(--color-primary-bg); color: var(--color-primary); font-weight: 500; }
+.nav-item:hover { background: var(--color-hover); color: var(--color-text); }
+.nav-item.active { background: var(--color-primary-bg); color: var(--color-primary); font-weight: 550; }
 
-.nav-item.child { padding: 7px 12px; }
-.nav-item.child::before {
-  content: '';
-  width: 3px; height: 3px; border-radius: 50%;
-  background: var(--color-border);
-  flex-shrink: 0;
-  margin-left: -7px;
-}
-.nav-item.child.active::before { background: var(--color-primary); }
+/* 单子项组提升的独立项（比普通菜单项略重） */
+.nav-item.solo { padding: 0 12px; font-weight: 500; }
 
-.nav-icon { font-size: 16px; flex-shrink: 0; }
+/* 折叠态图标列 */
+.nav-item.icon-only { justify-content: center; padding: 0; height: 32px; }
+
+.nav-icon { font-size: 15px; color: var(--color-text-tertiary); flex-shrink: 0; transition: color var(--transition-fast); }
+.nav-item:hover .nav-icon,
+.nav-item.active .nav-icon { color: inherit; }
 .nav-label { font-size: 13px; }
-
-/* ---- collapsed mode ---- */
-.nav-group-collapsed { position: relative; }
-.nav-group-collapsed .nav-item.group-head {
-  justify-content: center;
-  padding: 10px;
-  margin-bottom: 2px;
-}
-.nav-group-collapsed .nav-item.group-head.has-active {
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
-}
-
-.flyout {
-  position: absolute;
-  left: calc(100% + 8px);
-  top: 0;
-  min-width: 160px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  padding: 6px;
-  z-index: 1100;
-}
-.flyout-title {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-tertiary);
-  padding: 4px 10px;
-}
-.flyout-item { padding: 7px 10px; }
-.flyout-item::before { display: none; }
-
-/* flyout transition */
-.flyout-enter-active, .flyout-leave-active { transition: opacity var(--transition-fast), transform var(--transition-fast); }
-.flyout-enter-from, .flyout-leave-to { opacity: 0; transform: translateX(-4px); }
-
-/* expand transition */
-.expand-enter-active, .expand-leave-active { transition: all var(--transition-fast); }
-.expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; }
 
 .sidebar-bottom {
   min-height: var(--footer-height);
