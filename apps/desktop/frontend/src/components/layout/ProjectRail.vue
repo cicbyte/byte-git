@@ -101,7 +101,9 @@ async function addProject() {
         </div>
       </template>
 
-      <div v-if="recentList.length" class="rail-section-title">最近</div>
+      <!-- 顺序稳定设计：列表是导航面（位置预期/肌肉记忆），打开不重排，
+           新项目进队首；置顶区作常用项的钉固层 -->
+      <div v-if="recentList.length" class="rail-section-title">项目</div>
       <div
         v-for="r in recentList"
         :key="r.path"

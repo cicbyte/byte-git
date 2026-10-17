@@ -95,6 +95,14 @@ mod tests {
         record_recent("a").unwrap();
         record_recent("b").unwrap();
         record_recent("c").unwrap();
+        // 新项目进队首：recent=[c,b,a]
+        let rf = load_recent_file();
+        assert_eq!(rf.recent, vec!["c", "b", "a"]);
+
+        // 再次打开已有项目：位置稳定不重排（顺序稳定设计的核心）
+        record_recent("b").unwrap();
+        let rf = load_recent_file();
+        assert_eq!(rf.recent, vec!["c", "b", "a"]);
 
         // 置顶 a：pinned=[a]，recent=[c,b]
         set_recent_pinned("a", true).unwrap();
@@ -131,14 +139,16 @@ mod tests {
     }
 }
 
-/// 记录最近仓库（最新在前，去重，无上限——byte-git 有意偏差上游 maxRecent=10）。
-/// 置顶项位置稳定：打开置顶项目不改变其置顶序，也不进入 recent。
+/// 记录最近仓库（无上限——byte-git 有意偏差上游 maxRecent=10）。
+/// 顺序稳定设计（侧栏是导航面而非历史页，同 Discord/Slack 服务器栏）：
+/// 已在列表中的项目打开**不重排**（肌肉记忆/位置预期），仅新项目进队首。
+/// 置顶项同理保持不动。
 pub fn record_recent(path: &str) -> anyhow::Result<()> {
     let mut rf = load_recent_file();
-    if rf.pinned.iter().any(|p| p == path) {
-        return Ok(()); // 已置顶：保持不动
+    // 已存在（任一列表）：位置稳定，不动
+    if rf.pinned.iter().any(|p| p == path) || rf.recent.iter().any(|p| p == path) {
+        return Ok(());
     }
-    rf.recent.retain(|p| p != path);
     rf.recent.insert(0, path.to_string());
     save_recent_file(&rf)
 }
