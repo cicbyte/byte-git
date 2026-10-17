@@ -36,7 +36,9 @@ fn recent_file() -> anyhow::Result<PathBuf> {
     Ok(AppPaths::new()?.root().join("recent-repos.json"))
 }
 
-/// 记录最近仓库（最新在前，去重，上限 10）。
+/// 记录最近仓库（最新在前，去重，上限 30）。
+/// 上游 maxRecent=10；byte-git 提高到 30——项目栏可滚动（rail-items
+/// overflow-y:auto），10 个对多仓库切换场景偏紧。有意偏差。
 pub fn record_recent(path: &str) -> anyhow::Result<()> {
     let file = recent_file()?;
     let mut list: Vec<String> = std::fs::read_to_string(&file)
@@ -45,7 +47,7 @@ pub fn record_recent(path: &str) -> anyhow::Result<()> {
         .unwrap_or_default();
     list.retain(|p| p != path);
     list.insert(0, path.to_string());
-    list.truncate(10);
+    list.truncate(30);
     if let Some(parent) = file.parent() {
         std::fs::create_dir_all(parent)?;
     }
