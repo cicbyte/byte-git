@@ -72,9 +72,62 @@ fn save_recent_file(rf: &RecentFile) -> anyhow::Result<()> {
 
 impl RecentFile {
     /// 从 recent 中摘出 path 并插到最前（取消置顶时回到队首）。
+    #[allow(dead_code)]
     fn retain_front(&mut self, path: &str) {
         self.recent.retain(|p| p != path);
         self.recent.insert(0, path.to_string());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 置顶/取消置顶全往返（含打开置顶项位置稳定、双列表去重）。
+    /// 独占临时 BYTE_GIT_HOME——并行测试会互相踩，故全并在此单测。
+    #[test]
+    fn pin_unpin_roundtrip() {
+        let dir = std::env::temp_dir().join(format!("bg-recent-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::env::set_var("BYTE_GIT_HOME", &dir);
+
+        record_recent("a").unwrap();
+        record_recent("b").unwrap();
+        record_recent("c").unwrap();
+
+        // 置顶 a：pinned=[a]，recent=[c,b]
+        set_recent_pinned("a", true).unwrap();
+        let rf = load_recent_file();
+        assert_eq!(rf.pinned, vec!["a"]);
+        assert_eq!(rf.recent, vec!["c", "b"]);
+
+        // 打开置顶项：位置稳定，不进 recent
+        record_recent("a").unwrap();
+        let rf = load_recent_file();
+        assert_eq!(rf.pinned, vec!["a"]);
+        assert_eq!(rf.recent, vec!["c", "b"]);
+
+        // 再置顶 c：pinned=[c,a]（新置顶在头部）
+        set_recent_pinned("c", true).unwrap();
+        let rf = load_recent_file();
+        assert_eq!(rf.pinned, vec!["c", "a"]);
+        assert_eq!(rf.recent, vec!["b"]);
+
+        // 取消置顶 a：pinned=[c]，recent=[a,b]——回归点（此前 a 残留 pinned）
+        set_recent_pinned("a", false).unwrap();
+        let rf = load_recent_file();
+        assert_eq!(rf.pinned, vec!["c"]);
+        assert_eq!(rf.recent, vec!["a", "b"]);
+
+        // 旧格式迁移：纯数组 → 全部视作 recent
+        std::fs::write(recent_file().unwrap(), r#"["x","y"]"#).unwrap();
+        let rf = load_recent_file();
+        assert!(rf.pinned.is_empty());
+        assert_eq!(rf.recent, vec!["x", "y"]);
+
+        std::env::remove_var("BYTE_GIT_HOME");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 
@@ -95,15 +148,16 @@ pub fn load_recent() -> anyhow::Result<RecentFile> {
     Ok(load_recent_file())
 }
 
-/// 置顶/取消置顶：置顶 = recent→pinned 头部；取消 = pinned→recent 头部。
+/// 置顶/取消置顶：置顶 = recent→pinned 头部；取消 = 先摘出 pinned 再回 recent 头部。
 pub fn set_recent_pinned(path: &str, pinned: bool) -> anyhow::Result<()> {
     let mut rf = load_recent_file();
+    // 两列表先统一去重，再按目标落位（防双列表并存导致取消置顶无效）
+    rf.pinned.retain(|p| p != path);
+    rf.recent.retain(|p| p != path);
     if pinned {
-        rf.recent.retain(|p| p != path);
-        rf.pinned.retain(|p| p != path);
         rf.pinned.insert(0, path.to_string());
     } else {
-        rf.retain_front(path);
+        rf.recent.insert(0, path.to_string());
     }
     save_recent_file(&rf)
 }
