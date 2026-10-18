@@ -327,10 +327,9 @@ async function addProject() {
   background: var(--color-primary-bg);
   border-color: var(--color-border);
 }
-/* 拖拽中的源项半透明 */
+/* 拖拽中的源项半透明；光标维持 pointer（点击主导），
+   拖拽过程的光标由浏览器按 dropEffect 自动切换 */
 .rail-item.dragging { opacity: 0.4; }
-.rail-item[draggable='true'] { cursor: grab; }
-.rail-item[draggable='true']:active { cursor: grabbing; }
 
 .rail-avatar {
   width: 24px;
