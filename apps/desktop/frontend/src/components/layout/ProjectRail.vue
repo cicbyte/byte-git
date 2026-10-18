@@ -30,6 +30,47 @@ const app = window.go?.main?.ByteGitApp
 const pinnedList = computed(() => repo.recent.filter((r) => r.pinned))
 const recentList = computed(() => repo.recent.filter((r) => !r.pinned))
 
+// ---- 搜索过滤（名称/路径子串，大小写不敏感）----
+const query = ref('')
+const match = (r) => {
+  const q = query.value.trim().toLowerCase()
+  if (!q) return true
+  return r.name.toLowerCase().includes(q) || r.path.toLowerCase().includes(q)
+}
+const shownPinned = computed(() => pinnedList.value.filter(match))
+const shownRecent = computed(() => recentList.value.filter(match))
+
+// ---- 拖拽排序（分区内拖动；拖过项上实时换位，dragend 持久化）----
+const drag = ref(null) // { path, pinned }
+function onDragStart(e, r) {
+  drag.value = { path: r.path, pinned: !!r.pinned }
+  e.dataTransfer.effectAllowed = 'move'
+  e.dataTransfer.setData('text/plain', r.path) // Firefox 兼容
+}
+function onDragOver(e, r) {
+  if (!drag.value || !!r.pinned !== drag.value.pinned || r.path === drag.value.path) return
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'move'
+  // 在展示分区里换位 → 同步映射回 store 的完整扁平列表
+  const m = new Map(repo.recent.map((x) => [x.path, x]))
+  const move = (list) => {
+    const from = list.findIndex((p) => p === drag.value.path)
+    const to = list.findIndex((p) => p === r.path)
+    if (from < 0 || to < 0) return list
+    const next = [...list]
+    next.splice(to, 0, next.splice(from, 1)[0])
+    return next
+  }
+  const pinnedPaths = move(pinnedList.value.map((x) => x.path))
+  const recentPaths = move(recentList.value.map((x) => x.path))
+  repo.recent = [...pinnedPaths, ...recentPaths].map((p) => m.get(p)).filter(Boolean)
+}
+async function onDragEnd() {
+  if (!drag.value) return
+  drag.value = null
+  await repo.setOrder(pinnedList.value.map((x) => x.path), recentList.value.map((x) => x.path))
+}
+
 // ---- context menu ----
 const ctxMenu = ref({ open: false, x: 0, y: 0, path: '', name: '', pinned: false })
 
@@ -78,18 +119,34 @@ async function addProject() {
     <!-- header -->
     <div class="rail-head">项目</div>
 
-    <!-- project list：置顶区（若有）+ 最近区，均带小标题 -->
+    <!-- 搜索过滤（名称/路径） -->
+    <div class="rail-search-wrap">
+      <input
+        v-model="query"
+        class="rail-search"
+        type="text"
+        placeholder="搜索项目…"
+        spellcheck="false"
+      />
+      <button v-if="query" class="rail-search-clear" title="清空" @click="query = ''">×</button>
+    </div>
+
+    <!-- project list：置顶区（若有）+ 项目区，均带小标题；支持分区内拖拽排序 -->
     <div class="rail-items">
-      <template v-if="pinnedList.length">
+      <template v-if="shownPinned.length">
         <div class="rail-section-title">置顶</div>
         <div
-          v-for="r in pinnedList"
+          v-for="r in shownPinned"
           :key="r.path"
           class="rail-item pinned"
-          :class="{ active: repo.path === r.path }"
+          :class="{ active: repo.path === r.path, dragging: drag?.path === r.path }"
+          draggable="true"
           :title="r.path"
           @click="repo.switchTo(r.path)"
           @contextmenu.prevent="onItemContextmenu($event, r)"
+          @dragstart="onDragStart($event, r)"
+          @dragover="onDragOver($event, r)"
+          @dragend="onDragEnd"
         >
           <div class="rail-avatar">
             {{ initials(r.name) }}
@@ -101,17 +158,19 @@ async function addProject() {
         </div>
       </template>
 
-      <!-- 顺序稳定设计：列表是导航面（位置预期/肌肉记忆），打开不重排，
-           新项目进队首；置顶区作常用项的钉固层 -->
-      <div v-if="recentList.length" class="rail-section-title">项目</div>
+      <div v-if="shownRecent.length" class="rail-section-title">项目</div>
       <div
-        v-for="r in recentList"
+        v-for="r in shownRecent"
         :key="r.path"
         class="rail-item"
-        :class="{ active: repo.path === r.path }"
+        :class="{ active: repo.path === r.path, dragging: drag?.path === r.path }"
+        draggable="true"
         :title="r.path"
         @click="repo.switchTo(r.path)"
         @contextmenu.prevent="onItemContextmenu($event, r)"
+        @dragstart="onDragStart($event, r)"
+        @dragover="onDragOver($event, r)"
+        @dragend="onDragEnd"
       >
         <div class="rail-avatar">
           {{ initials(r.name) }}
@@ -122,6 +181,9 @@ async function addProject() {
       </div>
       <div v-if="!repo.recent.length" class="rail-empty">
         暂无项目
+      </div>
+      <div v-else-if="!shownPinned.length && !shownRecent.length" class="rail-empty">
+        无匹配项目
       </div>
     </div>
 
@@ -177,6 +239,41 @@ async function addProject() {
   flex-shrink: 0;
 }
 
+/* 搜索框：紧凑，主题变量驱动 */
+.rail-search-wrap {
+  position: relative;
+  padding: 6px 6px 2px;
+  flex-shrink: 0;
+}
+.rail-search {
+  width: 100%;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--color-text);
+  background: var(--color-bg-2, var(--bg-input, transparent));
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.rail-search::placeholder { color: var(--color-text-tertiary); }
+.rail-search:focus { border-color: var(--color-primary); }
+.rail-search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px;
+}
+.rail-search-clear:hover { color: var(--color-text); }
+
 .rail-items {
   flex: 1;
   overflow-y: auto;
@@ -230,6 +327,10 @@ async function addProject() {
   background: var(--color-primary-bg);
   border-color: var(--color-border);
 }
+/* 拖拽中的源项半透明 */
+.rail-item.dragging { opacity: 0.4; }
+.rail-item[draggable='true'] { cursor: grab; }
+.rail-item[draggable='true']:active { cursor: grabbing; }
 
 .rail-avatar {
   width: 24px;

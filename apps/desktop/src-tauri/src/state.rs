@@ -172,6 +172,42 @@ pub fn set_recent_pinned(path: &str, pinned: bool) -> anyhow::Result<()> {
     save_recent_file(&rf)
 }
 
+/// 拖拽排序：按给定顺序重排 recent / pinned（任一可选）。
+/// 校验为当前列表的精确置换（同集合同长度），防越权注入新路径。
+pub fn set_recent_order(
+    recent: Option<Vec<String>>,
+    pinned: Option<Vec<String>>,
+) -> anyhow::Result<()> {
+    fn is_permutation(a: &[String], b: &[String]) -> bool {
+        if a.len() != b.len() {
+            return false;
+        }
+        let mut sa = a.to_vec();
+        let mut sb = b.to_vec();
+        sa.sort();
+        sb.sort();
+        sa == sb
+    }
+    let mut rf = load_recent_file();
+    if let Some(list) = &recent {
+        if !is_permutation(list, &rf.recent) {
+            anyhow::bail!("recent 顺序列表与当前不一致");
+        }
+    }
+    if let Some(list) = &pinned {
+        if !is_permutation(list, &rf.pinned) {
+            anyhow::bail!("pinned 顺序列表与当前不一致");
+        }
+    }
+    if let Some(list) = recent {
+        rf.recent = list;
+    }
+    if let Some(list) = pinned {
+        rf.pinned = list;
+    }
+    save_recent_file(&rf)
+}
+
 /// 移除最近仓库记录（两列表都清）。
 pub fn remove_recent(path: &str) -> anyhow::Result<()> {
     let mut rf = load_recent_file();

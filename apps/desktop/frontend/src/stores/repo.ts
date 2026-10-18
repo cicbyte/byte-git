@@ -111,8 +111,18 @@ export const useRepoStore = defineStore('repo', () => {
     }
   }
 
+  /** Persist drag-reordered lists (both as full ordered path arrays). */
+  async function setOrder(pinnedPaths: string[], recentPaths: string[]) {
+    if (!app?.SetRecentOrder) return
+    try {
+      recent.value = (await app.SetRecentOrder(recentPaths, pinnedPaths)) || recent.value
+    } catch {
+      // ignore — order stays local until next successful persist
+    }
+  }
+
   return {
     path, name, branch, recent, switching, repoEpoch,
-    repoArg, detectCurrent, loadRecent, switchTo, pickFolder, removeRecent, setPinned,
+    repoArg, detectCurrent, loadRecent, switchTo, pickFolder, removeRecent, setPinned, setOrder,
   }
 })

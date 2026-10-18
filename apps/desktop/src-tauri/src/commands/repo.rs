@@ -480,6 +480,17 @@ pub fn set_recent_pinned(path: String, pinned: bool) -> Result<Vec<RecentRepo>, 
     Ok(load_recent_dtos())
 }
 
+/// SetRecentOrder 拖拽排序持久化（byte-git 扩展）。
+/// recent/pinned 各自可选；服务端校验为当前列表的精确置换，返回完整列表。
+#[tauri::command]
+pub fn set_recent_order(
+    recent: Option<Vec<String>>,
+    pinned: Option<Vec<String>>,
+) -> Result<Vec<RecentRepo>, String> {
+    crate::state::set_recent_order(recent, pinned).map_err(|e| e.to_string())?;
+    Ok(load_recent_dtos())
+}
+
 /// RemoveRecentRepo 从最近列表移除路径并持久化（不存在时为 no-op）。
 #[tauri::command]
 pub fn remove_recent_repo(path: String) -> Result<(), String> {

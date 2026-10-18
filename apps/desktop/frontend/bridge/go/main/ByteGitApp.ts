@@ -189,6 +189,7 @@ const SIGNATURES: Record<string, string[]> = {
     ListRecentRepos: [],
     RemoveRecentRepo: ['path'],
     SetRecentPinned: ['path', 'pinned'],
+    SetRecentOrder: ['recent', 'pinned'],
     PickRepoFolder: [],
     RepoFileList: ['subPath'],
     RepoFileSearch: ['query'],
