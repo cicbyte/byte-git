@@ -61,6 +61,14 @@ const hasData = computed(() => rows.value.length > 0)
 
 function markDirty() { dirty.value = true }
 
+// hash → 全局行号（1 起）：分页只是视觉切片，行号列必须显示全局序，
+// 与校验消息的"第 N 行"保持一致（页内 index 翻页后会重置）。
+const rowIndexOf = computed(() => {
+  const m = new Map()
+  rows.value.forEach((r, i) => m.set(r.hash, i + 1))
+  return m
+})
+
 // 通过 hash 找回 rows.value 里的原始对象引用，确保 v-model 改动可靠写入 rows。
 // antd table 的 record 在某些情况下可能是代理/副本，直接绑定 record.rewrite 不一定
 // 回写到 dataSource。这里用 hash 定位原对象，编辑面板绑定到它。
@@ -354,7 +362,7 @@ watch(() => repo.repoEpoch, async () => {
         >
           <template #bodyCell="{ column, record, index }">
             <template v-if="column.key === 'idx'">
-              <span class="rde-idx">{{ index + 1 }}</span>
+              <span class="rde-idx">{{ rowIndexOf.get(record.hash) }}</span>
             </template>
             <template v-else-if="column.key === 'status'">
               <span class="rde-dot" :class="{ changed: isChanged(record) }" :title="isChanged(record) ? '已改 ' + changedFieldNames(record).length + ' 项' : '未改'">
