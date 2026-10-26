@@ -1,39 +1,56 @@
 # byte-git
 
+> Git 增强工具集（CLI + 桌面端）：分支治理、命名 stash、多仓库开发统计、完整备份、模板管理，一条命令搞定。
+
 **English**: [README_EN.md](README_EN.md)
 
-Git 增强工具集（CLI + 桌面端）：分支治理、命名 stash、多仓库开发统计、完整备份、许可证与 gitignore 模板管理——Rust 实现，工程结构参照 [byte-writer](https://github.com/cicbyte/byte-writer)（Cargo workspace：`crates/core` + `apps/cli` + `apps/desktop` Tauri）。
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-1.85%2B-dea584?logo=rust)](https://www.rust-lang.org)
+[![Release](https://github.com/cicbyte/byte-git/actions/workflows/release.yml/badge.svg)](https://github.com/cicbyte/byte-git/actions/workflows/release.yml)
+[![Platforms](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)](https://github.com/cicbyte/byte-git/releases)
 
-> 功能规格移植自 [git-mate](https://github.com/cicbyte/git-mate)（Go + Wails），行为语义保持一致；桌面端复用其 Vue 3 前端，经适配层运行于 Tauri v2。
+<!-- screenshot: 在此处添加桌面端演示截图（GUI 主界面 / logview TUI） -->
+
+## 目录
+
+- [功能矩阵](#功能矩阵)
+- [安装与构建](#安装与构建)
+- [快速开始](#快速开始)
+- [项目结构](#项目结构)
+- [配置与数据](#配置与数据)
+- [桌面端架构](#桌面端架构)
+- [开源许可证](#开源许可证)
 
 ## 功能矩阵
 
-| 命令 | 说明 | 状态 |
-|---|---|---|
-| `version` | 版本信息 | ✅ |
-| `config` | 全局配置读写（YAML） | ✅ |
-| `branch` | 批量清理已合并分支、列出孤立分支 | ✅ |
-| `stash` | 带名称保存/弹出 stash，支持搜索 | ✅ |
-| `info` | 仓库概览 summary / 健康检查 health | ✅ |
-| `stats` | 多仓库提交统计、活跃时段、连续天数、语言分布 | ✅ |
-| `backup` | 完整仓库备份（git clone --mirror） | ✅ |
-| `license` | 47 份开源许可证模板创建与检测 | ✅ |
-| `ignore` | .gitignore 模板管理（幂等追加） | ✅ |
-| `clone` | 代理加速克隆（Lua 规则引擎，镜像/预设/-r 还原） | ✅ |
-| `download` | GitHub Release 资产下载（平台自动匹配/进度条） | ✅ |
-| `archive` | 仓库快照归档（tar.gz/zip/tar） | ✅ |
-| `ai` | AI 提交信息生成 / 历史批量改写（gen→run→apply） | ✅ |
-| `rewrite` | 提交元数据改写（作者/邮箱/日期/消息，规则+日期重分配） | ✅ |
-| `review` | AI 代码审查（外部 OCR 集成） | ✅ |
-| `secret` | 密钥泄露扫描（外部 gitleaks 集成，脱敏报告） | ✅ |
-| `hook` | Git 钩子管理（Lua/脚本，安装-执行-拦截） | ✅ |
-| `rebase` | Rebase 预览与 autosquash（fixup!/squash! 整理） | ✅ |
-| `undo` | 安全撤销（上次提交/rebase/merge，支持备份） | ✅ |
-| `logview` | Git 日志 TUI 浏览（列表/diff/搜索，ratatui） | ✅ |
+| 命令 | 说明 |
+|---|---|
+| `version` | 版本信息 |
+| `config` | 全局配置读写（YAML） |
+| `branch` | 批量清理已合并分支、列出孤立分支 |
+| `stash` | 带名称保存/弹出 stash，支持搜索 |
+| `info` | 仓库概览 summary / 健康检查 health |
+| `stats` | 多仓库提交统计、活跃时段、连续天数、语言分布 |
+| `backup` | 完整仓库备份（git clone --mirror） |
+| `license` | 47 份开源许可证模板创建与检测 |
+| `ignore` | .gitignore 模板管理（幂等追加） |
+| `clone` | 代理加速克隆（Lua 规则引擎，镜像/预设/-r 还原） |
+| `download` | GitHub Release 资产下载（平台自动匹配/进度条） |
+| `archive` | 仓库快照归档（tar.gz/zip/tar） |
+| `ai` | AI 提交信息生成 / 历史批量改写（gen→run→apply） |
+| `rewrite` | 提交元数据改写（作者/邮箱/日期/消息，规则+日期重分配） |
+| `review` | AI 代码审查（外部 OCR 集成） |
+| `secret` | 密钥泄露扫描（外部 gitleaks 集成，脱敏报告） |
+| `hook` | Git 钩子管理（Lua/脚本，安装-执行-拦截） |
+| `rebase` | Rebase 预览与 autosquash（fixup!/squash! 整理） |
+| `undo` | 安全撤销（上次提交/rebase/merge，支持备份） |
+| `logview` | Git 日志 TUI 浏览（列表/diff/搜索，ratatui） |
 
 ## 安装与构建
 
-要求 Rust >= 1.85（2024 edition 兼容），Git >= 2.0。
+**预编译产物**（Linux / Windows / macOS amd64）：推送 `v*` tag 后由 [Release 流水线](https://github.com/cicbyte/byte-git/actions/workflows/release.yml)自动构建，从 [Releases](https://github.com/cicbyte/byte-git/releases) 下载对应平台压缩包解压即用。
+
+**源码构建**：要求 Rust >= 1.85（2024 edition 兼容）、Git >= 2.0。
 
 ```bash
 git clone https://github.com/cicbyte/byte-git
@@ -42,7 +59,7 @@ cargo build --release -p byte-git-cli
 # 产物：target/release/byte-git
 ```
 
-桌面端（Tauri v2，需 Node >= 20）：
+**桌面端**（Tauri v2，需 Node >= 20）：
 
 ```bash
 cd apps/desktop
@@ -95,14 +112,18 @@ byte-git/
 
 ## 桌面端架构
 
-git-mate 的 Vue 3 前端通过 `window.go.main.ByteGitApp.Method(...)` 调用 Wails 绑定。byte-git 在
-`frontend/src/wailsjs/` 提供同名适配层：
+前端通过 `window.go.main.ByteGitApp.Method(...)` 风格的绑定 API 调用后端，`frontend/src/wailsjs/`
+提供适配层将其桥接到 Tauri：
 
 - `go/main/ByteGitApp.ts` —— Proxy 桥接：方法名 camelCase → Tauri 命令 snake_case，参数按签名表编组
 - `runtime/runtime.ts` —— `EventsOn/EventsOff/EventsEmit` → Tauri 事件
 
-前端代码零改动运行于 Tauri；Rust 命令层已开放 **248 个命令**（14 个域：commit / gitops / backup+log / info+stats / repo / rewrite / secret / license / system / ignore），覆盖 git-mate GUI 绑定面的核心域——git 操作、AI 提交与改写、密钥扫描、备份归档、日志浏览、设置与模板管理。延后域已全部接入：GitHub（REST 集成）、Reference（reference.exe）、实时监视（notify）、终端（portable-pty ConPTY）、Cheatsheet——前端 216 方法调用面全覆盖。
+前端代码零改动运行于 Tauri。Rust 命令层已开放 **262 个命令**，组织为 15 个域模块
+（commit / gitops / backup+log / info+stats / repo / rewrite / secret / license / system /
+ignore / github / reference / live / terminal / wallpaper）：覆盖 git 操作、AI 提交与改写、密钥扫描、
+备份归档、日志浏览、设置与模板管理，以及 GitHub REST 集成、实时文件监视（notify）、内嵌终端
+（portable-pty ConPTY）、壁纸管理等扩展域——前端方法调用面全覆盖。
 
 ## 开源许可证
 
-[MIT](LICENSE) © 2025 cicbyte
+[MIT](LICENSE) © 2026 cicbyte

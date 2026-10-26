@@ -34,3 +34,5 @@ bin/
 .zcode/
 msg.txt
 .bc/
+.v2c/
+.video_agent/
