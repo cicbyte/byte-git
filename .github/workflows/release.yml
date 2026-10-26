@@ -1,76 +1,111 @@
 name: Release
 
+# 发布流水线：tag 推送（v*，通常由 Tag Release 一键发版触发）或手动指定已存在 tag。
+# 矩阵构建只产出 artifacts；汇聚 job 集中生成 changelog（cliff 经文件传 body）
+# 与 sha256 后统一挂 Release。产物命名 byte-git-<target>.<ext>。
+# 常规发版走 Tag Release 工作流（它会先 bump Cargo.toml 再打 tag）；
+# 直推 tag 也能触发本流，但二进制版本取决于 tag 指向提交的 Cargo.toml。
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
   workflow_dispatch:
     inputs:
-      version:
-        description: '版本号 (如 1.2.3，会自动加 v 前缀)'
+      tag:
+        description: '发布标签（如 v0.1.0，需已推送）'
         required: true
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact: byte-git_linux_amd64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact: byte-git_windows_amd64
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact: byte-git_darwin_amd64
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, archive: tar.gz }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, archive: zip }
+          - { os: macos-latest, target: aarch64-apple-darwin, archive: tar.gz }
+          - { os: macos-latest, target: x86_64-apple-darwin, archive: tar.gz }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-        fetch-depth: 0
-
+        with:
+          fetch-depth: 0
+          fetch-tags: true
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-
       - uses: Swatinem/rust-cache@v2
-
-      - name: Resolve version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="v${{ github.event.inputs.version }}"
-          else
-            VERSION="${GITHUB_REF_NAME}"
-          fi
-          echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Build CLI
+        with:
+          key: ${{ matrix.target }}
+      - name: Build
         run: cargo build --release --target ${{ matrix.target }} -p byte-git-cli
-
-      - name: Package artifact (unix)
-        if: runner.os != 'Windows'
+      - name: Package
+        shell: bash
         run: |
-          cd target/${{ matrix.target }}/release
-          cp byte-git "${{ matrix.artifact }}"
-          tar czf "${{ matrix.artifact }}.tar.gz" "${{ matrix.artifact }}"
+          set -euo pipefail
+          T=${{ matrix.target }}
+          EXT=""
+          [[ "$T" == *windows* ]] && EXT=".exe"
+          STAGE="byte-git-$T"
+          mkdir -p "$STAGE"
+          cp "target/$T/release/byte-git$EXT" "$STAGE/"
+          cp README.md "$STAGE/"
+          if [[ "${{ matrix.archive }}" == "zip" ]]; then
+            # 7z 而非 Compress-Archive：后者产生反斜杠分隔符的 zip，跨平台解压会坏
+            7z a "$STAGE.zip" "$STAGE"
+          else
+            tar czf "$STAGE.tar.gz" "$STAGE"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          # 必须按 target 区分：v4 同名 artifact 会互相覆盖
+          name: dist-${{ matrix.target }}
+          path: byte-git-${{ matrix.target }}.*
 
-      - name: Package artifact (windows)
-        if: runner.os == 'Windows'
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # cliff 生成发版说明需要全历史与 tag
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        id: cliff
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          # 多行 body 经文件传给 release 最稳（避免引号/换行转义问题）
+          OUTPUT: CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: .
+          merge-multiple: true
+
+      - name: Checksums
         run: |
-          cd target/${{ matrix.target }}/release
-          cp byte-git.exe "${{ matrix.artifact }}.exe"
-          7z a -tzip "${{ matrix.artifact }}.zip" "${{ matrix.artifact }}.exe"
+          ls -la byte-git-*
+          for f in byte-git-*.tar.gz byte-git-*.zip; do
+            [ -e "$f" ] || continue
+            sha256sum "$f" > "$f.sha256"
+          done
+          cat byte-git-*.sha256
 
-      - name: Upload Release Assets
+      - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          body_path: CHANGELOG.md
           files: |
-            target/${{ matrix.target }}/release/*.tar.gz
-            target/${{ matrix.target }}/release/*.zip
-          generate_release_notes: true
+            byte-git-*.tar.gz
+            byte-git-*.zip
+            byte-git-*.sha256

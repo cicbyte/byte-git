@@ -95,7 +95,6 @@ byte-git/
 │   └── core/                # 领域核心：git 操作 / 配置 / 备份 / 统计 / 模板
 │       └── assets/          # 内嵌资产：47 份许可证 + gitignore 模板 + AI 提示词
 ├── docs/                    # 命令文档
-├── scripts/                 # 发布脚本
 └── rules/ prompts/          # Lua 代理规则 / 提示词源文件
 ```
 

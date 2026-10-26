@@ -95,7 +95,6 @@ byte-git/
 │   └── core/                # Domain core: git ops / config / backup / stats / templates
 │       └── assets/          # Embedded assets: 47 licenses + gitignore templates + AI prompts
 ├── docs/                    # Command docs
-├── scripts/                 # Release scripts
 └── rules/ prompts/          # Lua proxy rules / prompt sources
 ```
 
