@@ -95,12 +95,15 @@ jobs:
         run: |
           echo '{"build":{"beforeBuildCommand":"echo frontend prebuilt in CI"}}' > tauri.ci.conf.json
           tauri build --config tauri.ci.conf.json
+      # byte-git 是 Cargo workspace：tauri 打包产物在 workspace 根 target/，
+      # 不在单 crate 布局的 apps/desktop/src-tauri/target/
       - uses: actions/upload-artifact@v4
         with:
           name: dist-desktop-windows
+          if-no-files-found: error
           path: |
-            apps/desktop/src-tauri/target/release/bundle/msi/*.msi
-            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            target/release/bundle/msi/*.msi
+            target/release/bundle/nsis/*.exe
 
   release:
     needs: [build, desktop-windows]
