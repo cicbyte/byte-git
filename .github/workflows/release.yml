@@ -131,6 +131,9 @@ jobs:
 
       - name: Checksums
         run: |
+          # desktop artifact 内 msi/exe 位于 msi/、nsis/ 子目录（upload-artifact
+          # 以多路径最小公共祖先 bundle/ 为根保存），先摊平到根目录
+          mv -v msi/*.msi nsis/*.exe . 2>/dev/null || true
           ls -la byte-git-* ByteGit_*
           for f in byte-git-*.tar.gz byte-git-*.zip ByteGit_*.msi ByteGit_*.exe; do
             [ -e "$f" ] || continue
