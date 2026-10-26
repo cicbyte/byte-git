@@ -81,11 +81,20 @@ jobs:
       - name: Install tauri CLI
         run: npm install -g @tauri-apps/cli@2
       - name: Install frontend deps
-        run: npm --prefix apps/desktop/frontend install
-      # 前端构建由 tauri.conf.json 的 beforeBuildCommand 自动执行（含 vue-tsc 类型检查）
+        working-directory: apps/desktop/frontend
+        run: npm install
+      # Windows 上 npm.cmd 对 --prefix 相对路径支持有缺陷（install/run 均失败），
+      # 故不用 tauri.conf.json 的 beforeBuildCommand（npm run --prefix 形式），
+      # 前端在 CI 里显式构建，再以 --config 空命令跳过 hook。
+      - name: Build frontend
+        working-directory: apps/desktop/frontend
+        run: npm run build
       - name: Build desktop app
         working-directory: apps/desktop
-        run: tauri build
+        shell: bash
+        run: |
+          echo '{"build":{"beforeBuildCommand":"echo frontend prebuilt in CI"}}' > tauri.ci.conf.json
+          tauri build --config tauri.ci.conf.json
       - uses: actions/upload-artifact@v4
         with:
           name: dist-desktop-windows
