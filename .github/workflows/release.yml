@@ -64,8 +64,37 @@ jobs:
           name: dist-${{ matrix.target }}
           path: byte-git-${{ matrix.target }}.*
 
+  # 桌面端安装器（首批仅 Windows）：Tauri v2 打 msi + nsis 安装包。
+  # tauri CLI 用全局 npm 装 v2 预编译版（比 cargo install tauri-cli 快一个量级）；
+  # 版本号来自 tauri.conf.json（tag.yml 发版时与 Cargo.toml 同步 bump）。
+  desktop-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: desktop-windows
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install tauri CLI
+        run: npm install -g @tauri-apps/cli@2
+      - name: Install frontend deps
+        run: npm --prefix apps/desktop/frontend install
+      # 前端构建由 tauri.conf.json 的 beforeBuildCommand 自动执行（含 vue-tsc 类型检查）
+      - name: Build desktop app
+        working-directory: apps/desktop
+        run: tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-desktop-windows
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/msi/*.msi
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+
   release:
-    needs: build
+    needs: [build, desktop-windows]
     runs-on: ubuntu-latest
     steps:
       # cliff 生成发版说明需要全历史与 tag
@@ -93,12 +122,12 @@ jobs:
 
       - name: Checksums
         run: |
-          ls -la byte-git-*
-          for f in byte-git-*.tar.gz byte-git-*.zip; do
+          ls -la byte-git-* ByteGit_*
+          for f in byte-git-*.tar.gz byte-git-*.zip ByteGit_*.msi ByteGit_*.exe; do
             [ -e "$f" ] || continue
             sha256sum "$f" > "$f.sha256"
           done
-          cat byte-git-*.sha256
+          cat byte-git-*.sha256 ByteGit_*.sha256
 
       - name: Create release
         uses: softprops/action-gh-release@v2
@@ -109,3 +138,6 @@ jobs:
             byte-git-*.tar.gz
             byte-git-*.zip
             byte-git-*.sha256
+            ByteGit_*.msi
+            ByteGit_*.exe
+            ByteGit_*.sha256

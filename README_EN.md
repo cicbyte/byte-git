@@ -48,7 +48,7 @@
 
 ## Install & Build
 
-**Prebuilt binaries** (Linux / Windows / macOS amd64): built automatically by the [Release workflow](https://github.com/cicbyte/byte-git/actions/workflows/release.yml) on `v*` tags — grab yours from [Releases](https://github.com/cicbyte/byte-git/releases).
+**Prebuilt artifacts**: CLI binaries (Linux / Windows / macOS amd64 + macOS arm64) plus the Windows desktop installer (msi / nsis) — built automatically by CI after a `v*` tag is pushed or the [Tag Release](https://github.com/cicbyte/byte-git/actions/workflows/tag.yml) workflow is triggered. Grab yours from [Releases](https://github.com/cicbyte/byte-git/releases).
 
 **From source**: requires Rust >= 1.85 (2024 edition), Git >= 2.0.
 

@@ -56,13 +56,15 @@ jobs:
           echo "下一版本：v$V"
 
       # 根 Cargo.toml 的 [workspace.package].version 是全 workspace 唯一版本源
-      # （cli / core / src-tauri 均 version.workspace = true），bump 一处全生效。
-      # 先提交 bump 再打 tag，tag 指向 bump 提交，二进制的 CARGO_PKG_VERSION 才对。
+      # （cli / core / src-tauri 均 version.workspace = true），bump 一处全生效；
+      # tauri.conf.json 的 app version 独立存在（桌面安装器版本号来自它），需同步 bump。
+      # 先提交 bump 再打 tag，tag 指向 bump 提交，二进制与安装器的版本才对。
       - name: Bump Cargo.toml and tag
         run: |
           V="${{ steps.ver.outputs.VERSION }}"
           # 只替换首个行首 version（即 workspace.package 段），不碰依赖的行内 version
           sed -i "0,/^version = \".*\"/s//version = \"$V\"/" Cargo.toml
+          sed -i "0,/\"version\": \".*\"/s//\"version\": \"$V\"/" apps/desktop/src-tauri/tauri.conf.json
           git config user.name "release-bot"
           git config user.email "release-bot@users.noreply.github.com"
           git commit -am "chore(release): bump version to $V"

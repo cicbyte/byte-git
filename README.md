@@ -48,7 +48,7 @@
 
 ## 安装与构建
 
-**预编译产物**（Linux / Windows / macOS amd64）：推送 `v*` tag 后由 [Release 流水线](https://github.com/cicbyte/byte-git/actions/workflows/release.yml)自动构建，从 [Releases](https://github.com/cicbyte/byte-git/releases) 下载对应平台压缩包解压即用。
+**预编译产物**：CLI（Linux / Windows / macOS amd64 + macOS arm64）与 Windows 桌面安装器（msi / nsis）——推送 `v*` tag 或触发 [Tag Release](https://github.com/cicbyte/byte-git/actions/workflows/tag.yml) 工作流后由 CI 自动构建，从 [Releases](https://github.com/cicbyte/byte-git/releases) 下载。
 
 **源码构建**：要求 Rust >= 1.85（2024 edition 兼容）、Git >= 2.0。
 
