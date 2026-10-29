@@ -28,6 +28,7 @@ import {
   InboxOutlined,
   ToolOutlined,
   BranchesOutlined,
+  ProfileOutlined,
 } from '@ant-design/icons-vue'
 import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
 import logoUrl from '@/assets/logo.png'
@@ -71,6 +72,7 @@ const menuGroups = [
     children: [
       { key: '/ignore', icon: StopOutlined, label: 'Gitignore' },
       { key: '/license', icon: SafetyCertificateOutlined, label: '许可证' },
+      { key: '/templates', icon: ProfileOutlined, label: '模板管理' },
       { key: '/secret', icon: SafetyCertificateOutlined, label: '密钥扫描' },
       { key: '/review', icon: FileSearchOutlined, label: '代码审查' },
     ],

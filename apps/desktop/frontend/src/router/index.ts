@@ -18,6 +18,7 @@ const routes = [
   { path: '/json-editor', name: 'json-editor', component: () => import('@/views/rewrite/data-editor/index.vue'), meta: { title: '数据编辑器' } },
   { path: '/ignore', name: 'ignore', component: () => import('@/views/governance/ignore/index.vue'), meta: { title: 'Gitignore' } },
   { path: '/license', name: 'license', component: () => import('@/views/governance/license/index.vue'), meta: { title: '许可证' } },
+  { path: '/templates', name: 'templates', component: () => import('@/views/governance/templates/index.vue'), meta: { title: '模板管理' } },
   { path: '/rewrite', name: 'rewrite', component: () => import('@/views/rewrite/meta-rewrite/index.vue'), meta: { title: '改写' } },
   { path: '/ai-rewrite', name: 'ai-rewrite', component: () => import('@/views/rewrite/ai-rewrite/index.vue'), meta: { title: 'AI改写' } },
   { path: '/review', name: 'review', component: () => import('@/views/governance/review/index.vue'), meta: { title: '代码审查' } },

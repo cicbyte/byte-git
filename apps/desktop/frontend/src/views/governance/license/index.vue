@@ -1,13 +1,18 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message as AMessage, Modal } from 'ant-design-vue'
 import {
   FileTextOutlined, ReloadOutlined, PlusOutlined, SearchOutlined,
-  ThunderboltOutlined, CheckCircleOutlined, SafetyCertificateOutlined
+  ThunderboltOutlined, CheckCircleOutlined, SafetyCertificateOutlined,
+  ProfileOutlined,
 } from '@ant-design/icons-vue'
 import CodeViewer from '@/components/common/CodeViewer.vue'
 
 const app = window.go?.main?.ByteGitApp
+const router = useRouter()
+
+function openTemplateMgr() { router.push('/templates?tab=license') }
 
 // ---- current LICENSE content ----
 const currentContent = ref('')
@@ -123,6 +128,7 @@ onMounted(async () => {
       <span v-if="currentContent" class="lic-bar-lines">{{ currentContent.split('\n').length }} 行</span>
       <span class="lic-bar-hint">右键打开操作菜单</span>
       <div class="lic-bar-spacer" />
+      <a-button size="small" type="text" @click="openTemplateMgr" title="管理许可证模板"><ProfileOutlined /></a-button>
       <a-button size="small" type="text" @click="loadLicense(); runDetect()" :loading="contentLoading"><ReloadOutlined /></a-button>
     </div>
 

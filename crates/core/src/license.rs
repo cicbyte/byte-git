@@ -28,13 +28,19 @@ pub fn list() -> Vec<String> {
 /// 模板为 choosealicense.com 格式：YAML frontmatter（--- ... ---）+ 正文；
 /// 写入时剥离 frontmatter，仅保留正文。
 pub fn create(repo: &std::path::Path, name: &str, author: &str, year: Option<i32>) -> Result<()> {
-    let file_name = format!("{name}.txt");
-    let Some(tpl) = LICENSES.get_file(&file_name) else {
-        bail!("未知许可证: {name}（license list 查看可用列表）");
-    };
-    let raw = std::str::from_utf8(tpl.contents())
-        .map_err(|e| anyhow::anyhow!("模板编码错误: {e}"))?;
+    let raw = raw_template(name).ok_or_else(|| anyhow::anyhow!("未知许可证: {name}（license list 查看可用列表）"))?;
+    create_from_template(repo, name, author, year, &raw)
+}
 
+/// 用给定模板原文创建 LICENSE（用户模板目录优先时由调用方传入原文；
+/// 原文可含 frontmatter，与内嵌模板同一处理）。
+pub fn create_from_template(
+    repo: &std::path::Path,
+    _name: &str,
+    author: &str,
+    year: Option<i32>,
+    raw: &str,
+) -> Result<()> {
     // 剥离 YAML frontmatter：--- yaml --- body
     let content = strip_frontmatter(raw);
 
@@ -55,7 +61,7 @@ pub fn create(repo: &std::path::Path, name: &str, author: &str, year: Option<i32
 
     let dest = repo.join("LICENSE");
     std::fs::write(&dest, out)?;
-    println!("已创建 {} -> {}", name, dest.display());
+    println!("已创建 LICENSE -> {}", dest.display());
     Ok(())
 }
 
@@ -73,9 +79,14 @@ fn strip_frontmatter(raw: &str) -> String {
 
 /// 取指定模板的正文（剥 frontmatter）。
 pub fn template_text(name: &str) -> Option<String> {
+    raw_template(name).map(|raw| strip_frontmatter(&raw))
+}
+
+/// 取内嵌模板原文（含 frontmatter；播种用户模板目录用）。
+pub fn raw_template(name: &str) -> Option<String> {
     let lower = name.trim().to_lowercase();
     let file = LICENSES.get_file(format!("{lower}.txt")).or_else(|| LICENSES.get_file(lower))?;
-    Some(strip_frontmatter(&String::from_utf8_lossy(&file.contents())))
+    Some(String::from_utf8_lossy(&file.contents()).into_owned())
 }
 
 /// 文本归一：小写、非字母数字折叠为空白、分词。

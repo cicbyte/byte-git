@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message as AMessage, Modal } from 'ant-design-vue'
 import {
   PlusOutlined, CheckCircleOutlined, FileTextOutlined,
@@ -9,11 +10,11 @@ import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
 import CodeViewer from '@/components/common/CodeViewer.vue'
 import IgnoreCategoriesModal from '@/components/ignore/IgnoreCategoriesModal.vue'
 import IgnoreCheckModal from '@/components/ignore/IgnoreCheckModal.vue'
-import IgnoreManagerModal from '@/components/ignore/IgnoreManagerModal.vue'
 import IgnoreContextMenu from './components/IgnoreContextMenu.vue'
 import IgnoreGithubPickerModal from './components/IgnoreGithubPickerModal.vue'
 
 const app = window.go?.main?.ByteGitApp
+const router = useRouter()
 
 // ---- current .gitignore ----
 const currentContent = ref('')
@@ -88,6 +89,11 @@ function openLocalPicker() { localPickerOpen.value = true }
 function pickLocalTemplate(name) {
   localPickerOpen.value = false
   addFromTemplate(name, 'local')
+}
+
+function goMgrFromPicker() {
+  localPickerOpen.value = false
+  router.push('/templates?tab=gitignore')
 }
 
 // ---- github template picker modal (UI state owned by IgnoreGithubPickerModal) ----
@@ -239,9 +245,8 @@ function lcsDiffLines(original, updated) {
   return { removed, added }
 }
 
-// ---- template manager modal (delegated to IgnoreManagerModal) ----
-const mgrOpen = ref(false)
-function openMgr() { mgrOpen.value = true }
+// ---- template manager（独立页 /templates?tab=gitignore）----
+function openMgr() { router.push('/templates?tab=gitignore') }
 
 // ---- editor save (Ctrl+S) ----
 const dirty = ref(false)
@@ -383,6 +388,9 @@ onMounted(async () => {
         >{{ t }}</a-button>
       </div>
       <a-empty v-else description="无内置模板" :image-style="{ height: '48px' }" style="margin:8px 0" />
+      <div class="ig-local-foot">
+        <a-button size="small" type="link" @click="goMgrFromPicker">管理模板（新建 / 编辑 / 删除）…</a-button>
+      </div>
     </a-modal>
 
     <!-- GitHub template picker modal -->
@@ -410,8 +418,7 @@ onMounted(async () => {
       </div>
     </a-modal>
 
-    <!-- template manager modal -->
-    <IgnoreManagerModal v-model:open="mgrOpen" />
+    <!-- template manager modal → 独立页 /templates?tab=gitignore -->
     <!-- category rules modal -->
     <IgnoreCategoriesModal v-model:open="catOpen" />
 
@@ -425,6 +432,7 @@ onMounted(async () => {
 
 /* local template picker modal */
 .ig-local-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0 8px; }
+.ig-local-foot { display: flex; justify-content: flex-end; border-top: 1px solid var(--color-border-light); padding-top: 8px; }
 
 /* top bar */
 .ig-bar { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 34px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }

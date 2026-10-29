@@ -5,6 +5,7 @@
 //! 模板 frontmatter 同源；正文生成复用 byte-git-core::license。
 
 use byte_git_core::license as core_license;
+use byte_git_core::util::AppPaths;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
@@ -258,7 +259,9 @@ pub fn license_create(repo: Option<String>, spdx_id: String, author: String, yea
     let repo = repo_path(repo);
     // core 模板按文件名（小写 SPDX id）索引，Go 为大小写不敏感匹配
     let name = spdx_id.trim().to_lowercase();
-    if template_meta(&spdx_id).is_none() {
+    // 用户模板目录优先：模板管理页编辑过的版本参与创建；两者皆无才报错
+    let user_tpl = user_template_raw(&name);
+    if template_meta(&spdx_id).is_none() && user_tpl.is_none() {
         return Err(format!("未找到许可证模板: {spdx_id}"));
     }
     let year_num: Option<i32> = year.trim().parse().ok();
@@ -267,7 +270,11 @@ pub fn license_create(repo: Option<String>, spdx_id: String, author: String, yea
     // 生成后读回内容并恢复原状态
     let license_file = repo.join("LICENSE");
     let old: Option<Vec<u8>> = std::fs::read(&license_file).ok();
-    core_license::create(&repo, &name, author.trim(), year_num).map_err(|e| format!("{e:#}"))?;
+    let created = match &user_tpl {
+        Some(raw) => core_license::create_from_template(&repo, &name, author.trim(), year_num, raw),
+        None => core_license::create(&repo, &name, author.trim(), year_num),
+    };
+    created.map_err(|e| format!("{e:#}"))?;
     let content = std::fs::read_to_string(&license_file)
         .map_err(|e| format!("读取生成结果失败: {e}"))?;
     match old {
@@ -380,4 +387,109 @@ pub fn license_read(repo: Option<String>) -> Result<FileResult, String> {
     let content = String::from_utf8_lossy(capped).into_owned();
     let lines = content.matches('\n').count() as i64 + 1;
     Ok(FileResult { content, lines, ..Default::default() })
+}
+
+// ---------------------------------------------------------------------------
+// 用户许可证模板管理（~/.cicbyte/apps/byte-git/licenses/）
+// 与 gitignore 模板同构：首次为空时从内嵌模板播种，之后尊重用户改动。
+// ---------------------------------------------------------------------------
+
+/// 校验模板名：非空且不含路径分隔符/上跳（IPC 边界）。
+fn valid_template_name(name: &str) -> Result<(), String> {
+    let n = name.trim();
+    if n.is_empty() || n.contains('/') || n.contains('\\') || n.contains("..") {
+        return Err("非法模板名".into());
+    }
+    Ok(())
+}
+
+fn licenses_user_dir() -> Result<PathBuf, String> {
+    Ok(AppPaths::new().map_err(|e| e.to_string())?.root().join("licenses"))
+}
+
+/// 内嵌模板播种（目录里没有任何 .txt 时写入全部内嵌模板）。
+fn seed_bundled_licenses(dir: &Path) -> Result<(), String> {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for e in entries.flatten() {
+            if e.file_name().to_string_lossy().to_lowercase().ends_with(".txt") {
+                return Ok(()); // 已有模板，不覆盖
+            }
+        }
+    }
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    for name in core_license::list() {
+        if let Some(raw) = core_license::raw_template(&name) {
+            std::fs::write(dir.join(format!("{name}.txt")), raw).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+/// 大小写不敏感查找 <name>.txt。
+fn find_user_template(name: &str, dir: &Path) -> Option<PathBuf> {
+    let target = format!("{}.txt", name.trim().to_lowercase());
+    let entries = std::fs::read_dir(dir).ok()?;
+    for e in entries.flatten() {
+        if e.path().is_dir() {
+            continue;
+        }
+        if e.file_name().to_string_lossy().to_lowercase() == target {
+            return Some(e.path());
+        }
+    }
+    None
+}
+
+/// 用户模板原文（license_create 用户优先用；无则 None）。
+fn user_template_raw(name: &str) -> Option<String> {
+    let dir = licenses_user_dir().ok()?;
+    std::fs::read_to_string(find_user_template(name, &dir)?).ok()
+}
+
+/// 用户许可证模板列表（首次调用自动播种）。
+#[tauri::command]
+pub fn license_template_list(repo: Option<String>) -> Result<Vec<String>, String> {
+    let _ = repo;
+    let dir = licenses_user_dir()?;
+    seed_bundled_licenses(&dir)?;
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .map_err(|e| e.to_string())?
+        .flatten()
+        .filter(|e| !e.path().is_dir())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.to_lowercase().ends_with(".txt"))
+        .map(|n| n.strip_suffix(".txt").unwrap_or(&n).to_string())
+        .collect();
+    names.sort();
+    Ok(names)
+}
+
+/// 查看用户许可证模板内容。
+#[tauri::command]
+pub fn license_template_view(repo: Option<String>, name: String) -> Result<String, String> {
+    let _ = repo;
+    valid_template_name(&name)?;
+    let dir = licenses_user_dir()?;
+    let p = find_user_template(&name, &dir).ok_or_else(|| format!("未找到许可证模板: {name}"))?;
+    std::fs::read_to_string(p).map_err(|e| e.to_string())
+}
+
+/// 保存（新建/更新）用户许可证模板。
+#[tauri::command]
+pub fn license_template_save(repo: Option<String>, name: String, content: String) -> Result<(), String> {
+    let _ = repo;
+    valid_template_name(&name)?;
+    let dir = licenses_user_dir()?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join(format!("{}.txt", name.trim())), content).map_err(|e| e.to_string())
+}
+
+/// 删除用户许可证模板。
+#[tauri::command]
+pub fn license_template_delete(repo: Option<String>, name: String) -> Result<(), String> {
+    let _ = repo;
+    valid_template_name(&name)?;
+    let dir = licenses_user_dir()?;
+    let p = find_user_template(&name, &dir).ok_or_else(|| format!("未找到许可证模板: {name}"))?;
+    std::fs::remove_file(p).map_err(|e| e.to_string())
 }

@@ -119,6 +119,10 @@ const SIGNATURES: Record<string, string[]> = {
     OcrConfigSaveRaw: ['content'],
     // ---- license 域（开源许可证）----
     LicenseListTemplates: [],
+    LicenseTemplateList: [],
+    LicenseTemplateView: ['name'],
+    LicenseTemplateSave: ['name', 'content'],
+    LicenseTemplateDelete: ['name'],
     LicenseCreate: ['spdxId', 'author', 'year'],
     LicenseDetect: [],
     LicenseAuditDeps: [],
