@@ -1,10 +1,10 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import {
   ArrowRightOutlined, FileTextOutlined, BranchesOutlined,
-  CloudUploadOutlined, CodeOutlined, ThunderboltOutlined, HistoryOutlined,
+  CloudUploadOutlined, CodeOutlined, ThunderboltOutlined,
 } from '@ant-design/icons-vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 import { useRepoStore } from '@/stores/repo'
@@ -23,6 +23,26 @@ const readme = ref('')
 const readmeExpanded = ref(false)
 const totalCommits = ref(0)
 const todayCommits = ref(0)
+// 近 7 日提交数（最旧 → 今天），驱动主卡活动条形图
+const weekCounts = ref([0, 0, 0, 0, 0, 0, 0])
+const weekTotal = ref(0)
+
+async function loadWeek(app) {
+  if (!app?.LogFetchByDate) return
+  try {
+    const days = Array.from({ length: 7 }, (_, i) =>
+      dayjs().subtract(6 - i, 'day').format('YYYY-MM-DD'))
+    const lists = await Promise.all(
+      days.map((d) => app.LogFetchByDate('', d).catch(() => [])))
+    weekCounts.value = lists.map((l) => l.length)
+    weekTotal.value = weekCounts.value.reduce((a, b) => a + b, 0)
+    todayCommits.value = weekCounts.value[6]
+  } catch {
+    weekCounts.value = [0, 0, 0, 0, 0, 0, 0]
+  }
+}
+
+const weekBarMax = computed(() => Math.max(1, ...weekCounts.value))
 
 async function load() {
   loading.value = true
@@ -40,11 +60,8 @@ async function load() {
       if (app.CommitTotal) {
         try { totalCommits.value = await app.CommitTotal() } catch { totalCommits.value = 0 }
       }
-      // today's commits via the date-windowed query (same backend the heatmap
-      // drill-down uses) — accurate even when today has >10 commits
-      if (app.LogFetchByDate) {
-        try { todayCommits.value = (await app.LogFetchByDate('', dayjs().format('YYYY-MM-DD'))).length } catch { todayCommits.value = 0 }
-      }
+      // 近 7 日逐日提交数（含今日，一并驱动主卡条形图与今日统计）
+      await loadWeek(app)
       // refresh SCM state for dashboard stat cards
       scm.refresh()
       scm.loadAhead()
@@ -81,8 +98,24 @@ function fmtDate(d) {
     </div>
 
     <a-spin :spinning="loading">
-      <!-- Status Cards Row: actionable stats -->
+      <!-- Bento stats: hero (总提交 + 近 7 日活动) + 4 actionable cards -->
       <div class="stat-cards">
+        <div class="stat-card hero" @click="goToLog">
+          <div class="hero-head">
+            <span class="stat-label">总提交</span>
+            <span class="hero-sub">近 7 日 {{ weekTotal }} 次</span>
+          </div>
+          <div class="hero-value">{{ totalCommits || '-' }}</div>
+          <div class="hero-bars" aria-hidden="true">
+            <div v-for="(n, i) in weekCounts" :key="i" class="hero-bar-col">
+              <div
+                class="hero-bar"
+                :class="{ today: i === weekCounts.length - 1 }"
+                :style="{ height: Math.max(6, Math.round((n / weekBarMax) * 100)) + '%' }"
+              ></div>
+            </div>
+          </div>
+        </div>
         <div class="stat-card accent" @click="goToLive">
           <div class="stat-icon"><BranchesOutlined /></div>
           <div class="stat-body">
@@ -102,13 +135,6 @@ function fmtDate(d) {
           <div class="stat-body">
             <div class="stat-value">{{ todayCommits }}</div>
             <div class="stat-label">今日提交</div>
-          </div>
-        </div>
-        <div class="stat-card" @click="goToLog">
-          <div class="stat-icon"><HistoryOutlined /></div>
-          <div class="stat-body">
-            <div class="stat-value">{{ totalCommits || '-' }}</div>
-            <div class="stat-label">总提交</div>
           </div>
         </div>
         <div class="stat-card" @click="goToInfo">
@@ -202,9 +228,11 @@ function fmtDate(d) {
   color: var(--color-text);
 }
 
+/* Bento stats: hero 占左侧 2×2，四张操作卡填右侧 2×2 */
 .stat-cards {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 1fr;
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-md);
 }
@@ -218,17 +246,76 @@ function fmtDate(d) {
   align-items: center;
   gap: var(--spacing-sm);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .stat-card:hover {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-xs);
-  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  background: var(--color-hover);
 }
 
 .stat-card.accent {
   border-color: var(--color-primary);
+}
+
+/* 主卡：大数字 + 近 7 日活动条形图 + 全局唯一品牌微光 */
+.stat-card.hero {
+  grid-column: span 2;
+  grid-row: span 2;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  background:
+    linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.09), transparent 55%),
+    var(--color-surface);
+}
+
+.hero-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.hero-sub {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.hero-value {
+  font-size: 44px;
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 64px;
+  margin-top: var(--spacing-sm);
+}
+
+.hero-bar-col {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+}
+
+.hero-bar {
+  width: 100%;
+  min-height: 3px;
+  border-radius: 2px;
+  background: rgba(var(--color-primary-rgb), 0.35);
+  transition: height var(--transition-normal);
+}
+
+.hero-bar.today {
+  background: var(--color-primary);
 }
 
 .stat-icon {

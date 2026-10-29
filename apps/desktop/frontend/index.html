@@ -46,15 +46,16 @@
               ? 'dark' : 'light';
           }
 
-          // Embedded Dracula palette (mirrors themes/derivation.css :root).
-          // Even if user picks another preset, dracula for one frame is
-          // nearly imperceptible; main.ts corrects immediately.
+          // Embedded fallback palette (mirrors themes/derivation.css :root).
+          // Dark = Linear-style neutral near-black tiers; even if user picks
+          // another preset, this for one frame is nearly imperceptible;
+          // main.ts corrects immediately.
           var PAL = {
             dark: {
-              bgBase: '#0f172a', bgSurface: '#1e293b', bgElevated: '#3d4d63', bgInput: '#1e293b',
-              primary: '#BD93F9', accent: '#FF79C6',
-              textPrimary: '#f1f5f9', textSecondary: '#94a3b8', textTertiary: '#64748b',
-              borderBase: '#3d4d63', borderLight: '#2d3e50'
+              bgBase: '#08090A', bgSurface: '#0F1013', bgElevated: '#17181C', bgInput: '#0D0E11',
+              primary: '#7D82E8', accent: '#93A5FF',
+              textPrimary: '#e6e6ea', textSecondary: '#a9aab2', textTertiary: '#8a8b93',
+              borderBase: '#1C1D21', borderLight: '#17181C'
             },
             light: {
               bgBase: '#ffffff', bgSurface: '#f8fafc', bgElevated: '#f1f5f9', bgInput: '#f8fafc',

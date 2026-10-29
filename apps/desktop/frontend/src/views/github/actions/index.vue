@@ -338,7 +338,7 @@ watch(() => repo.repoEpoch, () => { loadRuns() })
 /* inline log viewer */
 .ga-log-panel {
   margin-top: 4px; border-radius: var(--radius-xs);
-  background: #0f172a; overflow: hidden;
+  background: #08090A; overflow: hidden;
 }
 .ga-log-head {
   display: flex; align-items: center; justify-content: space-between;

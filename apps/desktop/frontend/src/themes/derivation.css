@@ -26,31 +26,36 @@
 
 :root {
   /* ============================================================
-   * Layer 1 — base palette originals (FOUC fallback = Dracula/dark)
+   * Layer 1 — base palette originals (FOUC fallback = Linear/dark)
    * Real values are injected at runtime by applyColorsToDOM().
+   * Neutral near-black tiers: canvas #08090A / surface #0F1013 /
+   * elevated #17181C / input #0D0E11, 1px hairline #1C1D21.
    * ============================================================ */
-  --bg-base-orig: #0f172a;
-  --bg-surface-orig: #1e293b;
-  --bg-elevated-orig: #3d4d63;
-  --bg-input-orig: #1e293b;
+  --bg-base-orig: #08090A;
+  --bg-surface-orig: #0F1013;
+  --bg-elevated-orig: #17181C;
+  --bg-input-orig: #0D0E11;
 
   /* Base non-bg colors (single layer, no derivation needed) */
-  --color-primary: #BD93F9;
-  --color-primary-hover: #caa8fd;
-  --color-primary-active: #a87bf0;
-  --color-primary-border: rgba(189, 147, 249, 0.4);
-  --color-primary-bg: rgba(189, 147, 249, 0.15);
+  --color-primary: #7D82E8;
+  /* RGB triplet fallback (token.ts injects the live value) — keeps
+     rgba(var(--color-primary-rgb), α) glows valid pre-injection */
+  --color-primary-rgb: 125, 130, 232;
+  --color-primary-hover: #91a0eb;
+  --color-primary-active: #6d72d2;
+  --color-primary-border: rgba(125, 130, 232, 0.4);
+  --color-primary-bg: rgba(125, 130, 232, 0.13);
 
-  --color-accent: #FF79C6;
-  --color-accent-bg: rgba(255, 121, 198, 0.18);
+  --color-accent: #93A5FF;
+  --color-accent-bg: rgba(147, 165, 255, 0.14);
 
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
-  --text-disabled: #475569;
+  --text-primary: #e6e6ea;
+  --text-secondary: #a9aab2;
+  --text-tertiary: #8a8b93;
+  --text-disabled: #5c5d66;
 
-  --border-base-orig: #3d4d63;
-  --border-light-orig: #2d3e50;
+  --border-base-orig: #1C1D21;
+  --border-light-orig: #17181C;
   /* Borders are also wallpaper-aware: many multi-column pages use
      --color-border as the 1px gap background between columns. Without
      derivation the gap would be an opaque strip blocking the wallpaper.
@@ -60,13 +65,14 @@
   --border-light: color-mix(in srgb, var(--border-light-orig), transparent var(--wp-panel-alpha, 0%));
 
   /* Status colors (extension layer — fixed per mode, not per preset) */
-  --color-success: #50FA7B;  --color-success-bg: rgba(80, 250, 123, 0.18);
-  --color-warning: #FFB86C;  --color-warning-bg: rgba(255, 184, 108, 0.18);
-  --color-error:   #FF5555;  --color-error-bg:   rgba(255, 85, 85, 0.18);
-  --color-info:    #8BE9FD;  --color-info-bg:    rgba(139, 233, 253, 0.18);
+  --color-success: #59D499;  --color-success-bg: rgba(89, 212, 153, 0.14);
+  --color-warning: #FFC531;  --color-warning-bg: rgba(255, 197, 49, 0.14);
+  --color-error:   #FF6363;  --color-error-bg:   rgba(255, 99, 99, 0.14);
+  --color-info:    #52A9FF;  --color-info-bg:    rgba(82, 169, 255, 0.14);
 
-  --color-hover:  rgba(189, 147, 249, 0.08);
-  --color-active: rgba(189, 147, 249, 0.12);
+  /* Neutral hover/active wash (Linear-style: lift, not tint) */
+  --color-hover:  rgba(255, 255, 255, 0.05);
+  --color-active: rgba(255, 255, 255, 0.08);
 
   /* ============================================================
    * Layer 2 — derived bg (wallpaper driven)
@@ -153,16 +159,20 @@
    * change with preset.
    * ============================================================ */
   /* Heatmap scale (dark) - 0(empty) → 4(most active).
-     heat-0 must differ from both surface (#1e293b) and base (#0f172a)
-     so empty cells stay visible. */
-  --heat-0: #161b22;
-  --heat-1: #3a2a5a;
-  --heat-2: #6b3fb5;
-  --heat-3: #9a5de8;
-  --heat-4: #caa8fd;
+     heat-0 must differ from both surface (#0F1013) and base (#08090A)
+     so empty cells stay visible. Ramp follows the desaturated indigo
+     primary (#7D82E8 family). */
+  --heat-0: #121318;
+  --heat-1: #232743;
+  --heat-2: #3B4270;
+  --heat-3: #5E6AD2;
+  --heat-4: #8F9BFF;
 
-  /* Dracula syntax colors for log/diff (readable on dark). */
-  --color-hash: #6272A4;
+  /* Commit-type / hash colors for log/diff (readable on dark).
+     Hash aligns with the primary indigo (≈6:1 on #08090A); type colors
+     keep the Dracula semantic hues — they pair with hardcoded
+     rgba() chip backgrounds in list components. */
+  --color-hash: #7D82E8;
   --color-feat: #50FA7B;
   --color-fix: #FFB86C;
   --color-refactor: #BD93F9;

@@ -39,26 +39,26 @@ let resizeObserver = null
 
 // ---- xterm theme palettes (aligned with project's dark/light vars) ----
 const darkTheme = {
-  background: '#0f172a',           // project --color-background (dark)
-  foreground: '#e2e8f0',           // --color-text
-  cursor: '#bd93f9',              // --color-primary
-  cursorAccent: '#0f172a',
-  selectionBackground: 'rgba(189, 147, 249, 0.25)',
-  black: '#1e293b',               // --color-surface
-  red: '#ff5555',                 // --color-error
-  green: '#50fa7b',               // --color-success
-  yellow: '#ffb86c',              // --color-warning
-  blue: '#8be9fd',                // --color-info
-  magenta: '#ff79c6',             // --color-accent
-  cyan: '#8be9fd',
-  white: '#f1f5f9',
-  brightBlack: '#64748b',         // --color-text-secondary
-  brightRed: '#ff6e6e',
-  brightGreen: '#69ff94',
-  brightYellow: '#ffcb6b',
-  brightBlue: '#a4e9fd',
-  brightMagenta: '#ff92e0',
-  brightCyan: '#a4e9fd',
+  background: '#08090A',           // project --color-background (dark)
+  foreground: '#e6e6ea',           // --color-text
+  cursor: '#7D82E8',              // --color-primary
+  cursorAccent: '#08090A',
+  selectionBackground: 'rgba(125, 130, 232, 0.25)',
+  black: '#0F1013',               // --color-surface
+  red: '#ff6363',                 // --color-error
+  green: '#59D499',               // --color-success
+  yellow: '#FFC531',              // --color-warning
+  blue: '#52A9FF',                // --color-info
+  magenta: '#93A5FF',             // --color-accent
+  cyan: '#52A9FF',
+  white: '#e6e6ea',
+  brightBlack: '#A9AAB2',         // --color-text-secondary
+  brightRed: '#ff8080',
+  brightGreen: '#7FE4B0',
+  brightYellow: '#FFD65C',
+  brightBlue: '#82C0FF',
+  brightMagenta: '#AEB8FF',
+  brightCyan: '#82C0FF',
   brightWhite: '#ffffff',
 }
 const lightTheme = {

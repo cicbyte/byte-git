@@ -51,7 +51,7 @@ textarea.ant-input:focus:not(.ant-input-borderless) {
 }
 .ant-dropdown-menu-item:hover,
 .ant-select-item-option-active {
-  background-color: var(--bg-input) !important;
+  background-color: var(--color-hover) !important;
 }
 .ant-dropdown-menu-item-selected,
 .ant-select-item-option-selected {
@@ -73,6 +73,8 @@ textarea.ant-input:focus:not(.ant-input-borderless) {
 }
 .ant-modal-content {
   border: 1px solid var(--border-base);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
 }
 .ant-modal-footer {
   border-top: 1px solid var(--border-light);
@@ -114,7 +116,7 @@ textarea.ant-input:focus:not(.ant-input-borderless) {
   border-color: var(--border-light) !important;
 }
 .ant-table-tbody > tr:hover > td {
-  background-color: var(--bg-elevated) !important;
+  background-color: var(--color-hover) !important;
 }
 .ant-divider {
   border-color: var(--border-light) !important;

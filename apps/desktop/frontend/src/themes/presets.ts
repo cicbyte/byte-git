@@ -1,18 +1,17 @@
 /**
  * themes/presets.ts — Preset seeds + colour derivation algorithms.
  *
- * Ported from byte-stash (commit fae308a) and localised for byte-git.
- *
- * Design (mirrors byte-stash):
+ * Design (2026-10 restyle, "Linear-style dark refinement"):
  *   - Each builtin preset defines ONLY two seed values: primary + bgBase
  *     (per light/dark). Everything else is derived.
- *   - The `dracula` preset is byte-git's anchor — it uses a hand-tuned
- *     neutral palette (NEUTRAL) rather than derivation, so existing users
- *     see zero visual change.
- *   - The other 4 presets (emerald/violet/amber/rose) use deriveBaseLayer()
- *     to compute harmonious neutrals from their tinted bgBase.
- *   - Extension-layer tokens (status, primaryHover/Active/Border, shadow)
- *     are added per-mode by SUPPLEMENT and never change with preset tone.
+ *   - DARK MODE: every preset shares one hand-tuned neutral near-black
+ *     ramp (LINEAR_DARK — canvas #08090A / surface #0F1013 / elevated
+ *     #17181C, 1px hairline #1C1D21). Only primary/accent vary per
+ *     preset: one neutral system, brand hue varies (the Linear model).
+ *     Presets carry desaturated primaries tuned for ≥4.5:1 on the ramp.
+ *   - LIGHT MODE: unchanged — dracula uses hand-tuned NEUTRAL_LIGHT,
+ *     the other 4 presets derive tinted bases via deriveBaseLayer().
+ *   - Extension-layer tokens (status, shadow) are per-mode in SUPPLEMENT.
  */
 
 import type {
@@ -100,33 +99,34 @@ interface PresetSeed {
 export const PRESETS: Record<BuiltinPreset, PresetSeed> = {
   dracula: {
     label: 'Dracula 紫',
-    primary: { light: '#BD93F9', dark: '#BD93F9' },
-    accent:  { light: '#FF79C6', dark: '#FF79C6' },  // signature pink
-    bgBase:  { light: '#f8fafc', dark: '#0f172a' },
+    // dark restyle: desaturated indigo-violet (Linear-grade, ≈6:1 on #08090A)
+    primary: { light: '#BD93F9', dark: '#7D82E8' },
+    accent:  { light: '#FF79C6', dark: '#93A5FF' },
+    bgBase:  { light: '#f8fafc', dark: '#08090A' },
   },
   emerald: {
     label: '翡翠绿',
-    primary: { light: '#059669', dark: '#34d399' },
-    accent:  { light: '#0e7490', dark: '#22d3ee' },  // teal/cyan contrast
-    bgBase:  { light: '#f1f6f3', dark: '#0a1612' },
+    primary: { light: '#059669', dark: '#4ADE9C' },
+    accent:  { light: '#0e7490', dark: '#6FD8E8' },  // teal/cyan contrast
+    bgBase:  { light: '#f1f6f3', dark: '#08090A' },
   },
   violet: {
     label: '紫罗兰',
-    primary: { light: '#7c3aed', dark: '#a78bfa' },
-    accent:  { light: '#db2777', dark: '#f472b6' },  // magenta contrast
-    bgBase:  { light: '#f5f2f8', dark: '#140f1d' },
+    primary: { light: '#7c3aed', dark: '#A390F5' },
+    accent:  { light: '#db2777', dark: '#F0A6D8' },  // magenta contrast
+    bgBase:  { light: '#f5f2f8', dark: '#08090A' },
   },
   amber: {
     label: '琥珀橙',
-    primary: { light: '#d97706', dark: '#fbbf24' },
-    accent:  { light: '#dc2626', dark: '#f87171' },  // red contrast
-    bgBase:  { light: '#faf6f0', dark: '#1a140a' },
+    primary: { light: '#d97706', dark: '#F5C451' },
+    accent:  { light: '#dc2626', dark: '#FF8F6B' },  // coral contrast
+    bgBase:  { light: '#faf6f0', dark: '#08090A' },
   },
   rose: {
     label: '玫瑰红',
-    primary: { light: '#e11d48', dark: '#fb7185' },
-    accent:  { light: '#7c3aed', dark: '#a78bfa' },  // violet contrast
-    bgBase:  { light: '#f8f2f4', dark: '#1a0d11' },
+    primary: { light: '#e11d48', dark: '#FF8A9B' },
+    accent:  { light: '#7c3aed', dark: '#B4A8FF' },  // violet contrast
+    bgBase:  { light: '#f8f2f4', dark: '#08090A' },
   },
 }
 
@@ -136,10 +136,14 @@ export const PRESET_LIST: { key: BuiltinPreset; label: string }[] = (
 ).map((key) => ({ key, label: PRESETS[key].label }))
 
 /* ============================================================
- * 2. Hand-tuned neutral palette for the dracula anchor preset.
- *    Using these directly guarantees zero visual drift for existing users.
+ * 2. Hand-tuned base palettes.
+ *    LINEAR_DARK — the shared neutral near-black ramp EVERY preset uses
+ *    in dark mode (canvas/surface/elevated/input + text ramp + 1px
+ *    hairlines). Secondary text #A9AAB2 ≈ 8:1, tertiary #8A8B93 ≈ 5:1
+ *    on the canvas — both clear the 4.5:1 floor.
+ *    NEUTRAL_LIGHT — dracula's light anchor (light mode unchanged).
  * ============================================================ */
-const NEUTRAL: Record<ResolvedMode, {
+interface BaseLayer {
   bgBase: string
   bgSurface: string
   bgElevated: string
@@ -147,34 +151,36 @@ const NEUTRAL: Record<ResolvedMode, {
   textPrimary: string
   textSecondary: string
   textTertiary: string
-  textDisabled: string
+  /** optional — buildPresetColors takes textDisabled from SUPPLEMENT */
+  textDisabled?: string
   borderBase: string
   borderLight: string
-}> = {
-  dark: {
-    bgBase: '#0f172a',
-    bgSurface: '#1e293b',
-    bgElevated: '#3d4d63',
-    bgInput: '#1e293b',
-    textPrimary: '#f1f5f9',
-    textSecondary: '#94a3b8',
-    textTertiary: '#64748b',
-    textDisabled: '#475569',
-    borderBase: '#3d4d63',
-    borderLight: '#2d3e50',
-  },
-  light: {
-    bgBase: '#ffffff',
-    bgSurface: '#f8fafc',
-    bgElevated: '#f1f5f9',
-    bgInput: '#f8fafc',
-    textPrimary: '#0f172a',
-    textSecondary: '#64748b',
-    textTertiary: '#94a3b8',
-    textDisabled: '#cbd5e1',
-    borderBase: '#e2e8f0',
-    borderLight: '#f1f5f9',
-  },
+}
+
+const LINEAR_DARK: BaseLayer = {
+  bgBase: '#08090A',
+  bgSurface: '#0F1013',
+  bgElevated: '#17181C',
+  bgInput: '#0D0E11',
+  textPrimary: '#E6E6EA',
+  textSecondary: '#A9AAB2',
+  textTertiary: '#8A8B93',
+  textDisabled: '#5C5D66',
+  borderBase: '#1C1D21',
+  borderLight: '#17181C',
+}
+
+const NEUTRAL_LIGHT: BaseLayer = {
+  bgBase: '#ffffff',
+  bgSurface: '#f8fafc',
+  bgElevated: '#f1f5f9',
+  bgInput: '#f8fafc',
+  textPrimary: '#0f172a',
+  textSecondary: '#64748b',
+  textTertiary: '#94a3b8',
+  textDisabled: '#cbd5e1',
+  borderBase: '#e2e8f0',
+  borderLight: '#f1f5f9',
 }
 
 /* ============================================================
@@ -195,15 +201,18 @@ const SUPPLEMENT: Record<ResolvedMode, Omit<
   | 'accent' | 'accentBg'
 >> = {
   dark: {
-    textDisabled: '#475569',
+    textDisabled: '#5C5D66',
     primaryHover: '',
     primaryActive: '',
     primaryBorder: '',
-    success: '#50FA7B', successBg: 'rgba(80, 250, 123, 0.18)',
-    warning: '#FFB86C', warningBg: 'rgba(255, 184, 108, 0.18)',
-    danger: '#FF5555', dangerBg: 'rgba(255, 85, 85, 0.18)',
-    info: '#8BE9FD', infoBg: 'rgba(139, 233, 253, 0.18)',
-    shadowMd: '0 4px 6px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.2)',
+    // Raycast-family status set: saturated enough to read as status,
+    // quiet enough for the neutral near-black ramp
+    success: '#59D499', successBg: 'rgba(89, 212, 153, 0.14)',
+    warning: '#FFC531', warningBg: 'rgba(255, 197, 49, 0.14)',
+    danger: '#FF6363', dangerBg: 'rgba(255, 99, 99, 0.14)',
+    info: '#52A9FF', infoBg: 'rgba(82, 169, 255, 0.14)',
+    // Linear-style elevation: one soft drop + a 1px light rim
+    shadowMd: '0 4px 12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04)',
   },
   light: {
     textDisabled: '#cbd5e1',
@@ -240,16 +249,14 @@ export function derivePrimaryBg(primary: string, mode: ResolvedMode): string {
   return withAlpha(primary, mode === 'dark' ? 0.15 : 0.1)
 }
 
-/** Derive colorHover (white@5% in dark / black@4% in light). */
-export function deriveHover(primary: string, mode: ResolvedMode): string {
-  // byte-stash uses white/black wash; byte-git keeps the existing primary-tinted
-  // hover for the dracula anchor feel, falling back to neutral wash for others.
-  return withAlpha(primary, mode === 'dark' ? 0.08 : 0.12)
+/** Derive colorHover — neutral lift wash (Linear-style: lighten, not tint). */
+export function deriveHover(_primary: string, mode: ResolvedMode): string {
+  return mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)'
 }
 
-/** Derive colorActive (slightly stronger than hover, same primary tint). */
-export function deriveActive(primary: string, mode: ResolvedMode): string {
-  return withAlpha(primary, mode === 'dark' ? 0.12 : 0.18)
+/** Derive colorActive (slightly stronger neutral lift than hover). */
+export function deriveActive(_primary: string, mode: ResolvedMode): string {
+  return mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'
 }
 
 /** Derive accentBg (accent @ low alpha) — follows the preset's accent seed. */
@@ -303,15 +310,14 @@ export function buildPresetColors(preset: BuiltinPreset, mode: ResolvedMode): Th
   const accent = seed.accent[mode]
   const supplement = SUPPLEMENT[mode]
 
-  // dracula uses hand-tuned neutrals; others derive from bgBase.
-  const base =
-    preset === 'dracula'
-      ? NEUTRAL[mode]
-      : deriveBaseLayer(seed.bgBase[mode], mode)
-
-  // For dracula we keep the user's existing bgBase seed even if NEUTRAL
-  // disagrees (they're identical for dracula, but this keeps things honest).
-  base.bgBase = seed.bgBase[mode]
+  // Dark mode: every preset shares the Linear neutral ramp (only
+  // primary/accent vary). Light mode: dracula anchor / derived tints.
+  const base: BaseLayer =
+    mode === 'dark'
+      ? LINEAR_DARK
+      : preset === 'dracula'
+        ? NEUTRAL_LIGHT
+        : deriveBaseLayer(seed.bgBase[mode], mode)
 
   const states = derivePrimaryStates(primary)
   const primaryBg = derivePrimaryBg(primary, mode)
