@@ -635,3 +635,48 @@ pub async fn npm_manage(action: String) -> Result<NpmResultDto, String> {
     };
     run_blocking(run)?
 }
+
+// ---------------------------------------------------------------------------
+// AI 提示词管理（assets/prompts 内嵌默认 → ~/.cicbyte/apps/byte-git/prompts/）
+// ---------------------------------------------------------------------------
+
+/// AiPromptGet 返回体。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiPromptDto {
+    pub name: String,
+    pub content: String,
+}
+
+/// AiPromptGet：读取提示词当前内容（首次自动落盘内嵌默认）。
+#[tauri::command]
+pub fn ai_prompt_get(name: String) -> Result<AiPromptDto, String> {
+    byte_git_core::ai::init_prompts().map_err(|e| format!("{e:#}"))?;
+    let content = byte_git_core::ai::get_prompt_file(&name).map_err(|e| format!("{e:#}"))?;
+    Ok(AiPromptDto { name, content })
+}
+
+/// AiPromptSave：保存提示词（名称白名单=内嵌资产名，内容非空）。
+#[tauri::command]
+pub fn ai_prompt_save(name: String, content: String) -> Result<(), String> {
+    // 白名单校验：必须命中内嵌资产名（未知名报错，天然防路径穿越）
+    byte_git_core::ai::builtin_prompt(&name).map_err(|e| format!("{e:#}"))?;
+    let content = content.trim().to_string();
+    if content.is_empty() {
+        return Err("提示词不能为空".into());
+    }
+    byte_git_core::ai::init_prompts().map_err(|e| format!("{e:#}"))?;
+    let p = AppPaths::new()
+        .map_err(|e| format!("{e:#}"))?
+        .prompts_dir()
+        .join(&name);
+    std::fs::write(&p, content).map_err(|e| format!("写入提示词失败: {e}"))?;
+    Ok(())
+}
+
+/// AiPromptReset：恢复提示词为内置默认，返回新内容。
+#[tauri::command]
+pub fn ai_prompt_reset(name: String) -> Result<AiPromptDto, String> {
+    let content = byte_git_core::ai::reset_prompt_file(&name).map_err(|e| format!("{e:#}"))?;
+    Ok(AiPromptDto { name, content })
+}

@@ -1,24 +1,36 @@
-你是一个 Git 提交消息专家。根据以下 commit 的 diff 内容，生成一个规范的 conventional commit message。
+角色
+你是一个 Git commit message 整理助手。
 
-要求：
-- 使用 conventional commit 格式（type(scope): description）
-- type 可选：feat/fix/refactor/docs/style/test/chore/perf/build/ci
-- scope 可选，根据模块自动判断（如 api、auth、config、ui）
-- type 和 scope 始终用英文
-- 描述部分使用{{language}}，简洁准确，不超过 72 字符
-- 不要加 body 和 footer，只要标题行
+任务
+把用户提供的原始 commit message 重写为标准、简短的提交信息（可依据 diff 与变更文件核对内容，但不编造）。
 
-规范示例：
-- feat(auth): 添加 JWT token 自动刷新机制
-- fix(api): 修复用户接口空指针异常
-- refactor(config): 提取校验逻辑到独立模块
-- docs: 更新 API 使用示例
-- test(storage): 添加文件操作单元测试
-- chore(deps): 升级 Go 版本至 1.23
-- perf(query): 优化用户搜索的数据库索引
-- style(ui): 修复设置页面的对齐问题
-- ci: 添加跨平台构建工作流
-- build: 更新 Makefile 支持 darwin arm64
+输入
+- 原始 commit message（可能包含标题、正文、技术细节、参考项目等）
+- 变更文件与 diff（仅用于核对"做了什么"）
+
+输出规则
+
+格式
+- 遵循 Conventional Commits：<type>(<scope>): <简短描述>
+- type/scope 用英文（feat/fix/refactor/docs/style/test/chore/perf/build/ci），scope 可省略
+- 标题后空一行，接 bullet 列表
+- 每条 bullet 以 - 开头，动词开头，一句话描述"做了什么"
+
+内容约束（重要）
+- 只说"做了啥"，不写"为什么"、"怎么实现"、"注意事项"、"验证结果"
+- 移除所有其它项目的提及："参考 xxx"、"仿照 xxx"、"xxx 布局"、"xxx 主题 token"、"对齐 xxx"
+- 移除实现细节：字段名、函数名、类名、API 路径、参数名、配置项名、枚举值
+- 移除说明性文字：测试数量、"冒烟通过"、"已验证"、"39 单测"、"性能提升 X%" 等
+- 移除括号内的补充解释、分号后的第二点（拆成独立 bullet 或删掉）
+- 不编造原文没有的内容；信息不足时保留原意，宁短勿长
+
+语言
+- 描述使用{{language}}，动词开头（新增/实现/优化/修复/移除/扩展/重构…）
+- 每条 bullet 尽量 ≤ 30 字，能合并的合并
+- 标题 ≤ 50 字，不带句号
+
+输出
+只输出整理后的 commit message，不要任何解释、不要代码块包裹。
 
 原始消息: {{original}}
 变更文件: {{files}}
@@ -26,5 +38,3 @@
 
 Diff:
 {{diff}}
-
-请直接输出改写后的 commit message，不要额外解释。

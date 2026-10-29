@@ -1,8 +1,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { SettingOutlined, GithubOutlined, InfoCircleOutlined, BranchesOutlined, FileSearchOutlined, SafetyCertificateOutlined, CodeOutlined, GlobalOutlined, AppstoreOutlined, ApartmentOutlined, SkinOutlined, BgColorsOutlined, PictureOutlined, ThunderboltOutlined, LayoutOutlined } from '@ant-design/icons-vue'
+import { SettingOutlined, GithubOutlined, InfoCircleOutlined, BranchesOutlined, FileSearchOutlined, SafetyCertificateOutlined, CodeOutlined, GlobalOutlined, AppstoreOutlined, ApartmentOutlined, SkinOutlined, BgColorsOutlined, PictureOutlined, ThunderboltOutlined, LayoutOutlined, FileTextOutlined } from '@ant-design/icons-vue'
 import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
 import SettingsForm from '@/components/settings/SettingsForm.vue'
+import PromptForm from '@/components/settings/PromptForm.vue'
 import GitConfigForm from '@/components/settings/GitConfigForm.vue'
 import OcrForm from '@/components/settings/OcrForm.vue'
 import GitleaksForm from '@/components/settings/GitleaksForm.vue'
@@ -22,6 +23,7 @@ const { load } = useSettings()
 
 const tabs = [
   { key: 'ai', icon: AiSparkIcon, label: 'AI 设置' },
+  { key: 'prompts', icon: FileTextOutlined, label: '提示词' },
   { key: 'appearance', icon: SkinOutlined, label: '外观', hasSub: true },
   { key: 'gitconfig', icon: BranchesOutlined, label: 'Git 配置' },
   { key: 'ocr', icon: FileSearchOutlined, label: '代码审查' },
@@ -94,6 +96,7 @@ onMounted(() => {
 
     <!-- Column 3: form content -->
     <GitConfigForm v-if="activeTab === 'gitconfig'" class="settings-content" />
+    <PromptForm v-else-if="activeTab === 'prompts'" class="settings-content" />
     <template v-else-if="activeTab === 'appearance'">
       <AppearanceForm v-if="appearanceSub === 'theme'" class="settings-content" />
       <WallpaperSection v-else-if="appearanceSub === 'wallpaper'" class="settings-content" />

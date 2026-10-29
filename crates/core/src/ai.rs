@@ -235,3 +235,45 @@ pub fn get_prompt_file(name: &str) -> Result<String> {
     let p = paths.prompts_dir().join(name);
     std::fs::read_to_string(&p).with_context(|| format!("读取提示词失败: {}", p.display()))
 }
+
+/// 内置提示词内容（assets/prompts 内嵌资产；未知名报错——天然白名单）。
+pub fn builtin_prompt(name: &str) -> Result<&'static str> {
+    let f = PROMPTS
+        .files()
+        .find(|f| f.path().file_name().map(|n| n == name).unwrap_or(false))
+        .ok_or_else(|| anyhow::anyhow!("未知提示词: {name}"))?;
+    Ok(std::str::from_utf8(f.contents())?)
+}
+
+/// 恢复提示词为内置默认（覆盖落盘文件），返回新内容。
+pub fn reset_prompt_file(name: &str) -> Result<String> {
+    let content = builtin_prompt(name)?.to_string();
+    let paths = AppPaths::new()?;
+    let dir = paths.prompts_dir();
+    AppPaths::ensure_dir(&dir)?;
+    let p = dir.join(name);
+    std::fs::write(&p, &content).with_context(|| format!("写入提示词失败: {}", p.display()))?;
+    Ok(content)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 内嵌提示词必须保留代码侧替换的全部占位符——提示词文案可随意改，
+    /// 丢了占位符生成请求会带裸模板，此测试守住这个契约。
+    #[test]
+    fn builtin_prompts_keep_placeholders() {
+        let aic = builtin_prompt("aicommit.md").unwrap();
+        assert!(aic.contains("{{language}}"), "aicommit.md 缺 {{language}}");
+        let air = builtin_prompt("airewrite.md").unwrap();
+        for ph in ["{{language}}", "{{original}}", "{{files}}", "{{diff_summary}}", "{{diff}}"] {
+            assert!(air.contains(ph), "airewrite.md 缺 {ph}");
+        }
+    }
+
+    #[test]
+    fn builtin_prompt_rejects_unknown_name() {
+        assert!(builtin_prompt("no-such.md").is_err());
+    }
+}

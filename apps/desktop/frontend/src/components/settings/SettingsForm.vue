@@ -92,7 +92,7 @@ const appVersion = computed(() => (window.go && window.go.main && window.go.main
         <div class="setting-row">
           <div class="row-label">
             <div class="row-title">Max Tokens</div>
-            <div class="row-help">单次请求最大 token 数</div>
+            <div class="row-help">单次请求最大 token 数；提交信息提示词规则见「提示词」页签</div>
           </div>
           <a-input-number
             :value="settings.maxTokens"
