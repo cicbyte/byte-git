@@ -11,7 +11,7 @@
  */
 import {
   DatabaseOutlined, GithubOutlined, SettingOutlined,
-  ThunderboltOutlined, SearchOutlined, ReloadOutlined,
+  ThunderboltOutlined, SearchOutlined, ReloadOutlined, EyeOutlined,
 } from '@ant-design/icons-vue'
 import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
 
@@ -29,6 +29,7 @@ defineEmits([
   'doRefactor',
   'openCategories',
   'openCheck',
+  'openIgnored',
   'loadGitignore',
 ])
 </script>
@@ -75,6 +76,12 @@ defineEmits([
     <a-menu-item key="check" @click="$emit('openCheck')">
       <template #icon><SearchOutlined /></template>
       检查文件
+    </a-menu-item>
+
+    <!-- 被忽略文件（防误忽略） -->
+    <a-menu-item key="ignored" @click="$emit('openIgnored')">
+      <template #icon><EyeOutlined /></template>
+      被忽略文件
     </a-menu-item>
 
     <a-menu-divider />

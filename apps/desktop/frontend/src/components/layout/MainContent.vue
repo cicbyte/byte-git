@@ -5,9 +5,11 @@ import { CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icon
 import { usePageFooter } from '@/composables/usePageFooter'
 import { useToolStatus } from '@/composables/useToolStatus'
 import { useSettings } from '@/composables/useSettings'
+import { useRepoStore } from '@/stores/repo'
 import { fadeIn, enterPage, leavePage } from '@/composables/useGsapAnimations'
 
 const route = useRoute()
+const repo = useRepoStore()
 // Global footer (dynamically injectable per-page component)
 const { visible, content, props } = usePageFooter()
 // external CLI tool availability (gitleaks / ocr) — shared + cached

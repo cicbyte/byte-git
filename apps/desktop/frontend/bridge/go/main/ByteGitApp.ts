@@ -66,6 +66,7 @@ const SIGNATURES: Record<string, string[]> = {
     IgnoreListTemplates: [],
     IgnoreListGithubTemplates: [],
     IgnoreFileStatuses: [],
+    IgnoreIgnoredList: [],
     IgnoreLoadCategories: [],
     IgnoreSaveCategories: ['cats'],
     IgnoreResetCategories: [],

@@ -11,6 +11,7 @@
 
 use byte_git_core::ai::{ChatClient, ChatMessage};
 use byte_git_core::config::Settings;
+use byte_git_core::ignore::{dir_contains_source, is_expected_ignore_dir, is_source_like, parse_check_ignore_line, CheckIgnoreMatch};
 use byte_git_core::util::AppPaths;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -78,6 +79,31 @@ pub struct FileStatusEntry {
     pub rule: String,
     /// 如 ".gitignore:12"（如有）。
     pub source: String,
+}
+
+/// 被忽略条目（防误忽略视图）。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IgnoredEntry {
+    pub path: String,
+    pub is_dir: bool,
+    /// 命中的忽略模式（如 "lib/"）。
+    pub rule: String,
+    /// 规则来源，如 ".gitignore:12"（嵌套/全局来源如实呈现）。
+    pub source: String,
+    /// 规则行号（供编辑器定位；无来源时为 0）。
+    pub line: i64,
+    /// 疑似误忽略：源码类文件被忽略，或非依赖目录内含源码文件。
+    pub suspicious: bool,
+}
+
+/// 被忽略条目列表。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IgnoredListResult {
+    pub entries: Vec<IgnoredEntry>,
+    /// 条目过多被截断（保护大仓库）。
+    pub truncated: bool,
 }
 
 /// 模板源状态。
@@ -255,6 +281,46 @@ fn run_lines(repo: &Path, args: &[&str]) -> Result<Vec<String>, String> {
         .map(|l| l.trim().to_string())
         .filter(|l| !l.is_empty())
         .collect())
+}
+
+/// 批量 `git check-ignore -v --stdin`：路径 → 命中规则。
+/// 退出码 0（部分命中）与 1（全部未命中）均正常，其余为错误。
+fn check_ignore_batch(
+    repo: &Path,
+    paths: &[String],
+) -> Result<HashMap<String, CheckIgnoreMatch>, String> {
+    if paths.is_empty() {
+        return Ok(HashMap::new());
+    }
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let mut cmd = Command::new("git");
+    cmd.arg("-C").arg(repo).args(["check-ignore", "-v", "--stdin"]);
+    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    hide_window(&mut cmd);
+    let mut child = cmd.spawn().map_err(|e| format!("git check-ignore 启动失败: {e}"))?;
+    {
+        let mut stdin = child.stdin.take().ok_or("check-ignore stdin 不可用")?;
+        for p in paths {
+            let _ = writeln!(stdin, "{p}");
+        }
+    }
+    let out = child
+        .wait_with_output()
+        .map_err(|e| format!("git check-ignore 失败: {e}"))?;
+    if !matches!(out.status.code(), Some(0) | Some(1)) {
+        return Err(format!(
+            "git check-ignore 失败: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    let mut map = HashMap::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        if let Some((p, m)) = parse_check_ignore_line(line) {
+            map.insert(p, m);
+        }
+    }
+    Ok(map)
 }
 
 // =====================================================================
@@ -907,4 +973,142 @@ pub fn ignore_file_statuses(repo: Option<String>) -> Result<Vec<FileStatusEntry>
     let mut result: Vec<FileStatusEntry> = by_path.into_values().collect();
     result.sort_by(|a, b| a.path.cmp(&b.path));
     Ok(result)
+}
+
+/// IgnoreIgnoredList 列出被忽略的文件/目录及命中的规则，并标记疑似误忽略项
+/// （源码类文件被忽略、或非依赖目录内含源码文件，如 lib/ 规则吞掉前端源码）。
+#[tauri::command]
+pub fn ignore_ignored_list(repo: Option<String>) -> Result<IgnoredListResult, String> {
+    let path = repo_path(repo.clone());
+    const MAX_ENTRIES: usize = 2000;
+    const WALK_BUDGET: usize = 300;
+    const MAX_PROBE_DIRS: usize = 200;
+
+    // --directory 折叠整目录；勿加 --no-empty-directory——会吞掉嵌套 .gitignore 的目录
+    let raw = run_lines(
+        &path,
+        &["ls-files", "--others", "--ignored", "--exclude-standard", "--directory"],
+    )
+    .map_err(|e| format!("git ls-files --ignored 失败: {e}"))?;
+    let truncated = raw.len() > MAX_ENTRIES;
+    // --directory 可能同时给出祖先与后代折叠条目（如 frontend/ 与 frontend/lib/），
+    // 依 ls-files 有序输出去重，只保留最外层条目
+    let mut paths: Vec<(String, bool)> = Vec::new();
+    let mut last_dir: Option<String> = None;
+    for p in raw.iter().take(MAX_ENTRIES) {
+        let (name, is_dir) = match p.strip_suffix('/') {
+            Some(stripped) => (stripped.to_string(), true),
+            None => (p.clone(), false),
+        };
+        if let Some(ancestor) = &last_dir {
+            if name.starts_with(&format!("{ancestor}/")) {
+                continue;
+            }
+        }
+        if is_dir {
+            last_dir = Some(name.clone());
+        }
+        paths.push((name, is_dir));
+    }
+
+    let mut matches = check_ignore_batch(
+        &path,
+        &paths.iter().map(|(p, _)| p.clone()).collect::<Vec<_>>(),
+    )?;
+
+    // 整树被折叠的目录（如 frontend/ 因子树全被忽略而折叠）自身未必命中规则，
+    // 取其首个被忽略子文件回查规则归属。
+    let mut probes: Vec<(String, String)> = Vec::new();
+    for (p, is_dir) in paths.iter() {
+        if !*is_dir || matches.contains_key(p) || probes.len() >= MAX_PROBE_DIRS {
+            continue;
+        }
+        if let Some(first) = run_lines(
+            &path,
+            &["ls-files", "--others", "--ignored", "--exclude-standard", "--", p],
+        )
+        .ok()
+        .and_then(|l| l.into_iter().next())
+        {
+            probes.push((p.clone(), first));
+        }
+    }
+    if !probes.is_empty() {
+        let child_matches = check_ignore_batch(
+            &path,
+            &probes.iter().map(|(_, f)| f.clone()).collect::<Vec<_>>(),
+        )?;
+        for (p, f) in probes {
+            if let Some(m) = child_matches.get(&f) {
+                matches.insert(p, m.clone());
+            }
+        }
+    }
+
+    let mut entries: Vec<IgnoredEntry> = paths
+        .drain(..)
+        .map(|(p, is_dir)| {
+            let m = matches.get(&p);
+            let (rule, source, line) = match m {
+                Some(m) => (m.pattern.clone(), format!("{}:{}", m.source, m.line), m.line as i64),
+                None => (String::new(), String::new(), 0),
+            };
+            let suspicious = if is_dir {
+                !is_expected_ignore_dir(&p) && dir_contains_source(&path.join(&p), WALK_BUDGET)
+            } else {
+                is_source_like(&p)
+            };
+            IgnoredEntry { path: p, is_dir, rule, source, line, suspicious }
+        })
+        .collect();
+    // 疑似误忽略优先，其后按路径
+    entries.sort_by(|a, b| b.suspicious.cmp(&a.suspicious).then(a.path.cmp(&b.path)));
+    Ok(IgnoredListResult { entries, truncated })
+}
+
+#[cfg(test)]
+mod ignored_list_tests {
+    use super::*;
+
+    #[test]
+    fn ignored_list_reports_rules_and_suspicious() {
+        let root = std::env::temp_dir().join(format!("byte-git-ignored-list-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for d in ["frontend/lib", "lib", "node_modules/pkg"] {
+            std::fs::create_dir_all(root.join(d)).unwrap();
+        }
+        std::fs::write(root.join(".gitignore"), b"lib/\n*.log\nnode_modules/\n").unwrap();
+        std::fs::write(root.join("frontend/lib/index.ts"), b"x").unwrap();
+        std::fs::write(root.join("lib/a.dll"), b"x").unwrap();
+        std::fs::write(root.join("node_modules/pkg/index.js"), b"x").unwrap();
+        std::fs::write(root.join("app.log"), b"x").unwrap();
+        git_output(Some(&root), &["init", "-q", "."]).unwrap();
+
+        let res = ignore_ignored_list(Some(root.display().to_string())).unwrap();
+        assert!(!res.truncated);
+        let by_path: HashMap<&str, &IgnoredEntry> =
+            res.entries.iter().map(|e| (e.path.as_str(), e)).collect();
+        assert_eq!(by_path.len(), 4, "entries: {:?}", res.entries);
+
+        // frontend 整树被折叠、自身不命中规则——回退子文件查到 lib/ 规则并判疑似误忽略
+        let fe = by_path["frontend"];
+        assert!(fe.is_dir);
+        assert_eq!(fe.rule, "lib/");
+        assert_eq!(fe.source, ".gitignore:1");
+        assert!(fe.suspicious, "frontend/lib 里有源码文件，应判疑似误忽略");
+
+        // lib/ 只有二进制——不算疑似误忽略
+        let lib = by_path["lib"];
+        assert!(lib.is_dir && lib.rule == "lib/" && !lib.suspicious);
+
+        // node_modules 属常见依赖目录——即使含源码也放心忽略
+        let nm = by_path["node_modules"];
+        assert!(nm.is_dir && nm.rule == "node_modules/" && !nm.suspicious);
+
+        // *.log 命中规则，非源码类文件
+        let log = by_path["app.log"];
+        assert!(!log.is_dir && log.rule == "*.log" && log.source == ".gitignore:2" && !log.suspicious);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }

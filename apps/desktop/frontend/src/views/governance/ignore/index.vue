@@ -1,15 +1,16 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { message as AMessage, Modal } from 'ant-design-vue'
 import {
   PlusOutlined, CheckCircleOutlined, FileTextOutlined,
-  ReloadOutlined, GithubOutlined,
+  ReloadOutlined, GithubOutlined, EyeOutlined,
 } from '@ant-design/icons-vue'
 import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
 import CodeViewer from '@/components/common/CodeViewer.vue'
 import IgnoreCategoriesModal from '@/components/ignore/IgnoreCategoriesModal.vue'
 import IgnoreCheckModal from '@/components/ignore/IgnoreCheckModal.vue'
+import IgnoredFilesDrawer from '@/components/ignore/IgnoredFilesDrawer.vue'
 import IgnoreContextMenu from './components/IgnoreContextMenu.vue'
 import IgnoreGithubPickerModal from './components/IgnoreGithubPickerModal.vue'
 
@@ -169,6 +170,41 @@ const checkOpen = ref(false)
 function openCategories() { catOpen.value = true }
 function openCheck() { checkOpen.value = true }
 
+// ---- ignored files drawer（防误忽略视图）----
+const ignoredOpen = ref(false)
+const codeViewerRef = ref(null)
+const locateHighlight = ref([])
+
+function onLocateRule(e) {
+  ignoredOpen.value = false
+  locateHighlight.value = [e.line]
+  nextTick(() => codeViewerRef.value?.scrollToLine(e.line))
+}
+
+// 注释掉命中规则（根 .gitignore 行），使其不再生效；写盘后刷新编辑器
+async function onCommentRule(e) {
+  const lines = currentContent.value.split('\n')
+  const idx = e.line - 1
+  const raw = lines[idx] ?? ''
+  const trimmed = raw.trim()
+  if (!trimmed || trimmed.startsWith('#')) {
+    AMessage.warning('该行已是注释或不存在（文件可能已变更），请刷新后重试')
+    return
+  }
+  const indent = raw.slice(0, raw.length - raw.trimStart().length)
+  lines[idx] = `${indent}# ${trimmed}`
+  const next = lines.join('\n')
+  try {
+    await app.IgnoreWrite(next)
+    currentContent.value = next
+    dirty.value = false
+    locateHighlight.value = []
+    AMessage.success('已注释该规则，相关文件不再被忽略')
+  } catch (err) {
+    AMessage.error('写入失败: ' + String(err?.message || err))
+  }
+}
+
 // ---- refactor ----
 const refactorLoading = ref(false)
 async function doRefactor() {
@@ -255,6 +291,7 @@ const saving = ref(false)
 function onContentChange(newContent) {
   currentContent.value = newContent
   dirty.value = true
+  locateHighlight.value = []
 }
 
 async function saveGitignore() {
@@ -293,6 +330,7 @@ onMounted(async () => {
       <span v-if="currentContent" class="ig-bar-lines">{{ currentContent.split('\n').length }} 行</span>
       <span class="ig-bar-hint">右键打开操作菜单</span>
       <div class="ig-bar-spacer" />
+      <a-button size="small" type="text" @click="ignoredOpen = true"><EyeOutlined /> 已忽略</a-button>
       <a-button size="small" type="text" @click="loadGitignore" :loading="contentLoading"><ReloadOutlined /></a-button>
     </div>
 
@@ -329,7 +367,7 @@ onMounted(async () => {
 
         <!-- file view -->
         <div v-else-if="currentContent" class="ig-edit-wrap" @keydown="onKeydown">
-          <CodeViewer :code="currentContent" filename=".gitignore" :highlight-lines="[]" editable @update:modelValue="onContentChange" :show-context-menu="false" />
+          <CodeViewer ref="codeViewerRef" :code="currentContent" filename=".gitignore" :highlight-lines="locateHighlight" highlight-class="cv-locate" editable @update:modelValue="onContentChange" :show-context-menu="false" />
           <div v-if="dirty" class="ig-save-bar">
             <span class="ig-dirty-dot">● 未保存</span>
             <div class="ig-save-spacer" />
@@ -372,6 +410,7 @@ onMounted(async () => {
           @do-refactor="doRefactor"
           @open-categories="openCategories"
           @open-check="openCheck"
+          @open-ignored="ignoredOpen = true"
           @load-gitignore="loadGitignore"
         />
       </template>
@@ -424,6 +463,9 @@ onMounted(async () => {
 
     <!-- check file modal -->
     <IgnoreCheckModal v-model:open="checkOpen" />
+
+    <!-- ignored files drawer（防误忽略） -->
+    <IgnoredFilesDrawer v-model:open="ignoredOpen" @locate="onLocateRule" @comment-rule="onCommentRule" />
   </div>
 </template>
 
@@ -446,6 +488,8 @@ onMounted(async () => {
 .ig-canvas :deep(.cv-host) { height: 100%; }
 .ig-edit-wrap { height: 100%; display: flex; flex-direction: column; position: relative; }
 .ig-edit-wrap :deep(.cv-host) { flex: 1; min-height: 0; }
+/* 定位规则行高亮（主题色，区别于泄漏行的红色） */
+.ig-edit-wrap :deep(.cv-locate) { background: rgba(var(--color-primary-rgb), 0.14); border-left: 3px solid var(--color-primary); }
 .ig-save-bar { display: flex; align-items: center; gap: 8px; padding: 4px 12px; border-top: 1px solid var(--color-border); background: var(--color-warning-bg); flex-shrink: 0; }
 .ig-dirty-dot { font-size: 11px; color: var(--color-warning); font-weight: 600; }
 .ig-save-spacer { flex: 1; }

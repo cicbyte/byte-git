@@ -85,6 +85,7 @@ pub fn run() {
             commands::ignore::ignore_check_batch,
             commands::ignore::ignore_list_files,
             commands::ignore::ignore_file_statuses,
+            commands::ignore::ignore_ignored_list,
             commands::rewrite::rewrite_export,
             commands::rewrite::rewrite_entry_diff,
             commands::rewrite::rewrite_rules_load,
