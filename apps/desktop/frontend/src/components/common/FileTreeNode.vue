@@ -10,7 +10,8 @@
 import { computed } from 'vue'
 import {
   FolderFilled, FileOutlined, FileTextOutlined, FileMarkdownOutlined,
-  CodeOutlined, FileZipOutlined, DownOutlined, RightOutlined
+  CodeOutlined, FileZipOutlined, DownOutlined, RightOutlined,
+  CheckOutlined, StopOutlined,
 } from '@ant-design/icons-vue'
 
 const props = defineProps({
@@ -119,9 +120,9 @@ function fileIcon(name) {
       <span class="ftn-name" :title="node.name">{{ node.name }}</span>
       <!-- optional status badge (from badges prop) -->
       <span v-if="badges && badges[node.path]" class="ftn-badge" :class="'bdg-' + badges[node.path]">
-        <template v-if="badges[node.path] === 'tracked'">✓</template>
-        <template v-else-if="badges[node.path] === 'ignored'">🚫</template>
-        <template v-else>○</template>
+        <CheckOutlined v-if="badges[node.path] === 'tracked'" />
+        <StopOutlined v-else-if="badges[node.path] === 'ignored'" />
+        <span v-else class="ftn-dot" />
       </span>
       <!-- optional caller-provided extra content (e.g. A/M/D status, deltas) -->
       <slot name="extra" :node="node"></slot>
@@ -186,8 +187,9 @@ function fileIcon(name) {
 
 .ftn-icon { font-size: 15px; flex-shrink: 0; color: var(--color-warning); }
 .ftn-name { overflow: hidden; text-overflow: ellipsis; flex: 1; }
-.ftn-badge { font-size: 11px; flex-shrink: 0; margin-left: 4px; }
+.ftn-badge { font-size: 11px; flex-shrink: 0; margin-left: 4px; display: inline-flex; align-items: center; }
 .ftn-badge.bdg-tracked { color: var(--color-success); }
 .ftn-badge.bdg-ignored { color: var(--color-error); }
-.ftn-badge.bdg-untracked { color: var(--color-text-tertiary); opacity: 0.5; }
+.ftn-badge.bdg-untracked { color: var(--color-warning); }
+.ftn-dot { width: 8px; height: 8px; border: 1.5px solid currentColor; border-radius: 50%; }
 </style>

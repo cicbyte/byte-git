@@ -68,6 +68,12 @@ const treeMap = computed(() => {
     // rendered as a directory — check dirSet before treating it as a file.
     const isKnownDir = props.dirSet && props.dirSet.has(p)
     if (isKnownDir) {
+      // children may have created this dir already — reuse to avoid duplicates
+      const existing = nodeMap[p]
+      if (existing) {
+        existing.isDir = true
+        continue
+      }
       const node = { name: parts[parts.length - 1], path: p, isDir: true, children: [] }
       nodeMap[p] = node
       dirMap[p] = node.children
@@ -153,9 +159,10 @@ defineExpose({ clearSelection })
 
 <template>
   <div class="ftp">
-    <!-- context menu is manually controlled via ctxOpen (not trigger=contextmenu,
-         which would double-open when onContextmenu also sets ctxOpen=true) -->
-    <a-dropdown :open="ctxOpen" @open-change="(v) => ctxOpen = v">
+    <!-- context menu is manually controlled via ctxOpen (trigger=[] keeps hover
+         from popping it; contextmenu would double-open when onContextmenu also
+         sets ctxOpen=true) -->
+    <a-dropdown :open="ctxOpen" :trigger="[]" @open-change="(v) => ctxOpen = v">
       <div class="ftp-tree-host">
         <FileTreeNode
           :nodes="treeMap['__root__'] || []"
