@@ -2,7 +2,7 @@
 //! 改动，外加 Git 备忘录（cheat）内容仓管理（Go 侧挂在 system 模块下，
 //! 按文件分工约定随 live 域一起落地）。
 //!
-//! 移植自 git-mate：
+//! 实现说明：
 //! - `gui/internal/live/live.go`：Go fsnotify → notify 8 recommended_watcher。
 //!   手工递归添加目录（跳过 node_modules/dist/.idea/vendor；.git 只监视
 //!   index/HEAD/refs 三个入口——commit/stage/checkout 不触碰工作区文件，

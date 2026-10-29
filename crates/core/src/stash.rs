@@ -1,7 +1,6 @@
 //! 带名称的 stash 管理：保存/弹出/列表/删除/搜索。
 //!
-//! 移植自 git-mate `internal/stash`——命名 stash 以 `byte-git-stash:<name>`
-//! 消息前缀实现（原为 git-mate-stash:）。
+//! 命名 stash 以 `byte-git-stash:<name>` 消息前缀实现。
 
 use crate::util::run_capture;
 use anyhow::{bail, Result};

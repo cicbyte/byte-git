@@ -1,7 +1,5 @@
 /**
  * themes/types.ts — Type definitions for the three-layer theme system.
- *
- * Ported from byte-stash (commit fae308a) and localised for byte-git.
  * See themes/derivation.css for the layering rationale.
  */
 
@@ -14,8 +12,9 @@ export type Mode = 'auto' | ResolvedMode
 /** Alias used by some downstream consumers (kept for parity). */
 export type Appearance = ResolvedMode
 
-/** Built-in preset keys. `dracula` is byte-git's anchor preset. */
-export type BuiltinPreset = 'dracula' | 'emerald' | 'violet' | 'amber' | 'rose'
+/** Built-in preset keys. `dracula` is byte-git's anchor preset; `paper`
+ *  (纸墨) carries its own hand-tuned dual-mode palette. */
+export type BuiltinPreset = 'dracula' | 'paper' | 'emerald' | 'violet' | 'amber' | 'rose'
 
 /** Any preset key, including the user-editable custom one. */
 export type PresetKey = BuiltinPreset | 'custom'

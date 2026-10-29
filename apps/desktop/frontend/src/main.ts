@@ -13,7 +13,7 @@ import 'ant-design-vue/dist/reset.css'
 import './themes/derivation.css'
 import './assets/styles/variables.css'
 // antd 全局 CSS 变量覆盖：命令式 API（Modal.confirm/message）与主题切换的
-// CSS-in-JS 不完整更新兜底（方案参考 byte-writer global.css）
+// CSS-in-JS 不完整更新兜底
 import './assets/styles/antd-overrides.css'
 
 // Tauri 环境：把 invoke 桥接安装为 window.go.main.ByteGitApp（Wails 原生绑定优先）

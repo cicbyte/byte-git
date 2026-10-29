@@ -1,6 +1,6 @@
 <script setup>
 /**
- * 主题预览卡片（预设版）— 移植自 byte-stash ThemePreviewCard。
+ * 主题预览卡片（预设版）。
  *
  * 接收预设 key，用 buildPresetColors(preset, resolvedMode) 派生完整色值
  * 渲染预览。预览跟随当前明暗模式（dark/light），所见即所得。

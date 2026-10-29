@@ -1,6 +1,6 @@
 //! AI 提交历史改写：规则检测 → 批量生成建议 → filter-branch 应用。
 //!
-//! 移植自 git-mate `internal/airewrite`。数据文件 `.git/byte-git/rewrite/ai-rewrite.json`，
+//! 数据文件 `.git/byte-git/rewrite/ai-rewrite.json`，
 //! 缓存 `.git/byte-git/ai-cache/<hash>.json`，规则 `~/.cicbyte/apps/byte-git/airewrite/rules.json`。
 
 use crate::ai::{self, ChatClient, ChatMessage};

@@ -1,8 +1,7 @@
 //! system 域命令：设置（config.yaml）、代理规则（rules.lua）、
 //! 命令片段（snippets.json）与 GitHub Release 查询。
 //!
-//! 移植自 git-mate `gui/internal/system/{settings,rules,snippets,download}.go`，
-//! 行为对齐 Go 实现；存储布局迁移到 `~/.cicbyte/apps/byte-git/`：
+//! 存储布局在 `~/.cicbyte/apps/byte-git/`：
 //! - 设置：core::config::Settings（config/config.yaml）
 //! - 规则：core::clone::ensure_rules_file（rules/rules.lua，内嵌默认模板）
 //! - 片段：`~/.cicbyte/apps/byte-git/snippets.json`（应用级、跨仓库）

@@ -1,6 +1,6 @@
 //! 基础设施：应用目录布局 + 子进程命令执行。
 //!
-//! 对应 git-mate 的 `internal/config`（目录契约）与 `internal/sysproc`（命令执行）。
+//! 目录契约与命令执行工具。
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
@@ -108,7 +108,7 @@ impl Default for AppPaths {
 
 /// 仓库内的 byte-git 数据目录：`<git-dir>/byte-git/`。
 ///
-/// 对应 git-mate 的 `internal/bytegit.Dir(repo)`。
+/// 仓库级数据目录。
 pub fn repo_data_dir(repo: &Path) -> Result<PathBuf> {
     let git_dir = git_dir(repo)?;
     let dir = git_dir.join("byte-git");

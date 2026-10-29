@@ -1,6 +1,5 @@
 //! 分支治理：已合并分支清理、孤立分支发现。
 //!
-//! 移植自 git-mate `internal/branch`。
 
 use crate::util::{run_capture, run_inherit};
 use anyhow::Result;

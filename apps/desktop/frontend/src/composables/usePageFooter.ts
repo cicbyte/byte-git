@@ -6,7 +6,7 @@ const content = shallowRef<Component | null>(null)
 const propsGetter = ref<(() => Record<string, any>) | null>(null)
 
 /**
- * Global footer injection mechanism (ported from VoiceHub).
+ * Global footer injection mechanism.
  *
  * Any view can call `setFooter(MyComponent, () => ({ ...props }))` to render a
  * custom component in the bottom global footer. Call `clearFooter()` on

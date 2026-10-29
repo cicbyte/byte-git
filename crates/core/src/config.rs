@@ -1,6 +1,6 @@
 //! 全局配置：`~/.cicbyte/apps/byte-git/config/config.yaml`。
 //!
-//! Schema 与 git-mate 完全一致（serde_yaml 版），首次读取自动写入默认值。
+//! serde_yaml 版 schema，首次读取自动写入默认值。
 
 use crate::util::AppPaths;
 use anyhow::{Context, Result};
@@ -164,7 +164,7 @@ impl Settings {
             }
             Err(e) => return Err(e).with_context(|| format!("读取配置失败: {}", file.display())),
         };
-        // 与 git-mate 一致：默认值打底，文件字段覆盖（解析失败回退默认值）。
+        // 默认值打底，文件字段覆盖（解析失败回退默认值）。
         let merged: Settings =
             serde_yaml::from_str(String::from_utf8_lossy(&data).as_ref())
                 .unwrap_or_else(|_| Settings::default());

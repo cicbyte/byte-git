@@ -16,7 +16,7 @@ import type { ThemeColors, RegionOverrides, ResolvedMode } from './types'
 import { REGION_DEFS, defaultRegions, hexToRgb } from './presets'
 
 /** 主色是否偏亮（相对亮度 > 0.7）——亮主色（自定义强调色接近白/浅黄等）需要
- * 深色反白文字，避免主按钮/选中态"白上白"（参考 byte-writer isLightPrimary）。 */
+ * 深色反白文字，避免主按钮/选中态"白上白"。 */
 function isLightPrimary(hex: string): boolean {
   const { r, g, b } = hexToRgb(hex)
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.7

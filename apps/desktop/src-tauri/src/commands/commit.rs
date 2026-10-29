@@ -1,7 +1,6 @@
 //! commit 域命令：提交台（状态分组 / 暂存 / 提交 / 推送）与历史操作
 //! （cherry-pick / revert / reset / 从提交建分支）。
 //!
-//! 移植自 git-mate `gui/internal/commit`（commit.go + commit_actions.go）。
 //! git 子进程统一走本文件的 `git_exec`（隐藏窗口 + 超时 + 合并输出），
 //! 对应 Go 侧的 core.HideExec / sysproc.CommandContext + CombinedOutput；
 //! 纯计算逻辑优先复用 byte-git-core（aicommit / config / ai）。
@@ -296,7 +295,7 @@ fn staged_files(repo: &Path) -> Result<Vec<String>, String> {
         .collect())
 }
 
-/// 暂存区短统计（对应 aicommit.GetStagedStat，git-mate 用 --shortstat）。
+/// 暂存区短统计（--shortstat）。
 fn staged_shortstat(repo: &Path) -> String {
     let res = git_exec(repo, &["diff", "--cached", "--shortstat"], LONG_TIMEOUT);
     if !res.success {

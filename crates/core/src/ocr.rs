@@ -1,6 +1,6 @@
 //! AI 代码审查（集成外部 OpenCodeReview / ocr）。
 //!
-//! 移植自 git-mate `internal/ocr`：`ocr review --format json --audience agent …`，
+//! `ocr review --format json --audience agent …`，
 //! stdout 收 JSON 结果，stderr 实时透传为进度。
 
 use crate::config::Settings;

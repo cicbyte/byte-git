@@ -1,6 +1,5 @@
 //! Rebase 预览与 auto-squash。
 //!
-//! 移植自 git-mate `internal/rebase`。
 
 use crate::util::run_capture;
 use anyhow::Result;

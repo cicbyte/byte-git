@@ -1,6 +1,5 @@
 //! secret 域命令：密钥扫描/处置 + AI 代码审查（OCR）+ OCR 配置桥接。
 //!
-//! 移植自 git-mate `gui/internal/secret`（secret.go / review.go / ocrconfig.go）。
 
 use byte_git_core::backup;
 use byte_git_core::config::Settings;

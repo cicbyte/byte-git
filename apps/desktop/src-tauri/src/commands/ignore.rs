@@ -1,9 +1,7 @@
 //! ignore 域命令：.gitignore 模板管理（内置/GitHub/AI 三源）、
 //! 合并预览与应用、文件忽略状态、分类规则与模板 CRUD。
 //!
-//! 移植自 git-mate `gui/internal/ignore/{ignore,check,templates}.go` +
-//! `internal/gitignore`（template/categories/updater/parser/source），
-//! 行为对齐 Go 实现；模板目录迁移到 `~/.cicbyte/apps/byte-git/gitignore/`：
+//! 模板目录在 `~/.cicbyte/apps/byte-git/gitignore/`：
 //! - template/          本地模板（首次由内置模板播种，之后尊重用户改动）
 //! - template_github/   `github/gitignore` 仓库的 depth-1 克隆
 //! - categories.json    用户自定义分类规则
@@ -487,7 +485,7 @@ fn local_refactor(content: &str, cats: &[IgnoreCategoryRule]) -> String {
 // AI 生成（source = "ai"）
 // =====================================================================
 
-/// git-mate `internal/gitignore/prompts/add.md`（%s 为语言列表）。
+/// add.md 提示词模板（%s 为语言列表）。
 const AI_ADD_PROMPT: &str = "您是一位专门生成高质量 .gitignore 文件的专家助手。
 您的任务是根据提供的语言和框架为项目创建一个 .gitignore 文件。
 

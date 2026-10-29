@@ -1,7 +1,7 @@
 //! github 域命令：GitHub REST API 集成（Actions / Issues / PR / Release /
 //! Search / Trending）。
 //!
-//! 移植自 git-mate：
+//! 实现说明：
 //! - `gui/internal/github/*.go`（GUI 命令层：actions.go / issues.go / pr.go /
 //!   pr_detail.go / releases.go / search.go / trending.go）
 //! - `internal/gh/*.go`（REST 细节：gh.go 的 token/remote 解析、actions.go 的

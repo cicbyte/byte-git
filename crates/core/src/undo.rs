@@ -1,6 +1,5 @@
 //! 安全撤销：上一次提交 / rebase / merge。
 //!
-//! 移植自 git-mate `internal/undo`。
 
 use crate::util::{run_capture, run_inherit};
 use anyhow::{bail, Result};

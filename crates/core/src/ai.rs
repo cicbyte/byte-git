@@ -1,6 +1,6 @@
 //! OpenAI 兼容 Chat 客户端（Ollama / DeepSeek / OpenAI / Groq …）。
 //!
-//! 移植自 git-mate `internal/ai`：非流式 + SSE 流式两种调用，
+//! 非流式 + SSE 流式两种调用，
 //! token 估算与截断，提示词文件管理（内嵌资产 → prompts 目录落盘）。
 
 use anyhow::{bail, Context, Result};
@@ -169,7 +169,7 @@ fn short(s: &str, max: usize) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Token 估算与截断（移植 internal/ai/token.go：1 token ≈ 4 字符启发式）
+// Token 估算与截断（1 token ≈ 4 字符启发式）
 // ---------------------------------------------------------------------------
 
 /// 估算 token 数（中文按 1 字 ≈ 1 token，ASCII 按 4 字符 ≈ 1 token）。
@@ -210,7 +210,7 @@ pub fn truncate_to_token_limit(s: &str, max_tokens: i64) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// 提示词文件管理（移植 internal/common：内嵌资产 → ~/.byte-git/prompts/ 落盘）
+// 提示词文件管理（内嵌资产 → ~/.byte-git/prompts/ 落盘）
 // ---------------------------------------------------------------------------
 
 /// 初始化 prompts 目录：内嵌提示词在目标缺失时落盘（幂等）。

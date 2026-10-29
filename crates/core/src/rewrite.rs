@@ -1,6 +1,5 @@
 //! 提交元数据改写：导出 JSON → 编辑 → filter-branch 应用。
 //!
-//! 移植自 git-mate `internal/rewrite`（gen_apply/rules/dates）。
 
 use crate::util::{git_dir, run_capture, run_inherit_env};
 use anyhow::{bail, Context, Result};
@@ -71,7 +70,7 @@ pub fn default_rewrite_file(repo: &Path) -> Result<std::path::PathBuf> {
 
 /// 解析规则并应用到元数据。
 ///
-/// 格式（对齐 git-mate ApplyRule）：
+/// 规则应用格式：
 /// - `author:旧名=新名` / `author:=新名`（同时改 committer 名）
 /// - `email:旧邮箱=新邮箱` / `email:=新邮箱`
 /// - `committer-name:=新名` / `committer-email:=新邮箱`
@@ -566,7 +565,7 @@ pub fn apply(opts: &ApplyOptions) -> Result<()> {
 }
 
 fn to_posix(p: &Path) -> String {
-    // 绝对路径 + 正斜杠（filter-branch 在临时工作目录执行，相对路径不可靠——对齐 git-mate）
+    // 绝对路径 + 正斜杠（filter-branch 在临时工作目录执行，相对路径不可靠）
     let abs = std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
     abs.to_string_lossy().replace('\\', "/")
 }

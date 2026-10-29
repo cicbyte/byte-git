@@ -1,6 +1,5 @@
 //! AI 提交信息生成：暂存 diff → LLM → 确认 → 提交。
 //!
-//! 移植自 git-mate `internal/aicommit`。
 
 use crate::ai::{self, ChatClient, ChatMessage};
 use crate::util::{run_capture, run_inherit};

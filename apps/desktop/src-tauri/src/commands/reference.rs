@@ -1,8 +1,6 @@
 //! reference 域命令：外部 `reference` CLI 进程集成 + `.reference/` 直读。
 //!
-//! 移植自 git-mate `gui/internal/reference/reference.go`（绑定层）与
-//! `internal/reference/{client,discover,types}.go`（CLI 客户端，随本域一并
-//! 内联实现——core 无对应模块）。镜像 secret 域的外部 exe 集成约定：
+//! `reference` CLI 绑定层与客户端内联实现。镜像 secret 域的外部 exe 集成约定：
 //! config.yaml `reference.exe_path` > PATH（PATHEXT 感知）> Windows go/bin
 //! 探测；子进程 CREATE_NO_WINDOW + 超时 + stdout/stderr 分离捕获；
 //! 结果进程内缓存（对应 Go refCheckCache）。

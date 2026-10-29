@@ -1,6 +1,6 @@
 //! 日志浏览数据层：提交列表（conventional type/scope 解析）+ diff 获取。
 //!
-//! 对应 git-mate `internal/logview` 的数据部分；TUI 交互在 apps/cli（ratatui）。
+//! 数据装配层；TUI 交互在 apps/cli（ratatui）。
 
 use crate::util::run_capture;
 use anyhow::Result;

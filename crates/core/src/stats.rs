@@ -1,6 +1,6 @@
 //! 开发统计：多仓库提交统计、活跃时段热力图、连续天数、语言分布。
 //!
-//! 移植自 git-mate `internal/stats`（输出改为无第三方样式的简洁 ANSI 渲染）。
+//! 输出为无第三方样式的简洁 ANSI 渲染。
 
 use crate::util::exec_capture;
 use anyhow::{bail, Context, Result};

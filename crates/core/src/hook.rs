@@ -1,6 +1,5 @@
 //! Git 钩子管理：shebang 脚本钩子（shell/python/node，git 原生机制直执行）。
 //!
-//! 对齐上游 git-mate `internal/hook`（03915e0 移除 Lua 后版本）：
 //! - 21 个固定钩子槽位（自定义槽位已移除）
 //! - local/global 双作用域（core.hooksPath 配置感知）
 //! - Exec 统一直接执行 hook 文件（shebang），无内嵌语言运行时

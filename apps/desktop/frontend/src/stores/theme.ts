@@ -1,10 +1,8 @@
 /**
  * stores/theme.ts — Theme store (three-layer architecture).
  *
- * Ported from byte-stash (commit fae308a) and localised for byte-git.
- *
  * State layout:
- *   preset  : 'dracula' | 'emerald' | 'violet' | 'amber' | 'rose' | 'custom'
+ *   preset  : 'dracula' | 'paper' | 'emerald' | 'violet' | 'amber' | 'rose' | 'custom'
  *   mode    : 'auto' | 'light' | 'dark'
  *   custom  : { light: ThemeColors; dark: ThemeColors }   (used when preset='custom')
  *   regions : { light: RegionOverrides; dark: RegionOverrides }
@@ -209,7 +207,7 @@ export const useThemeStore = defineStore('theme', () => {
    * persist() on release.
    *
    * Key can be any ThemeColors field (seed tokens AND derived/status tokens)
-   * so the UI can expose the full byte-stash-compatible editor.
+   * so the UI can expose the full token editor.
    */
   function setCustomToken(
     m: ResolvedMode,

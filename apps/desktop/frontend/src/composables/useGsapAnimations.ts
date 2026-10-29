@@ -1,9 +1,6 @@
 /**
  * Centralized GSAP animation helpers — a restrained, business-appropriate
- * motion layer shared across the app.
- *
- * Ported from byte-stash's useMotion.ts (commit fae308a), merged with the
- * pre-existing byte-git helpers. All existing function signatures are
+ * motion layer shared across the app. All existing function signatures are
  * preserved so MainContent.vue / App.vue keep working unchanged.
  *
  * Design language (deliberate):
@@ -215,7 +212,7 @@ export function fadeIn(el: Element | HTMLElement, done?: () => void): void {
   )
 }
 
-// ---- v-reveal: single-element entrance (byte-stash port) ----
+// ---- v-reveal: single-element entrance ----
 
 /**
  * Directive: reveal a single element on mount. binding.value = delay (seconds).

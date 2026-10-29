@@ -1,8 +1,6 @@
 /**
  * stores/wallpaper.ts — Wallpaper state machine.
  *
- * Ported from byte-stash (commit fae308a) and localised for byte-git.
- *
  * Architecture:
  *   - Wallpaper FILES are managed by the Go backend (WallpaperUpload/List/
  *     Delete + WallpaperDataDir) at ~/.cicbyte/apps/byte-git/wallpapers/.
@@ -12,10 +10,9 @@
  *     (.wp-layer image + .wp-mask color wash). Panels become translucent
  *     via derivation.css's color-mix(--bg-*-orig, transparent --wp-panel-alpha).
  *
- * Image source strategy (byte-git specific — see T10 in the port plan):
- *   byte-stash uses Tauri's convertFileSrc() + asset: protocol. Wails v2's
- *   equivalent protocol story is uncertain, so we use Go's WallpaperDataURL
- *   (base64 data URL) which works universally in <img> / background-image
+ * Image source strategy:
+ *   Wallpapers are converted to base64 data URLs on the Go side
+ *   (WallpaperDataURL), which works universally in <img> / background-image
  *   without any CSP configuration.
  */
 

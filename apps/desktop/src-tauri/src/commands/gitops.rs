@@ -1,16 +1,14 @@
 //! gitops 域命令：Git 配置（user.name/email 等常用项）、远程 / 分支 / 标签
 //! 管理、Lua 钩子与 stash。
 //!
-//! 移植自 git-mate `gui/internal/gitops`（gitconfig.go + gitmanage.go +
-//! hook.go + stash.go）。git 子进程统一走本文件的 `git_exec` / `git_run`
-//! （隐藏窗口 + 超时 + stdout/stderr 分离捕获），对应 Go 侧的
-//! core.HideExec / sysproc.Command(Context)；钩子安装 / 执行 / 读脚本复用
+//! git 子进程统一走本文件的 `git_exec` / `git_run`
+//! （隐藏窗口 + 超时 + stdout/stderr 分离捕获）；钩子安装 / 执行 / 读脚本复用
 //! byte-git-core::hook。
 //!
 //! Go 侧绑定方法均无 repo 参数（用 Core.CurrentRepo），Rust 侧统一在尾部
 //! 追加 `repo: Option<String>`，经 crate::state::resolve 解析（当前仓库
 //! 状态 → "."）。命名 stash 前缀沿用 byte-git 全仓统一的
-//! "byte-git-stash:"（Go 侧为 "git-mate-stash:"），保证 GUI 与 CLI 互认。
+//! "byte-git-stash:"，保证 GUI 与 CLI 互认。
 
 use byte_git_core::hook::{self as core_hook};
 use serde::Serialize;
@@ -25,7 +23,7 @@ const STASH_TIMEOUT: Duration = Duration::from_secs(30);
 /// stash drop（对应 Go 15s 超时）。
 const STASH_DROP_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// 命名 stash 的消息前缀（core::stash 同款；Go 侧为 git-mate-stash:）。
+/// 命名 stash 的消息前缀（与 core::stash 一致）。
 const STASH_PREFIX: &str = "byte-git-stash:";
 
 /// 与 Go GUI 一致：无仓库上下文的命令统一接收可选 repo 参数；

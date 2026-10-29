@@ -1,6 +1,6 @@
 //! byte-git 桌面端（Tauri v2）。
 //!
-//! 前端为 git-mate 移植的 Vue 3 应用，通过 `src/wailsjs/go/main/ByteGitApp.ts`
+//! 前端为 Vue 3 应用，通过 `src/wailsjs/go/main/ByteGitApp.ts`
 //! 适配层调用本 crate 暴露的 Tauri 命令（方法名 snake_case 化）。
 
 mod commands;

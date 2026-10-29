@@ -1,6 +1,6 @@
 <script setup>
 /**
- * AppearanceForm — 主题系统设置 UI（完全对标 byte-stash）。
+ * AppearanceForm — 主题系统设置 UI。
  *
  * 三块能力：
  *   1. 主题模式（亮/暗/跟随系统）
@@ -13,7 +13,7 @@
  *      - JSON 代码模式（整进整出）+ 文件导入导出
  *
  * 性能：拖动色板时 applyLive() 只更 CSS 变量（轻量），松开才 applyCustom()
- * 完整持久化。与 byte-stash 一致。
+ * 完整持久化。
  */
 import { ref, computed, watch } from 'vue'
 import {
@@ -123,7 +123,7 @@ function onRegionInput(key, prop, val) {
   theme.setRegionToken(editTab.value, key, prop, val)
 }
 
-/* ===== 字段组（完全对标 byte-stash TOKEN_GROUPS） ===== */
+/* ===== 字段组 ===== */
 const TOKEN_GROUPS = [
   {
     label: '主色', fields: [

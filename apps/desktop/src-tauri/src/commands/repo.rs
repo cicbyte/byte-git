@@ -1,7 +1,6 @@
 //! repo 域命令：当前仓库状态与最近仓库列表（切换/移除/读取）、
 //! 仓库文件浏览器（列目录/搜索/读文件/读图片/README）、系统打开。
 //!
-//! 移植自 git-mate `gui/internal/repo`（repo.go + browser.go + repos.go）。
 //! 当前仓库状态与最近列表走 crate::state（recent-repos.json 持久化），
 //! 对应 Go 的 Core.CurrentRepo 与 repos.json。
 //!

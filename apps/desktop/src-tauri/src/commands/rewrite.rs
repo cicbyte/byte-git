@@ -1,7 +1,5 @@
 //! rewrite 域命令：AI 提交信息改写 + 元数据改写 + JSON 编辑器。
 //!
-//! 移植自 git-mate `gui/internal/rewrite`（rewrite.go / metarewrite.go /
-//! metarewrite_rules.go / jsoneditor.go）。行为语义与 Go 版保持一致；
 //! 仓库级数据路径复用 byte-git-core 约定（`.git/byte-git/rewrite/...`）。
 
 use byte_git_core::ai::{self, ChatClient, ChatMessage};
@@ -228,13 +226,13 @@ fn truncate_bytes(s: &str, max: usize) -> String {
     format!("{}\n... (已截断)", &s[..end])
 }
 
-/// 移植 airewrite.GetCommitDiff：`git diff-tree -p <hash>`，超过 maxChars 截断。
+/// 提交 diff：`git diff-tree -p <hash>`，超过 maxChars 截断。
 fn get_commit_diff(repo: &Path, hash: &str, max_chars: usize) -> Result<String, String> {
     let out = run_capture(repo, ["diff-tree", "-p", hash]).map_err(|e| format!("git diff-tree 失败: {e:#}"))?;
     Ok(truncate_bytes(&out, max_chars))
 }
 
-/// 移植 airewrite.GetCommitStat：返回 (shortstat 摘要, 变更文件列表)。
+/// 提交统计：返回 (shortstat 摘要, 变更文件列表)。
 fn get_commit_stat(repo: &Path, hash: &str) -> Result<(String, Vec<String>), String> {
     let out = run_capture(repo, ["diff-tree", "--stat", "--no-commit-id", "-r", hash])
         .map_err(|e| format!("git diff-tree --stat 失败: {e:#}"))?;
@@ -259,7 +257,7 @@ fn get_commit_stat(repo: &Path, hash: &str) -> Result<(String, Vec<String>), Str
     Ok((summary, files))
 }
 
-/// 移植 commit.CleanCommitMessage：剥离 markdown 代码块包裹与首尾引号。
+/// 清理提交信息：剥离 markdown 代码块包裹与首尾引号。
 fn clean_commit_message(s: &str) -> String {
     let mut s = s.trim().to_string();
     if s.starts_with("```") {
@@ -281,7 +279,7 @@ fn clean_commit_message(s: &str) -> String {
     s
 }
 
-/// 移植 airewrite.BuildPrompt：airewrite.md 模板 + 占位符替换 + 长度截断。
+/// 构建提示词：airewrite.md 模板 + 占位符替换 + 长度截断。
 fn build_prompt(original: &str, files: &[String], diff_summary: &str, diff: &str, lang: &str, max_chars: usize) -> String {
     let lang_str = if lang == "en" { "English" } else { "中文" };
     let tpl = ai::get_prompt_file("airewrite.md")
@@ -566,7 +564,7 @@ fn commit_size_weights(repo: &Path, entries: &[CommitEntry]) -> Vec<u64> {
     out
 }
 
-/// 移植 rewrite.DistributeByDays：按逐日分配重写 entries 日期。
+/// 按逐日分配重写 entries 日期。
 /// weights（与 entries 同序，新→旧）：Some 且分配合计与条数一致、顺序模式时，
 /// 同一天内按当天提交体量加权时间间隔（大提交间隔更长）。
 fn distribute_by_days(
@@ -690,7 +688,7 @@ fn get_parent_commit_date(repo: &Path, hash: &str) -> Option<i64> {
     Some(wall - off)
 }
 
-/// 移植 rewrite.ClampToParent：窗口内日期不早于 git 父提交（整体平移）。
+/// 窗口内日期不早于 git 父提交（整体平移）。
 fn clamp_to_parent(entries: &mut [CommitEntry], parent_abs: i64) {
     if entries.is_empty() {
         return;
@@ -712,7 +710,7 @@ fn clamp_to_parent(entries: &mut [CommitEntry], parent_abs: i64) {
 }
 
 // ---------------------------------------------------------------------------
-// filter-branch 脚本构造（移植 internal/rewrite rules.go，引号策略与 core 一致）
+// filter-branch 脚本构造（引号策略与 core 一致）
 // ---------------------------------------------------------------------------
 
 fn sh_quote(s: &str) -> String {

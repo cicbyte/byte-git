@@ -1,6 +1,6 @@
 //! 仓库洞察：summary（概览）/ health（健康检查）。
 //!
-//! 对应 git-mate `internal/info` 的 CLI 子集。
+//! 仓库洞察数据的 CLI 输出。
 
 use crate::git;
 use crate::util::{exec_capture, run_capture};

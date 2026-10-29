@@ -1,7 +1,6 @@
 //! GitHub Release 资产下载：列表检索 + 平台自动匹配 + 进度条下载。
 //!
-//! 移植自 git-mate `internal/download`（CLI 部分为非 TUI 实现：
-//! --latest 自动匹配 / --tag 指定版本 / 默认列出并交互选择）。
+//! CLI 行为：--latest 自动匹配 / --tag 指定版本 / 默认列出并交互选择。
 
 use crate::config::Settings;
 use crate::util::AppPaths;
@@ -134,7 +133,7 @@ where
 }
 
 /// 平台匹配（文件名按 -_. 分词精确匹配；复合关键词如 x86_64 会被分词拆开，
-/// 因此对含分隔符的关键词额外做子串匹配——修正 git-mate 的边界缺陷）。
+/// 因此对含分隔符的关键词额外做子串匹配）。
 pub fn auto_select_assets(assets: &[Asset]) -> Vec<Asset> {
     let os_kws: &[&str] = if cfg!(windows) {
         &["windows", "win"]

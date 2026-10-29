@@ -1,4 +1,4 @@
-//! 壁纸文件生命周期管理（移植上游 gui/internal/wallpaper）。
+//! 壁纸文件生命周期管理。
 //!
 //! - 数据目录 `~/.cicbyte/apps/byte-git/wallpapers/`
 //! - 上传 = 时间戳前缀复制（防覆盖）；列表 newest-first；删除 + 缩略图清理

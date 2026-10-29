@@ -1,6 +1,5 @@
 //! .gitignore 管理：内嵌常用模板 + 追加写入。
 //!
-//! 移植自 git-mate `internal/gitignore`（本地模板子集）。
 
 use anyhow::{bail, Result};
 use include_dir::{include_dir, Dir};

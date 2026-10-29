@@ -1,7 +1,7 @@
 //! info 域命令：仓库洞察（概览/健康/体积/大文件/分支/活动/作者/变更日志/
 //! 热点/TODO）与跨仓库开发统计。
 //!
-//! 移植自 git-mate `gui/internal/info`（info.go + stats.go），数据装配对齐
+//! 数据装配对齐
 //! `internal/info` 的 Exported 实现（GetSummary/GetHealth/GetSize/GetBranches/
 //! GetActivity/GetAuthors/GetChangelog/GetHotspots/GetTodos/ScanLargeFiles/
 //! GetStats）。core 侧 info/stats 是 CLI 打印输出，GUI 需要结构化 DTO，

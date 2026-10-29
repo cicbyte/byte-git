@@ -1,6 +1,5 @@
 //! 密钥泄露扫描（集成外部 gitleaks）。
 //!
-//! 移植自 git-mate `internal/gitleaks`（discover + scan）。
 //! `gitleaks git <repo> --report-format json --report-path - --exit-code 0 --no-banner`
 
 use crate::config::Settings;
@@ -162,7 +161,7 @@ pub fn mask_secret(s: &str) -> String {
     format!("{}***{}", &s[..4], &s[s.len() - 4..])
 }
 
-/// 控制台输出扫描结果（对齐 git-mate printScanResult）。
+/// 控制台输出扫描结果。
 pub fn print_result(res: &ScanResult) {
     let n = res.findings.len();
     if n == 0 {

@@ -1,7 +1,7 @@
 //! 仓库快照归档：`git archive` → tar.gz/zip/tar。
 //!
-//! 移植自 git-mate `internal/archive`（标准模式；完整模式见 full_backup，
-//! 由 backup 模块承担，此处的 archive 即标准模式 + 导出目录约定）。
+//! 标准模式归档（完整模式见 full_backup，由 backup 模块承担，
+//! 此处的 archive 即标准模式 + 导出目录约定）。
 
 use crate::util::{run_capture, AppPaths};
 use anyhow::{bail, Context, Result};
@@ -43,7 +43,7 @@ fn git_format(format: &str) -> &'static str {
 
 /// 默认输出：`downloads/archive/<repo>/<时间戳>-<ref><ext>`（重复归档不覆盖）。
 pub fn default_archive_path(repo: &Path, ref_: &str, format: &str) -> Result<PathBuf> {
-    // 对齐 git-mate：先解析绝对路径再取末段目录名（repo 可能传 "."）
+    // 先解析绝对路径再取末段目录名（repo 可能传 "."）
     let abs = std::fs::canonicalize(repo).unwrap_or_else(|_| repo.to_path_buf());
     let name = abs
         .file_name()

@@ -104,6 +104,14 @@ export const PRESETS: Record<BuiltinPreset, PresetSeed> = {
     accent:  { light: '#FF79C6', dark: '#93A5FF' },
     bgBase:  { light: '#f8fafc', dark: '#08090A' },
   },
+  paper: {
+    label: '纸墨',
+    // 主色即墨：浅色墨黑 → 主按钮黑底白字；
+    // 深色纸白 → 主按钮纸白底墨字。品牌色让位于文字本身。
+    primary: { light: '#1b1c1f', dark: '#f2f2f0' },
+    accent:  { light: '#B5432A', dark: '#D08168' },  // 印章朱：墨与朱的克制点缀
+    bgBase:  { light: '#f1f1ee', dark: '#191a1c' },
+  },
   emerald: {
     label: '翡翠绿',
     primary: { light: '#059669', dark: '#4ADE9C' },
@@ -181,6 +189,37 @@ const NEUTRAL_LIGHT: BaseLayer = {
   textDisabled: '#cbd5e1',
   borderBase: '#e2e8f0',
   borderLight: '#f1f5f9',
+}
+
+/* 纸墨（手工精调双模式）：浅色=暖灰画布 + 白纸面 +
+ * 墨色文字；深色=暖炭夜纸（带暖灰相、不死黑）。它的个性就是材质本身
+ * （纸与墨），因此深色不走 Linear 共享中性阶，两种模式都整套装载。
+ * textDisabled 按同族灰阶补齐（暖灰相，不用全局冷灰）。 */
+const PAPER_PALETTE: Record<ResolvedMode, BaseLayer> = {
+  light: {
+    bgBase: '#f1f1ee',
+    bgSurface: '#ffffff',
+    bgElevated: '#f8f8f7',
+    bgInput: '#f3f3f1',
+    textPrimary: '#1c1d21',
+    textSecondary: '#5c6167',
+    textTertiary: '#97999d',
+    textDisabled: '#c6c5c1',
+    borderBase: '#dcdcd9',
+    borderLight: '#e9e9e7',
+  },
+  dark: {
+    bgBase: '#191a1c',
+    bgSurface: '#232527',
+    bgElevated: '#282a2c',
+    bgInput: '#2d2f31',
+    textPrimary: '#ececee',
+    textSecondary: '#a3a6aa',
+    textTertiary: '#74777c',
+    textDisabled: '#5b5e63',
+    borderBase: '#3a3c3f',
+    borderLight: '#2d2f31',
+  },
 }
 
 /* ============================================================
@@ -310,14 +349,17 @@ export function buildPresetColors(preset: BuiltinPreset, mode: ResolvedMode): Th
   const accent = seed.accent[mode]
   const supplement = SUPPLEMENT[mode]
 
-  // Dark mode: every preset shares the Linear neutral ramp (only
-  // primary/accent vary). Light mode: dracula anchor / derived tints.
+  // Base layer: 纸墨 carries both modes hand-tuned (its identity IS the
+  // paper/ink material); dark mode otherwise shares the Linear neutral
+  // ramp; light mode = dracula anchor / derived tints.
   const base: BaseLayer =
-    mode === 'dark'
-      ? LINEAR_DARK
-      : preset === 'dracula'
-        ? NEUTRAL_LIGHT
-        : deriveBaseLayer(seed.bgBase[mode], mode)
+    preset === 'paper'
+      ? PAPER_PALETTE[mode]
+      : mode === 'dark'
+        ? LINEAR_DARK
+        : preset === 'dracula'
+          ? NEUTRAL_LIGHT
+          : deriveBaseLayer(seed.bgBase[mode], mode)
 
   const states = derivePrimaryStates(primary)
   const primaryBg = derivePrimaryBg(primary, mode)
@@ -338,7 +380,7 @@ export function buildPresetColors(preset: BuiltinPreset, mode: ResolvedMode): Th
     textTertiary: base.textTertiary,
     borderBase: base.borderBase,
     borderLight: base.borderLight,
-    textDisabled: supplement.textDisabled,
+    textDisabled: base.textDisabled ?? supplement.textDisabled,
     primaryHover: states.primaryHover,
     primaryActive: states.primaryActive,
     primaryBorder: states.primaryBorder,

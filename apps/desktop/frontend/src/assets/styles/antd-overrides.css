@@ -4,8 +4,7 @@
  * 为什么需要：antd-vue 4.x 的 ConfigProvider 在主题切换时 CSS-in-JS 不完整
  * 更新，且命令式 API（Modal.confirm / message.xxx / notification）不走组件
  * context——自定义主题下它们仍显示默认蓝白配色。统一用 CSS 变量覆盖所有
- * antd 组件色彩，确保跟随主题（参考 byte-writer global.css 的成熟方案，
- * 变量名对齐本项目 derivation.css 体系）。
+ * antd 组件色彩，确保跟随主题（变量名对齐本项目 derivation.css 体系）。
  *
  * 注意：一律 var(--*)，不写死颜色；wallpaper 半透明派生自动生效。
  */

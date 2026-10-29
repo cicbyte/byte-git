@@ -1,6 +1,5 @@
 //! 开源许可证：内嵌 47 份模板，按名称创建（占位符替换年份/作者）。
 //!
-//! 移植自 git-mate `internal/license`（模板同源）。
 
 use anyhow::{bail, Result};
 use chrono::Datelike;
@@ -27,7 +26,7 @@ pub fn list() -> Vec<String> {
 /// 创建 LICENSE 文件到 repo 根。
 ///
 /// 模板为 choosealicense.com 格式：YAML frontmatter（--- ... ---）+ 正文；
-/// 写入时剥离 frontmatter，仅保留正文（与 git-mate 行为一致）。
+/// 写入时剥离 frontmatter，仅保留正文。
 pub fn create(repo: &std::path::Path, name: &str, author: &str, year: Option<i32>) -> Result<()> {
     let file_name = format!("{name}.txt");
     let Some(tpl) = LICENSES.get_file(&file_name) else {
@@ -40,14 +39,14 @@ pub fn create(repo: &std::path::Path, name: &str, author: &str, year: Option<i32
     let content = strip_frontmatter(raw);
 
     let year = year.unwrap_or_else(|| chrono::Local::now().year());
-    // 作者回退链：参数 > git user.name > "Your Name"（与 git-mate 一致）
+    // 作者回退链：参数 > git user.name > "Your Name"
     let author = if author.is_empty() {
         crate::git::config_get(Some(repo), "user.name").unwrap_or_else(|| "Your Name".into())
     } else {
         author.to_string()
     };
 
-    // 常见占位符替换（对齐 git-mate create.go）
+    // 常见占位符替换
     let out = content
         .replace("[year]", &year.to_string())
         .replace("[yyyy]", &year.to_string())

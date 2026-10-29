@@ -1,8 +1,7 @@
 //! backup 域命令：整库克隆备份 + 备份文件浏览、仓库打包归档，以及
 //! log 域（提交列表 / 统计 / 时间机器文件浏览）。
 //!
-//! 移植自 git-mate `gui/internal/backup`（backup.go + archive.go）与
-//! `gui/internal/log`（log.go）。git 子进程统一走本文件的 `git_exec` /
+//! git 子进程统一走本文件的 `git_exec` /
 //! `git_run`（隐藏窗口 + 超时 + stdout/stderr 分离捕获）；归档目录沿用
 //! byte-git 应用目录布局（AppPaths 的 downloads/backups，对应 Go 的
 //! config.GetDownloadDir/GetAppDir）。

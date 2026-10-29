@@ -2,7 +2,7 @@
 //!
 //! Phase 1 的少量根命令（version/config/git_status/branch_clean/ignore_add）
 //! 保留；其余域命令在 commands/ 子目录（commit/gitops/backup/info/repo/
-//! rewrite/secret/license/system/ignore），对应 git-mate gui/internal 布局。
+//! rewrite/secret/license/system/ignore）。
 
 use byte_git_core::branch::CleanOptions;
 use byte_git_core::config::Settings;

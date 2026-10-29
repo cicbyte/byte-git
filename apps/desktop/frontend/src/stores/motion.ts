@@ -1,8 +1,6 @@
 /**
  * stores/motion.ts — Animation preference store.
  *
- * Ported from byte-stash's useMotion.ts preference layer (commit fae308a).
- *
  * Design:
  *   - 6 boolean/enum preferences persisted to localStorage 'byte-git-motion'.
  *   - applyPrefs() pushes duration + ease into gsap.defaults(), so EVERY

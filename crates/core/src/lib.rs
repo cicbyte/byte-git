@@ -4,7 +4,7 @@
 //! （`BYTE_GIT_HOME` 环境变量可覆盖），领域模块围绕 git 仓库操作组织：
 //! 配置、分支清理、stash、统计、备份、许可证与 gitignore 模板等。
 //!
-//! 功能规格移植自 git-mate（Go），行为语义保持一致：
+//! 行为语义约定：
 //! - 全局配置：`~/.cicbyte/apps/byte-git/config/config.yaml`
 //! - 完整备份：`~/.cicbyte/apps/byte-git/backups/<repo-name>/`
 //! - 项目级数据：`.git/byte-git/`

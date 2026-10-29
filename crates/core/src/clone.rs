@@ -1,6 +1,5 @@
 //! 代理加速克隆：快捷预设/本地代理环境注入 + Lua 规则引擎（加速 URL 生成）。
 //!
-//! 移植自 git-mate `cmd/clone.go` + `internal/git/git.go` + rules.lua。
 
 use crate::util::{exec_capture, AppPaths};
 use anyhow::{bail, Context, Result};
@@ -28,7 +27,7 @@ pub struct CloneOptions {
     pub proxy_preset: String,
 }
 
-/// 预设 → (端口, 类型)。移植 processCloneShortcutProxy。
+/// 预设 → (端口, 类型)。
 fn apply_preset(opts: &mut CloneOptions) {
     if !opts.proxy_preset.is_empty() {
         match opts.proxy_preset.as_str() {
@@ -94,7 +93,7 @@ fn setup_proxy(opts: &mut CloneOptions) {
 fn set_proxy_env(upper: &str, lower: &str, url: &str) {
     std::env::set_var(upper, url);
     std::env::set_var(lower, url);
-    // 与 git-mate 一致：同步写入 git 全局配置（git 自身走 http.proxy）
+    // 同步写入 git 全局配置（git 自身走 http.proxy）
     let which = if upper == "HTTP_PROXY" { "http.proxy" } else { "https.proxy" };
     let _ = exec_capture("git", &["config", "--global", which, url]);
 }

@@ -1,6 +1,6 @@
 //! 长任务取消：全局取消标志 + 运行中子进程注册表。
 //!
-//! 对应 git-mate core.TaskContext/CancelTask。Go 用 context 取消链；
+//! 任务上下文与取消：
 //! Rust 侧 v1 简化为：原子取消标志 + 可选的运行中子进程句柄（kill 即取消）。
 //! 长命令执行前检查/注册，前端 CancelTask() 置标志并杀进程。
 

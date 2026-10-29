@@ -1,7 +1,7 @@
 //! 完整仓库备份：`git clone --no-hardlinks` 到
 //! `~/.cicbyte/apps/byte-git/backups/<repo-name>/<时间戳>-<repo-name>/`。
 //!
-//! 移植自 git-mate `internal/backup`（cef8f58）：普通克隆带工作区，
+//! 普通克隆带工作区，
 //! GUI 文件浏览器可直接浏览备份代码；目录名时间戳前缀、字典序即时间序。
 //!
 //! 兼容：早期镜像模型（`backups/<repo-name>/` 本身是 --mirror 裸仓库）

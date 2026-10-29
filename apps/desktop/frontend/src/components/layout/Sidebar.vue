@@ -165,7 +165,7 @@ const expandedWidth = 200
       </span>
     </div>
 
-    <!-- Navigation：平铺模式（参考 byte-writer）——全部菜单项常显直达，
+    <!-- Navigation：平铺模式——全部菜单项常显直达，
          小标题仅作视觉分隔不折叠；分组折叠只增加点击成本且收起时当前
          路由高亮不可见。折叠态为纯图标列（小标题隐藏，tooltip 补全名）。 -->
     <nav class="sidebar-nav">

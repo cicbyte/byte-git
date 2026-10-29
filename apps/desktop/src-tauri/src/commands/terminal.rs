@@ -1,8 +1,6 @@
 //! terminal 域命令：内嵌终端（xterm.js + ConPTY/PTY）。
 //!
-//! 移植自 git-mate `gui/internal/system/terminal.go` 与
-//! `internal/terminal/{terminal.go, terminal_windows.go}`（ConPTY 封装）。
-//! Go conpty → portable-pty 0.9：CommandBuilder + openpty(PtySize) +
+//! ConPTY 封装基于 portable-pty 0.9：CommandBuilder + openpty(PtySize) +
 //! 读线程 base64 编码后 emit。
 //!
 //! 会话模型：单会话（对齐 Go SystemModule 只有一个 Pty 字段，TerminalStart

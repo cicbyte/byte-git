@@ -1,7 +1,7 @@
 /**
  * derivation.css — Theme color variables (the heart of the theme system).
  *
- * Three-layer architecture (ported from byte-stash, localised for byte-git):
+ * Three-layer colour architecture:
  *
  *   Layer 1  base palette  : --bg-*-orig / --color-primary / --text-* / --border-*
  *                            (token.ts → applyColorsToDOM() injects runtime values)

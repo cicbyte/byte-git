@@ -1,6 +1,6 @@
 //! license 域命令：开源许可证模板 / 创建 / 检测 / 读写 / 依赖审计。
 //!
-//! 移植自 git-mate `gui/internal/license`。模板元数据（标题/分类/权限/条件/
+//! 模板元数据（标题/分类/权限/条件/
 //! 限制/推荐位）静态内嵌，与 core assets/licenses 的 choosealicense.com
 //! 模板 frontmatter 同源；正文生成复用 byte-git-core::license。
 
