@@ -13,9 +13,11 @@ export interface SettingsDTO {
   model: string
   baseUrl: string
   apiKey: string
+  apiKeySet: boolean
   lang: string
   maxTokens: number
   githubToken: string
+  githubTokenSet: boolean
   ocrExePath: string
   ocrConcurrency: number
   ocrMaxTools: number
@@ -71,9 +73,11 @@ const settings = reactive<SettingsDTO>({
   model: '',
   baseUrl: '',
   apiKey: '',
+  apiKeySet: false,
   lang: 'zh',
   maxTokens: 4000,
   githubToken: '',
+  githubTokenSet: false,
   ocrExePath: '',
   ocrConcurrency: 0,
   ocrMaxTools: 0,

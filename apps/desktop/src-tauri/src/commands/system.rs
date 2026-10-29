@@ -51,10 +51,14 @@ where
 pub struct SettingsDto {
     pub model: String,
     pub base_url: String,
+    /// 恒为空串：密钥不回显前端，是否已配置看 api_key_set
     pub api_key: String,
+    pub api_key_set: bool,
     pub lang: String,
     pub max_tokens: i64,
+    /// 恒为空串：同 api_key
     pub github_token: String,
+    pub github_token_set: bool,
     pub ocr_exe_path: String,
     pub ocr_concurrency: i64,
     pub ocr_max_tools: i64,
@@ -78,10 +82,12 @@ fn to_dto(s: &Settings) -> Result<SettingsDto, String> {
     Ok(SettingsDto {
         model: s.ai.model.clone(),
         base_url: s.ai.base_url.clone(),
-        api_key: s.ai.api_key.clone(),
+        api_key: String::new(),
+        api_key_set: !s.ai.api_key.is_empty(),
         lang: s.ai.lang.clone(),
         max_tokens: s.ai.max_tokens,
-        github_token: s.github.token.clone(),
+        github_token: String::new(),
+        github_token_set: !s.github.token.is_empty(),
         ocr_exe_path: s.ocr.exe_path.clone(),
         ocr_concurrency: s.ocr.concurrency,
         ocr_max_tools: s.ocr.max_tools,

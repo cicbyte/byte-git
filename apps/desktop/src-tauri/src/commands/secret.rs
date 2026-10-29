@@ -519,6 +519,7 @@ fn prune_after_scrub(repo: &Path) {
 /// 高危操作；autoBackup=true 时先做整库克隆备份。
 #[tauri::command]
 pub fn secret_scrub_history(repo: Option<String>, secret: String, auto_backup: bool) -> Result<ScrubResult, String> {
+    let _busy = crate::commands::acquire_rewrite_busy()?;
     let repo = repo_path(repo);
     if secret.is_empty() {
         return Err("密钥内容为空".into());

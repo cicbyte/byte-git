@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, onMounted, watch, nextTick } from 'vue'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 /**
  * Renders a markdown string as styled HTML.
@@ -34,7 +35,9 @@ const html = computed(() => {
   if (typeof out === 'string') {
     out = out.replace(/<a href="(https?:)/g, '<a target="_blank" rel="noopener" href="$1')
   }
-  return out
+  // 仓库内容是不可信输入：剥离脚本/事件属性/危险标签后再进 v-html
+  // （target 加入白名单以保留新窗口语义）
+  return DOMPurify.sanitize(out, { ADD_ATTR: ['target'] })
 })
 
 // ---- local image inlining ----

@@ -101,3 +101,42 @@ pub fn config_set(key: String, value: String) -> Result<(), String> {
 fn app_root_info() -> Result<String, String> {
     Ok(util::AppPaths::new().map_err(|e| e.to_string())?.root().display().to_string())
 }
+
+// ---------------------------------------------------------------------------
+// 历史改写执行互斥护栏
+// ---------------------------------------------------------------------------
+
+/// 同一时刻仅允许一个历史改写执行（rewrite_apply / meta_rewrite_apply /
+/// secret_scrub_history）：这些命令跑 git filter-branch 分钟级重操作，双击
+/// 或多页面并发触发若双跑会交叉改写 refs。前端 loading 只是体验层防线。
+static REWRITE_BUSY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub(crate) struct RewriteBusyGuard;
+impl Drop for RewriteBusyGuard {
+    fn drop(&mut self) {
+        REWRITE_BUSY.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+/// 获取改写执行权；已有任务在跑时立即报错。guard 落地即锁定，Drop（含
+/// 提前 return / panic 展开）自动释放。
+pub(crate) fn acquire_rewrite_busy() -> Result<RewriteBusyGuard, String> {
+    if REWRITE_BUSY.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        Err("已有改写任务在执行中，请等待完成后再试".into())
+    } else {
+        Ok(RewriteBusyGuard {})
+    }
+}
+
+#[cfg(test)]
+mod busy_tests {
+    use super::*;
+
+    #[test]
+    fn rewrite_busy_mutex_semantics() {
+        let g1 = acquire_rewrite_busy().unwrap();
+        assert!(acquire_rewrite_busy().is_err(), "重入必须被拒");
+        drop(g1);
+        assert!(acquire_rewrite_busy().is_ok(), "Drop 后必须可再入");
+    }
+}

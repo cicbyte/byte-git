@@ -1212,6 +1212,7 @@ pub fn rewrite_apply_preview(repo: Option<String>, entries: Vec<RewriteEntryDto>
 /// RewriteApply：filter-branch 执行 AI message 改写；autoBackup 时先整库备份。
 #[tauri::command]
 pub fn rewrite_apply(repo: Option<String>, entries: Vec<RewriteEntryDto>, auto_backup: bool) -> Result<bool, String> {
+    let _busy = crate::commands::acquire_rewrite_busy()?;
     let repo = repo_path(repo);
     let preview = rewrite_apply_preview_impl(&repo, &entries)?;
 
@@ -1476,6 +1477,7 @@ pub fn meta_rewrite_apply(
     sync_refs: bool,
     auto_backup: bool,
 ) -> Result<bool, String> {
+    let _busy = crate::commands::acquire_rewrite_busy()?;
     let repo = repo_path(repo);
     let preview = meta_rewrite_preview_impl(&repo, &entries)?;
 

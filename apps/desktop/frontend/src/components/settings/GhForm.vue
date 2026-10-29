@@ -65,7 +65,7 @@ onMounted(() => { ensureStatusLoaded() })
         </div>
         <a-input-password
           :value="settings.githubToken"
-          placeholder="ghp_..."
+          :placeholder="settings.githubTokenSet ? '已配置（不回显），输入以更换' : 'ghp_...'"
           style="width: 380px"
           @change="(e) => onTokenChange(e.target.value)"
         />

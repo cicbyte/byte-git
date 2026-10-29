@@ -66,11 +66,11 @@ const appVersion = computed(() => (window.go && window.go.main && window.go.main
         <div class="setting-row">
           <div class="row-label">
             <div class="row-title">API Key</div>
-            <div class="row-help">部分本地服务可留空</div>
+            <div class="row-help">{{ settings.apiKeySet ? '已配置（不回显）；输入新值更换，清空保存即删除' : '部分本地服务可留空' }}</div>
           </div>
           <a-input-password
             :value="settings.apiKey"
-            placeholder="sk-..."
+            :placeholder="settings.apiKeySet ? '已配置，输入以更换' : 'sk-...'"
             style="width: 280px"
             @change="(e) => onApiKeyChange(e.target.value)"
           />
