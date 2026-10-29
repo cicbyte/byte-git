@@ -9,8 +9,18 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { message as AMessage } from 'ant-design-vue'
 import { SaveOutlined, UndoOutlined } from '@ant-design/icons-vue'
+import { useSettings, SETTING_KEYS } from '@/composables/useSettings'
 
 const app = window.go?.main?.ByteGitApp
+const { settings, queueSave } = useSettings()
+
+const langOptions = [
+  { label: '中文', value: 'zh' },
+  { label: 'English', value: 'en' },
+]
+const onLangChange = (v) => queueSave(SETTING_KEYS.lang, v)
+// 提示词中的语言占位符（拼接避免 Vue 模板插值解析）
+const LANG_PH = '{{' + 'language' + '}}'
 
 const SCENES = [
   { key: 'aicommit.md', label: '提交信息生成', help: '提交台「AI 生成」：根据暂存区 diff 生成 commit message' },
@@ -78,7 +88,20 @@ async function resetDefault() {
       <a-tab-pane v-for="s in SCENES" :key="s.key" :tab="s.label" />
     </a-tabs>
 
-    <div class="scene-help">{{ sceneMeta?.help }}</div>
+    <div class="scene-bar">
+      <span class="scene-help">{{ sceneMeta?.help }}</span>
+      <span class="lang-pick">
+        生成语言
+        <a-select
+          :value="settings.lang"
+          :options="langOptions"
+          size="small"
+          style="width: 96px"
+          @change="onLangChange"
+        />
+        <span class="lang-note">填充提示词中的 {{ LANG_PH }} 占位符（与 AI 设置同步）</span>
+      </span>
+    </div>
 
     <a-spin :spinning="loading" wrapper-class-name="prompt-spin">
       <a-textarea v-model:value="content" :rows="18" class="prompt-area" spellcheck="false" />
@@ -106,10 +129,31 @@ async function resetDefault() {
   flex-direction: column;
 }
 
+.scene-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
 .scene-help {
   font-size: 12px;
   color: var(--color-text-tertiary);
-  margin-bottom: 8px;
+}
+
+.lang-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.lang-note {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
 }
 
 .prompt-spin,
