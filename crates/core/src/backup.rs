@@ -8,7 +8,7 @@
 //! 在 list 时自动转换——从裸仓库克隆出标准条目后清理裸内部结构。
 
 use crate::git;
-use crate::util::{AppPaths, BACKUP_LEGACY_BARE_ENTRIES};
+use crate::util::{run_capture, AppPaths, BACKUP_LEGACY_BARE_ENTRIES};
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -97,6 +97,21 @@ fn clone_with_timeout(src: &Path, dest: &Path) -> Result<()> {
     }
 }
 
+/// 克隆后把备份仓库的 origin 改写为源仓库的原始远端。
+/// git clone 的 origin 指向克隆来源（本地磁盘路径）；备份应当记住真正的
+/// 远端，源仓库移动/删除后备份仍可直接 push/pull。源仓库没有 origin 时
+/// 保持克隆默认不动。best-effort：失败不影响备份本身。
+fn rewrite_origin_to_source_remote(src: &Path, dest: &Path) {
+    let remote = match run_capture(src, ["remote", "get-url", "origin"]) {
+        Ok(u) => u.trim().to_string(),
+        Err(_) => return, // 源仓库无 origin → 保持克隆默认
+    };
+    if remote.is_empty() {
+        return;
+    }
+    let _ = run_capture(dest, ["remote", "set-url", "origin", &remote]);
+}
+
 /// 旧模型检测：备份根本身是裸仓库（HEAD + objects + refs 并存）。
 fn is_legacy_bare(dir: &Path) -> bool {
     dir.join("HEAD").is_file() && dir.join("objects").is_dir() && dir.join("refs").is_dir()
@@ -128,6 +143,7 @@ pub fn migrate_legacy_mirror(repo_dir: &Path) {
     if clone_with_timeout(repo_dir, &dest).is_err() {
         return; // 留待下次，不动原数据
     }
+    rewrite_origin_to_source_remote(repo_dir, &dest);
     for entry in BACKUP_LEGACY_BARE_ENTRIES {
         let p = repo_dir.join(entry);
         if p.is_dir() {
@@ -151,6 +167,7 @@ pub fn create_full(repo: &str) -> Result<BackupEntry> {
     let dest = backup_dir.join(&backup_name);
 
     clone_with_timeout(&root, &dest).context("创建备份失败")?;
+    rewrite_origin_to_source_remote(&root, &dest);
     Ok(BackupEntry {
         timestamp: format_backup_name(&backup_name),
         path: dest.display().to_string(),
@@ -173,6 +190,7 @@ pub fn create(repo: &str) -> Result<()> {
 
     println!("正在克隆 {} 到 {}", root.display(), dest.display());
     clone_with_timeout(&root, &dest).context("创建备份失败")?;
+    rewrite_origin_to_source_remote(&root, &dest);
     println!("\n备份完成: {}", dest.display());
     Ok(())
 }
@@ -249,4 +267,72 @@ pub fn list_backups(repo: &str) -> Result<Vec<BackupEntry>> {
     }
     result.sort_by(|a, b| b.name.cmp(&a.name));
     Ok(result)
+}
+
+#[cfg(test)]
+mod rewrite_origin_tests {
+    use super::*;
+
+    fn git(dir: &Path, args: &[&str]) {
+        let out = std::process::Command::new("git")
+            .arg("-C").arg(dir).args(args).output().unwrap();
+        assert!(
+            out.status.success(),
+            "git {:?} 失败: {}",
+            args,
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    fn temp_base(tag: &str) -> PathBuf {
+        let p = std::env::temp_dir().join(format!("byte-git-bk-{}-{}", tag, std::process::id()));
+        let _ = std::fs::remove_dir_all(&p);
+        std::fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    #[test]
+    fn backup_origin_points_to_source_remote() {
+        let base = temp_base("remote");
+        let (bare, src, dest) = (base.join("origin.git"), base.join("src"), base.join("dest"));
+        git(&base, &["init", "--bare", "origin.git"]);
+        git(&base, &["clone", "origin.git", "src"]);
+        git(&src, &["config", "user.email", "t@t"]);
+        git(&src, &["config", "user.name", "t"]);
+        git(&src, &["commit", "--allow-empty", "-m", "x"]);
+        git(&src, &["push", "origin", "HEAD"]);
+        git(&base, &["clone", "src", "dest"]);
+
+        rewrite_origin_to_source_remote(&src, &dest);
+
+        let from_src = run_capture(&src, ["remote", "get-url", "origin"]).unwrap();
+        let from_dest = run_capture(&dest, ["remote", "get-url", "origin"]).unwrap();
+        assert_eq!(from_src.trim(), from_dest.trim(), "备份 origin 应等于源仓库的原始远端");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn backup_origin_keeps_default_without_remote() {
+        let base = temp_base("noremote");
+        let (src, dest) = (base.join("src"), base.join("dest"));
+        std::fs::create_dir_all(&src).unwrap();
+        git(&src, &["init"]);
+        git(&src, &["config", "user.email", "t@t"]);
+        git(&src, &["config", "user.name", "t"]);
+        git(&src, &["commit", "--allow-empty", "-m", "x"]);
+        let ok = std::process::Command::new("git")
+            .arg("clone").arg(&src).arg(&dest).output().unwrap();
+        assert!(ok.status.success());
+
+        rewrite_origin_to_source_remote(&src, &dest);
+
+        // 无远端：保持克隆默认（origin 指向本地源路径）
+        let from_dest = run_capture(&dest, ["remote", "get-url", "origin"]).unwrap();
+        assert_eq!(
+            from_dest.trim(),
+            src.display().to_string(),
+            "源无 origin 时备份保持克隆默认"
+        );
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }
