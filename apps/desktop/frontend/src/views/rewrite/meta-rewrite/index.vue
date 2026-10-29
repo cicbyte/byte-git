@@ -17,6 +17,7 @@ import ContextMenu from '@/components/common/ContextMenu.vue'
 import CtxItem from '@/components/common/CtxItem.vue'
 import MetaPreviewModal from './components/MetaPreviewModal.vue'
 import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
+import { EventsOn, EventsOff } from '@bridge/runtime/runtime'
 import { useCommitStat } from '@/composables/useCommitStat'
 const repo = useRepoStore()
 const app = window.go?.main?.ByteGitApp
@@ -205,11 +206,17 @@ function restoreActive() {
 }
 
 // 单条 AI 整理 message：RewriteGenerate（「提示词」页改写规则，diff 按 hash 自动加载），
-// 结果回填改写值；行级互斥防重复触发
+// 订阅 rewrite:token 流式回显到改写值输入框；行级互斥防重复触发
 const aiLoadingHash = ref('')
 async function aiMessage(entry) {
   if (!app?.RewriteGenerate || aiLoadingHash.value) return
   aiLoadingHash.value = entry.hash
+  let buf = ''
+  EventsOn('rewrite:token', (d) => {
+    if (!d || d.hash !== entry.hash) return
+    buf += d.token || ''
+    entry.rewrite.message = buf
+  })
   try {
     const suggested = await app.RewriteGenerate(repo.repoArg(), {
       hash: entry.hash,
@@ -220,12 +227,16 @@ async function aiMessage(entry) {
     })
     if (suggested && suggested.trim()) {
       entry.rewrite.message = suggested.trim()
+    } else if (buf.trim()) {
+      entry.rewrite.message = buf.trim() // 清洗结果缺失时保留已流出的原文
     } else {
       AMessage.warning('AI 未返回内容')
     }
   } catch (e) {
+    if (buf.trim()) entry.rewrite.message = buf.trim() // 失败时保留已生成部分供手改
     AMessage.error('AI 整理失败: ' + String(e?.message || e))
   } finally {
+    EventsOff('rewrite:token')
     aiLoadingHash.value = ''
   }
 }

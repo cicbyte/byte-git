@@ -6,6 +6,7 @@ import {
   EyeOutlined, DeleteOutlined,
 } from '@ant-design/icons-vue'
 import { useRepoStore } from '@/stores/repo'
+import { EventsOn, EventsOff } from '@bridge/runtime/runtime'
 import CodeViewer from '@/components/common/CodeViewer.vue'
 import RewriteRowEditor from '@/components/rewrite/RewriteRowEditor.vue'
 import RewritePreviewModal from '@/components/rewrite/RewritePreviewModal.vue'
@@ -245,11 +246,19 @@ function restoreRow(row) {
 }
 
 // 单行 AI 整理 message：走 RewriteGenerate（使用「提示词」页的改写规则），
-// 结果回填改写值并标脏；diff 由后端按 hash 自动加载
+// 订阅 rewrite:token 流式回显到改写值输入框，完成后以清洗结果定稿；
+// diff 由后端按 hash 自动加载；行级互斥防重复触发
 const aiLoadingHash = ref('')
 async function aiMessage(row) {
   if (!app?.RewriteGenerate || aiLoadingHash.value) return
   aiLoadingHash.value = row.hash
+  let buf = ''
+  EventsOn('rewrite:token', (d) => {
+    if (!d || d.hash !== row.hash) return
+    buf += d.token || ''
+    row.rewrite.message = buf
+    markDirty()
+  })
   try {
     const suggested = await app.RewriteGenerate(repo.repoArg(), {
       hash: row.hash,
@@ -260,13 +269,16 @@ async function aiMessage(row) {
     })
     if (suggested && suggested.trim()) {
       row.rewrite.message = suggested.trim()
-      markDirty()
+    } else if (buf.trim()) {
+      row.rewrite.message = buf.trim() // 清洗结果缺失时保留已流出的原文
     } else {
       AMessage.warning('AI 未返回内容')
     }
   } catch (e) {
+    if (buf.trim()) row.rewrite.message = buf.trim() // 失败时保留已生成部分供手改
     AMessage.error('AI 整理失败: ' + String(e?.message || e))
   } finally {
+    EventsOff('rewrite:token')
     aiLoadingHash.value = ''
   }
 }
