@@ -3,7 +3,8 @@
 //!
 //! Go 侧 Wails 绑定多数方法无 repo 参数，靠 Core 内部状态；
 //! Rust 侧用全局 Mutex 状态 + `~/.cicbyte/apps/byte-git/recent-repos.json` 持久化。
-//! 前端 SwitchRepo(path) 切换时更新；无状态时回落 "."。
+//! 前端 SwitchRepo(path) 切换时更新；无显式切换记录时默认选中侧栏
+//! 第一项（见 default_repo），仅空列表回落 "."。
 
 use byte_git_core::util::AppPaths;
 use std::path::PathBuf;
@@ -17,12 +18,29 @@ pub fn set_current(path: &str) {
     *g = Some(path.to_string());
 }
 
-/// 取当前仓库（无则 "."，对应 Go CurrentRepoOrDot）。
+/// 取当前仓库（无显式切换记录时默认选中侧栏第一项，见 default_repo）。
 pub fn current_or_dot() -> String {
-    CURRENT
-        .lock()
-        .unwrap()
-        .clone()
+    let mut g = CURRENT.lock().unwrap();
+    if let Some(p) = g.as_ref() {
+        return p.clone();
+    }
+    let p = default_repo();
+    *g = Some(p.clone());
+    p
+}
+
+/// 首次启动（无显式切换记录）的默认仓库：侧栏第一项——pinned 优先，
+/// pinned/recent 均为新者在前；路径已失效（.git 不存在）依次尝试后续
+/// 条目，列表为空才回落 "."。回落 "." 会命中应用启动目录（tauri dev
+/// 下即 byte-git 仓库自身），误导用户在错误仓库上操作，故仅作最后兜底。
+fn default_repo() -> String {
+    let rf = load_recent_file();
+    rf.pinned
+        .iter()
+        .chain(rf.recent.iter())
+        .map(PathBuf::from)
+        .find(|p| p.join(".git").exists())
+        .map(|p| p.display().to_string())
         .unwrap_or_else(|| ".".to_string())
 }
 
@@ -127,6 +145,28 @@ mod tests {
         let rf = load_recent_file();
         assert_eq!(rf.pinned, vec!["c"]);
         assert_eq!(rf.recent, vec!["a", "b"]);
+
+        // 默认选中：无显式选择时取侧栏第一项（置顶优先，跳过失效路径）
+        let (r1, r2, gone) = (dir.join("r1"), dir.join("r2"), dir.join("gone"));
+        std::fs::create_dir_all(r1.join(".git")).unwrap();
+        std::fs::create_dir_all(r2.join(".git")).unwrap();
+        save_recent_file(&RecentFile {
+            pinned: vec![r2.display().to_string()],
+            recent: vec![gone.display().to_string(), r1.display().to_string()],
+        })
+        .unwrap();
+        // 置顶优先于 recent 首项
+        assert_eq!(default_repo(), r2.display().to_string());
+        save_recent_file(&RecentFile {
+            pinned: vec![],
+            recent: vec![gone.display().to_string(), r1.display().to_string()],
+        })
+        .unwrap();
+        // gone 无 .git，跳过取下一个有效条目
+        assert_eq!(default_repo(), r1.display().to_string());
+        save_recent_file(&RecentFile::default()).unwrap();
+        // 空列表才回落当前目录
+        assert_eq!(default_repo(), ".");
 
         // 旧格式迁移：纯数组 → 全部视作 recent
         std::fs::write(recent_file().unwrap(), r#"["x","y"]"#).unwrap();
