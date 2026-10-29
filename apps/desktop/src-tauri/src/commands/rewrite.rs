@@ -702,11 +702,15 @@ fn to_posix(p: &Path) -> String {
 
 /// 执行 git filter-branch（捕获合并输出，附加 FILTER_BRANCH_SQUELCH_WARNING）。
 fn run_filter_branch(repo: &Path, args: &[String]) -> Result<(), String> {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(args)
-        .env("FILTER_BRANCH_SQUELCH_WARNING", "1")
+    let mut cmd = Command::new("git");
+    cmd.arg("-C").arg(repo).args(args).env("FILTER_BRANCH_SQUELCH_WARNING", "1");
+    // 捕获型输出，隐藏控制台窗口防 GUI 下闪黑窗（同 core util hide_console）
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    let out = cmd
         .output()
         .map_err(|e| format!("启动 git filter-branch 失败: {e}"))?;
     if !out.status.success() {
@@ -796,16 +800,34 @@ fn rewrite_json_file(repo: &Path) -> Result<PathBuf, String> {
 // AI 改写命令（rewrite.go）
 // ---------------------------------------------------------------------------
 
+/// 在独立线程执行阻塞任务（同 backup.rs / live.rs），命令保持 async 不冻结 UI：
+/// 同步命令会在 IPC 主线程内联执行，git 子进程期间整个 webview 被阻塞。
+fn run_blocking<T, F>(f: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce() -> T + Send + 'static,
+{
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(f());
+    });
+    rx.recv().map_err(|_| "后台任务线程异常退出".to_string())
+}
+
 /// RewriteExport：导出提交清单（仅元数据，diff 懒加载）。
 /// mode: "all" | "last" | "unpushed" | "bad"；n 为 "last" 的条数，skip 为分页偏移。
 #[tauri::command]
-pub fn rewrite_export(repo: Option<String>, mode: String, n: i64, skip: i64) -> Result<Vec<RewriteEntryDto>, String> {
+pub async fn rewrite_export(repo: Option<String>, mode: String, n: i64, skip: i64) -> Result<Vec<RewriteEntryDto>, String> {
     let repo = repo_path(repo);
+    run_blocking(move || rewrite_export_impl(&repo, &mode, n, skip))?
+}
+
+fn rewrite_export_impl(repo: &Path, mode: &str, n: i64, skip: i64) -> Result<Vec<RewriteEntryDto>, String> {
     let mut log_args: Vec<String> = vec![
         "log".into(),
         "--format=%H%x00%an%x00%ai%x00%B%x00".into(),
     ];
-    match mode.as_str() {
+    match mode {
         "last" => {
             let n = if n <= 0 { 20 } else { n };
             log_args.push(format!("-{n}"));
@@ -821,7 +843,7 @@ pub fn rewrite_export(repo: Option<String>, mode: String, n: i64, skip: i64) -> 
         _ => {} // "all" / "bad"：拉全量（bad 在下方按规则过滤）
     }
 
-    let output = run_capture(&repo, log_args).map_err(|e| format!("git log 失败: {e:#}"))?;
+    let output = run_capture(repo, log_args).map_err(|e| format!("git log 失败: {e:#}"))?;
     let raw = output.trim_end_matches('\n');
     if raw.is_empty() {
         return Err("没有找到提交记录".into());
@@ -831,7 +853,7 @@ pub fn rewrite_export(repo: Option<String>, mode: String, n: i64, skip: i64) -> 
         return Err("没有找到提交记录".into());
     }
 
-    let pushed = pushed_hashes(&repo);
+    let pushed = pushed_hashes(repo);
     let rules = airewrite::load_rules().unwrap_or_default();
     let mut dtos = Vec::with_capacity(recs.len());
     for rec in recs {
@@ -1145,13 +1167,17 @@ pub fn rewrite_apply(repo: Option<String>, entries: Vec<RewriteEntryDto>, auto_b
 
 /// CommitCount：轻量计数，供导出范围预览。
 #[tauri::command]
-pub fn commit_count(repo: Option<String>) -> Result<CommitCountResult, String> {
+pub async fn commit_count(repo: Option<String>) -> Result<CommitCountResult, String> {
     let repo = repo_path(repo);
-    let total = run_capture(&repo, ["rev-list", "--count", "HEAD"])
+    run_blocking(move || commit_count_impl(&repo))?
+}
+
+fn commit_count_impl(repo: &Path) -> Result<CommitCountResult, String> {
+    let total = run_capture(repo, ["rev-list", "--count", "HEAD"])
         .ok()
         .and_then(|s| s.trim().parse::<i64>().ok())
         .unwrap_or(0);
-    let unpushed = run_capture(&repo, ["rev-list", "--count", "--branches", "--not", "--remotes"])
+    let unpushed = run_capture(repo, ["rev-list", "--count", "--branches", "--not", "--remotes"])
         .ok()
         .and_then(|s| s.trim().parse::<i64>().ok())
         .unwrap_or(0);
@@ -1161,8 +1187,12 @@ pub fn commit_count(repo: Option<String>) -> Result<CommitCountResult, String> {
 /// MetaRewriteExport：导出提交元数据（可带规则与日期重映射），
 /// persist=true 时落盘 rewrite.json 供 JSON 编辑器读取。
 #[tauri::command]
-pub fn meta_rewrite_export(repo: Option<String>, opts: MetaExportOptions) -> Result<Vec<MetaEntryDto>, String> {
+pub async fn meta_rewrite_export(repo: Option<String>, opts: MetaExportOptions) -> Result<Vec<MetaEntryDto>, String> {
     let repo = repo_path(repo);
+    run_blocking(move || meta_rewrite_export_impl(&repo, &opts))?
+}
+
+fn meta_rewrite_export_impl(repo: &Path, opts: &MetaExportOptions) -> Result<Vec<MetaEntryDto>, String> {
     // NUL 分隔字段；日期用 git format-local 直接产出本地时区文本（等价 Go parseTs）
     let mut log_args: Vec<String> = vec![
         "log".into(),
@@ -1185,7 +1215,7 @@ pub fn meta_rewrite_export(repo: Option<String>, opts: MetaExportOptions) -> Res
         _ => {}
     }
 
-    let output = run_capture(&repo, log_args).map_err(|e| format!("git log 失败: {e:#}"))?;
+    let output = run_capture(repo, log_args).map_err(|e| format!("git log 失败: {e:#}"))?;
     let raw = output.trim_end_matches('\n');
     if raw.is_empty() {
         return Err("没有找到提交记录".into());
@@ -1195,7 +1225,7 @@ pub fn meta_rewrite_export(repo: Option<String>, opts: MetaExportOptions) -> Res
         return Err("没有找到提交记录".into());
     }
 
-    let pushed = pushed_hashes(&repo);
+    let pushed = pushed_hashes(repo);
     let mut entries: Vec<CommitEntry> = Vec::new();
     for rec in recs {
         if rec.is_empty() {
@@ -1242,7 +1272,7 @@ pub fn meta_rewrite_export(repo: Option<String>, opts: MetaExportOptions) -> Res
 
     // 钳制到 git 父提交日期，避免窗口内提交早于其真实父提交
     if let Some(last) = entries.last() {
-        if let Some(parent_abs) = get_parent_commit_date(&repo, &last.hash) {
+        if let Some(parent_abs) = get_parent_commit_date(repo, &last.hash) {
             clamp_to_parent(&mut entries, parent_abs);
         }
     }
@@ -1251,7 +1281,7 @@ pub fn meta_rewrite_export(repo: Option<String>, opts: MetaExportOptions) -> Res
 
     // 显式导出时落盘（best-effort，失败不影响导出结果）
     if opts.persist {
-        if let Ok(p) = rewrite_json_file(&repo) {
+        if let Ok(p) = rewrite_json_file(repo) {
             if let Some(dir) = p.parent() {
                 let _ = std::fs::create_dir_all(dir);
             }

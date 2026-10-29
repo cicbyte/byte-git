@@ -22,5 +22,10 @@ export default defineConfig({
       usePolling: true,
       interval: 100,
     },
+    // 启动时预转译全部路由视图：懒加载路由首开不再付整棵模块树的
+    // 冷转译成本（实测 ai-rewrite 页 99 个模块约 1.7s）。
+    warmup: {
+      clientFiles: ['./src/views/**/*.vue'],
+    },
   },
 })

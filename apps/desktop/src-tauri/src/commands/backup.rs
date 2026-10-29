@@ -1196,9 +1196,13 @@ pub fn commit_total(repo: Option<String>) -> Result<i64, String> {
 /// CommitStat summarizes what a commit changed: per-file line deltas.
 /// （--numstat："added\tdeleted\tfile"；重命名显示为 "old => new"。）
 #[tauri::command]
-pub fn commit_stat(commit: String, repo: Option<String>) -> Result<Vec<CommitStatEntryDto>, String> {
+pub async fn commit_stat(commit: String, repo: Option<String>) -> Result<Vec<CommitStatEntryDto>, String> {
     let repo = repo_path(repo);
-    let res = git_exec(&repo, &["show", "--numstat", "--format=", commit.as_str()], LOG_TIMEOUT);
+    run_blocking(move || commit_stat_impl(&repo, &commit))?
+}
+
+fn commit_stat_impl(repo: &Path, commit: &str) -> Result<Vec<CommitStatEntryDto>, String> {
+    let res = git_exec(repo, &["show", "--numstat", "--format=", commit], LOG_TIMEOUT);
     if !res.success {
         return Err(format!("git show --numstat 失败: {}", res.combined().trim()));
     }

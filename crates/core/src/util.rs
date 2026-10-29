@@ -133,6 +133,19 @@ pub fn git_dir(repo: &Path) -> Result<PathBuf> {
 // 子进程执行（sysproc 等价物）
 // ---------------------------------------------------------------------------
 
+/// Windows 下隐藏子进程控制台窗口：GUI 进程 spawn git 等控制台程序时，
+/// 缺省会为每个子进程新建并闪现一个 CMD 窗口。仅用于输出全捕获的
+/// 非交互命令（管道不依赖控制台）；交互/透传命令不适用。
+#[cfg(windows)]
+fn hide_console(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_console(_cmd: &mut Command) {}
+
 /// 在仓库目录执行 git 命令并捕获 stdout（失败返回带 stderr 的错误）。
 pub fn run_capture<I, S>(repo: &Path, args: I) -> Result<String>
 where
@@ -140,10 +153,10 @@ where
     S: AsRef<str>,
 {
     let args: Vec<String> = args.into_iter().map(|s| s.as_ref().to_string()).collect();
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(&args)
+    let mut cmd = Command::new("git");
+    cmd.arg("-C").arg(repo).args(&args);
+    hide_console(&mut cmd);
+    let out = cmd
         .output()
         .with_context(|| format!("启动 git 失败: git {}", args.join(" ")))?;
     if !out.status.success() {
@@ -174,8 +187,10 @@ where
 
 /// 任意程序执行（捕获输出）。对应 sysproc.Command(...).Output()。
 pub fn exec_capture(program: &str, args: &[&str]) -> Result<String> {
-    let out = Command::new(program)
-        .args(args)
+    let mut cmd = Command::new(program);
+    cmd.args(args);
+    hide_console(&mut cmd);
+    let out = cmd
         .output()
         .with_context(|| format!("启动 {} 失败", program))?;
     if !out.status.success() {

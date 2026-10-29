@@ -7,7 +7,9 @@ use crate::ai::{self, ChatClient, ChatMessage};
 use crate::util::{run_capture, run_inherit_env, AppPaths};
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Mutex;
 
 // ---------------------------------------------------------------------------
 // 条目模型
@@ -121,11 +123,26 @@ pub fn save_rules(rules: &[DetectRule]) -> Result<()> {
     Ok(())
 }
 
+/// 编译后的正则缓存：pattern → Regex（无效模式缓存 None，保持静默跳过）。
+/// fancy-regex 编译在 debug 构建下达毫秒级，逐消息重编译会让批量导出
+/// （100 提交 × 5 规则）慢出秒级；规则 pattern 少且稳定，进程内缓存即可。
+static REGEX_CACHE: Mutex<Option<HashMap<String, Option<fancy_regex::Regex>>>> = Mutex::new(None);
+
+fn compiled(pattern: &str) -> Option<fancy_regex::Regex> {
+    let mut guard = REGEX_CACHE.lock().unwrap();
+    let map = guard.get_or_insert_with(HashMap::new);
+    if let Some(re) = map.get(pattern) {
+        return re.clone();
+    }
+    let re = fancy_regex::Regex::new(pattern).ok();
+    map.insert(pattern.to_string(), re.clone());
+    re
+}
+
 pub fn match_any(msg: &str, rules: &[DetectRule]) -> bool {
     rules.iter().any(|r| {
         // 规则允许环视（如负向前瞻），用 fancy-regex 编译；无效模式静默跳过
-        fancy_regex::Regex::new(&r.pattern)
-            .ok()
+        compiled(&r.pattern)
             .and_then(|re| re.is_match(msg).ok())
             .unwrap_or(false)
     })
