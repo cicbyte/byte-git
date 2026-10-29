@@ -156,14 +156,26 @@ function close() { app?.WindowClose() }
       </a-badge>
       <!-- Global download (GitHub Release), independent of current repo -->
       <DownloadBar />
-      <!-- 主题切换 -->
+      <!-- 主题切换：暗色显太阳（点击切亮色），亮色显月亮（点击切暗色） -->
       <button
-        class="scm-btn"
+        class="scm-btn theme-toggle-btn"
         :title="theme.isDark ? '切换亮色' : '切换暗色'"
         @click="theme.toggleTheme()"
       >
-        <svg v-if="theme.isDark" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
-        <svg v-else viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg>
+        <svg v-if="theme.isDark" class="theme-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+        <svg v-else class="theme-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
       </button>
       <!-- 设置 -->
       <button
@@ -290,6 +302,11 @@ function close() { app?.WindowClose() }
 }
 .scm-btn:hover { background: var(--color-hover); color: var(--color-primary); }
 .scm-btn.active { color: var(--color-primary); background: var(--color-primary-bg); }
+
+/* 主题切换按钮：图标 hover 轻转，暗示可点 */
+.theme-toggle-btn { position: relative; }
+.theme-svg-icon { width: 16px; height: 16px; flex-shrink: 0; transition: transform 0.3s ease; }
+.theme-toggle-btn:hover .theme-svg-icon { transform: rotate(15deg); }
 
 /* Window control buttons */
 .win-btn {
