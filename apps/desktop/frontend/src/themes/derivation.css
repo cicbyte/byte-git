@@ -237,3 +237,17 @@
   --color-perf: #db2777;
   --color-docs: #0e7490;
 }
+
+/* ============================================================
+ * 文字选中高亮 — 主题主色半透明洗 + 原文字色。
+ * --color-primary-rgb 由 token.ts 按预设注入（含纸墨），全预设通用；
+ * 暗色 45% 洗在近黑底上清晰可辨，亮色降到 28% 保持深色文字可读。
+ * ============================================================ */
+::selection {
+  background: rgba(var(--color-primary-rgb), 0.45);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] ::selection {
+  background: rgba(var(--color-primary-rgb), 0.28);
+}
