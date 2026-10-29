@@ -243,6 +243,33 @@ function restoreRow(row) {
   row.rewrite = JSON.parse(JSON.stringify(row.original))
   markDirty()
 }
+
+// 单行 AI 整理 message：走 RewriteGenerate（使用「提示词」页的改写规则），
+// 结果回填改写值并标脏；diff 由后端按 hash 自动加载
+const aiLoadingHash = ref('')
+async function aiMessage(row) {
+  if (!app?.RewriteGenerate || aiLoadingHash.value) return
+  aiLoadingHash.value = row.hash
+  try {
+    const suggested = await app.RewriteGenerate(repo.repoArg(), {
+      hash: row.hash,
+      original: row.original.message,
+      files: [],
+      diffSummary: '',
+      diff: '',
+    })
+    if (suggested && suggested.trim()) {
+      row.rewrite.message = suggested.trim()
+      markDirty()
+    } else {
+      AMessage.warning('AI 未返回内容')
+    }
+  } catch (e) {
+    AMessage.error('AI 整理失败: ' + String(e?.message || e))
+  } finally {
+    aiLoadingHash.value = ''
+  }
+}
 function restoreAll() {
   rows.value.forEach((r) => { r.rewrite = JSON.parse(JSON.stringify(r.original)) })
   markDirty()
@@ -396,8 +423,10 @@ watch(() => repo.repoEpoch, async () => {
             <RewriteRowEditor
               v-if="getRow(record.hash)"
               :row="getRow(record.hash)"
+              :ai-loading="aiLoadingHash === record.hash"
               @dirty="markDirty"
               @restore="restoreRow"
+              @ai-message="aiMessage"
             />
           </template>
         </a-table>

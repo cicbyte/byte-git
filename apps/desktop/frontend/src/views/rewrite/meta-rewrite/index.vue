@@ -16,6 +16,7 @@ import PushTag from '@/components/common/PushTag.vue'
 import ContextMenu from '@/components/common/ContextMenu.vue'
 import CtxItem from '@/components/common/CtxItem.vue'
 import MetaPreviewModal from './components/MetaPreviewModal.vue'
+import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
 import { useCommitStat } from '@/composables/useCommitStat'
 const repo = useRepoStore()
 const app = window.go?.main?.ByteGitApp
@@ -203,6 +204,32 @@ function restoreActive() {
   activeEntry.value.rewrite = JSON.parse(JSON.stringify(activeEntry.value.original))
 }
 
+// 单条 AI 整理 message：RewriteGenerate（「提示词」页改写规则，diff 按 hash 自动加载），
+// 结果回填改写值；行级互斥防重复触发
+const aiLoadingHash = ref('')
+async function aiMessage(entry) {
+  if (!app?.RewriteGenerate || aiLoadingHash.value) return
+  aiLoadingHash.value = entry.hash
+  try {
+    const suggested = await app.RewriteGenerate(repo.repoArg(), {
+      hash: entry.hash,
+      original: entry.original.message,
+      files: [],
+      diffSummary: '',
+      diff: '',
+    })
+    if (suggested && suggested.trim()) {
+      entry.rewrite.message = suggested.trim()
+    } else {
+      AMessage.warning('AI 未返回内容')
+    }
+  } catch (e) {
+    AMessage.error('AI 整理失败: ' + String(e?.message || e))
+  } finally {
+    aiLoadingHash.value = ''
+  }
+}
+
 // ---- preview & apply ----
 const previewVisible = ref(false)
 const preview = ref(null)
@@ -382,7 +409,18 @@ const committerFields = [
           <div class="mr-ed-gtitle">Message</div>
           <div class="mr-cmp-row subject" :class="{ diff: activeEntry.original.message !== activeEntry.rewrite.message }">
             <span class="mr-orig-val subject" :title="activeEntry.original.message">{{ activeEntry.original.message || '—' }}</span>
-            <a-textarea v-model:value="activeEntry.rewrite.message" :auto-size="{ minRows: 2, maxRows: 12 }" placeholder="首行主题，空行后写正文" size="small" />
+            <div class="mr-msg-wrap">
+              <a-textarea v-model:value="activeEntry.rewrite.message" :auto-size="{ minRows: 2, maxRows: 12 }" placeholder="首行主题，空行后写正文" size="small" />
+              <button
+                class="mr-ai-btn"
+                :class="{ busy: aiLoadingHash === activeEntry.hash }"
+                :disabled="aiLoadingHash === activeEntry.hash"
+                title="AI 整理此条 message（按「提示词」页规则）"
+                @click="aiMessage(activeEntry)"
+              >
+                <AiSparkIcon />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -526,6 +564,30 @@ const committerFields = [
 .mr-cmp-row.subject { align-items: stretch; }
 .mr-cmp-row.subject .mr-orig-val { white-space: pre-wrap; word-break: break-word; overflow: visible; text-overflow: clip; display: flex; align-items: flex-start; }
 .mr-cmp-row.subject.diff .mr-orig-val.subject { white-space: pre-wrap; }
+
+/* Message 输入框右上角 AI 整理按钮（与数据编辑器 RowEditor 同款交互） */
+.mr-msg-wrap { position: relative; }
+.mr-msg-wrap :deep(.ant-input) { padding-right: 30px; }
+.mr-ai-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  z-index: 1;
+}
+.mr-ai-btn:hover { color: var(--color-primary); background: rgba(125, 108, 248, 0.12); }
+.mr-ai-btn.busy { color: var(--color-primary); animation: mr-ai-pulse 1s ease-in-out infinite; pointer-events: none; }
+@keyframes mr-ai-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .mr-ed-changes { font-size: 12px; color: var(--color-primary); padding-top: var(--spacing-sm); border-top: 1px solid var(--color-border-light); }
 /* bottom */
 .mr-bottom { display: flex; align-items: center; gap: var(--spacing-md); flex-shrink: 0; padding-top: var(--spacing-xs); border-top: 1px solid var(--color-border); }

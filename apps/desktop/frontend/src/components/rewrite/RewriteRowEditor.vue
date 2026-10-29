@@ -4,13 +4,16 @@
  * 在 a-table 展开行中渲染：原始值 vs 改写值对比、字段分组、单行恢复。
  */
 import { UndoOutlined } from '@ant-design/icons-vue'
+import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
 
 const props = defineProps({
   // 改写行对象（需包含 original/rewrite/hash）
   row: { type: Object, default: null },
+  // 该行 message 的 AI 整理进行中
+  aiLoading: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['dirty', 'restore'])
+const emit = defineEmits(['dirty', 'restore', 'ai-message'])
 
 const authorFields = [
   { key: 'authorName', label: '作者名' },
@@ -86,13 +89,24 @@ function onInput() { emit('dirty') }
       <div class="rde-ep-gtitle">Message</div>
       <div class="rde-cmp-row subject" :class="{ diff: fieldChanged(row, 'message') }">
         <span class="rde-orig subject" :title="row.original.message">{{ row.original.message || '—' }}</span>
-        <a-textarea
-          v-model:value="row.rewrite.message"
-          :auto-size="{ minRows: 2, maxRows: 12 }"
-          placeholder="首行主题，空行后写正文"
-          size="small"
-          @input="onInput"
-        />
+        <div class="rde-msg-wrap">
+          <a-textarea
+            v-model:value="row.rewrite.message"
+            :auto-size="{ minRows: 2, maxRows: 12 }"
+            placeholder="首行主题，空行后写正文"
+            size="small"
+            @input="onInput"
+          />
+          <button
+            class="rde-ai-btn"
+            :class="{ busy: aiLoading }"
+            :disabled="aiLoading"
+            title="AI 整理此条 message（按「提示词」页规则）"
+            @click="emit('ai-message', row)"
+          >
+            <AiSparkIcon />
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -119,4 +133,28 @@ function onInput() { emit('dirty') }
 .rde-cmp-row.diff :deep(.ant-input) { border-color: var(--color-primary); }
 .rde-cmp-row.subject { align-items: stretch; }
 .rde-orig.subject { white-space: pre-wrap; word-break: break-word; overflow: visible; text-overflow: clip; display: flex; align-items: flex-start; }
+
+/* Message 输入框右上角 AI 整理按钮 */
+.rde-msg-wrap { position: relative; }
+.rde-msg-wrap :deep(.ant-input) { padding-right: 30px; }
+.rde-ai-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  z-index: 1;
+}
+.rde-ai-btn:hover { color: var(--color-primary); background: rgba(125, 108, 248, 0.12); }
+.rde-ai-btn.busy { color: var(--color-primary); animation: rde-ai-pulse 1s ease-in-out infinite; pointer-events: none; }
+@keyframes rde-ai-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 </style>
