@@ -10,6 +10,10 @@
  */
 import { ref, computed, watch } from 'vue'
 import dayjs from 'dayjs'
+import {
+  balancedEven, balancedWave, balancedWeekday, compensateAfterEdit, rebalance,
+  SHAPE_LABELS,
+} from '../../composables/useDailyAllocation'
 
 const props = defineProps({
   // 双向绑定的 remap 配置对象
@@ -41,26 +45,41 @@ const dailyDiff = computed(() => dailySum.value - props.previewCount)
 const dailyHint = computed(() => {
   if (!props.previewCount) return ''
   if (dailyDiff.value === 0) return `已平衡：${dailySum.value} / ${props.previewCount}`
-  if (dailyDiff.value > 0) return `超出 ${dailyDiff.value} 条（将从最后一天扣减）`
-  return `不足 ${-dailyDiff.value} 条（将均匀补到现有天数）`
+  return `差额 ${dailyDiff.value > 0 ? '超出' : '不足'} ${Math.abs(dailyDiff.value)} 条（应用时自动找平）`
 })
 
-// 根据当前范围展开每天的行，按 previewCount 均分默认值
-function rebuildDailyRows() {
+// 每日条数形状（生成策略），与 DailyDistributeModal 共用同一算法集
+const dailyShape = ref('even')
+
+/** 展开范围内的每一天：preserve=保留已有天的条数再整体找平（范围微调），
+ *  否则按形状策略全新生成（切策略/预设）。两种路径都保证精确合计。 */
+function rebuildDailyRows(preserve = true) {
   if (!dailyStart.value || !dailyEnd.value) { dailyRows.value = []; return }
   const s = dayjs(dailyStart.value)
   const e = dayjs(dailyEnd.value)
   if (e.isBefore(s)) { dailyRows.value = []; return }
   const days = e.diff(s, 'day') + 1
   const total = props.previewCount || 0
-  const per = total > 0 ? Math.max(1, Math.ceil(total / days)) : 1
-  const init = []
-  for (let i = 0; i < days; i++) {
-    const existing = dailyRows.value.find((r) => dayjs(r.date).isSame(s.add(i, 'day')))
-    init.push({ date: s.add(i, 'day'), count: existing ? existing.count : per })
+  const dates = Array.from({ length: days }, (_, i) => s.add(i, 'day'))
+  let counts
+  if (preserve) {
+    const prev = dailyRows.value || []
+    counts = dates.map((d) => Number(prev.find((r) => dayjs(r.date).isSame(d, 'day'))?.count) || 0)
+    counts = rebalance(counts, total, 'proportional', null)
+  } else if (dailyShape.value === 'wave') {
+    counts = balancedWave(total, days)
+  } else if (dailyShape.value === 'weekday') {
+    counts = balancedWeekday(total, dates)
+  } else {
+    counts = balancedEven(total, days)
   }
-  dailyRows.value = init
+  dailyRows.value = dates.map((date, i) => ({ date, count: counts[i] }))
   commit()
+}
+
+/** 切换形状策略后按当前范围重新生成。 */
+function regenerateDaily() {
+  rebuildDailyRows(false)
 }
 
 function ensureDailyInit() {
@@ -68,9 +87,9 @@ function ensureDailyInit() {
     const today = dayjs()
     dailyStart.value = today.subtract(6, 'day')
     dailyEnd.value = today.subtract(0, 'day')
-    rebuildDailyRows()
+    rebuildDailyRows(false)
   } else if (!dailyRows.value.length) {
-    rebuildDailyRows()
+    rebuildDailyRows(false)
   }
 }
 
@@ -80,12 +99,32 @@ function addDailyRow() {
   dailyEnd.value = base.add(1, 'day')
 }
 function removeDailyRow(i) {
+  const removed = Number(dailyRows.value[i]?.count) || 0
   dailyRows.value.splice(i, 1)
   if (dailyRows.value.length) {
     dailyEnd.value = dayjs(dailyRows.value[dailyRows.value.length - 1].date)
   } else {
     dailyEnd.value = dailyStart.value
   }
+  // 删除天的条数摊到其余天，保持 Σ === previewCount
+  if (removed > 0 && dailyRows.value.length && props.previewCount) {
+    const counts = rebalance(
+      dailyRows.value.map((r) => Number(r.count) || 0),
+      props.previewCount,
+      'proportional',
+      null,
+    )
+    dailyRows.value = dailyRows.value.map((r, k) => ({ ...r, count: counts[k] }))
+  }
+  commit()
+}
+
+/** 手动编辑某天：其余天按比例实时补偿，合计恒等于 previewCount。 */
+function onDailyEdit(i, val) {
+  if (!props.previewCount) { commit(); return }
+  const counts = dailyRows.value.map((r) => Number(r.count) || 0)
+  const next = compensateAfterEdit(counts, props.previewCount, i, Number(val) || 0, 'proportional')
+  dailyRows.value = dailyRows.value.map((r, k) => ({ ...r, count: next[k] }))
   commit()
 }
 function fillDailyRecent(n) {
@@ -112,50 +151,7 @@ function commit() {
   })
 }
 
-// 智能修正使总数等于实际导出数
-function reconcileDaily() {
-  const total = props.previewCount
-  if (!total) return []
-  const counts = dailyRows.value.map((r) => Number(r.count) || 0)
-  let cur = counts.reduce((s, c) => s + c, 0)
-  if (cur > total) {
-    for (let i = counts.length - 1; i >= 0 && cur > total; i--) {
-      const cut = Math.min(counts[i], cur - total)
-      counts[i] -= cut
-      cur -= cut
-    }
-  } else if (cur < total) {
-    const remain = total - cur
-    const base = cur || counts.length
-    let allocated = 0
-    for (let i = 0; i < counts.length; i++) {
-      if (i === counts.length - 1) counts[i] += remain - allocated
-      else {
-        const add = Math.round((remain * (counts[i] || 0)) / base)
-        counts[i] += add
-        allocated += add
-      }
-    }
-  }
-  return dailyRows.value
-    .map((r, i) => ({ date: dayjs(r.date), count: counts[i] }))
-    .filter((r) => r.count > 0 && r.date)
-    .sort((a, b) => (dayjs(a.date).isBefore(dayjs(b.date)) ? -1 : 1))
-    .map((r) => ({ date: dayjs(r.date).format('YYYY-MM-DD'), count: r.count }))
-}
-
-// 当 diff != 0 时按需触发智能修正并回写父组件
-watch(dailyDiff, () => {
-  if (remap.value.mode !== 'daily') return
-  if (dailyDiff.value === 0) { commit(); return }
-  const allocs = reconcileDaily()
-  emit('update:modelValue', {
-    ...remap.value,
-    dateRange: '',
-    allocs,
-  })
-})
-
+// 行内编辑已实时保持平衡，无需静默修正；直接提交
 watch(() => [dailyStart.value, dailyEnd.value], rebuildDailyRows)
 watch(() => props.modelValue, (v) => { remap.value = { ...v } }, { deep: true })
 watch(() => remap.value.mode, (m) => { if (m === 'daily') ensureDailyInit() })
@@ -264,6 +260,18 @@ const hourPresets = [
           <button class="chip" @click="fillDailyRecent(30)">最近 30 天</button>
         </div>
       </div>
+      <div class="preset-row">
+        <span class="lbl w80">每日条数</span>
+        <div class="preset-chips">
+          <button
+            v-for="(l, k) in SHAPE_LABELS" :key="k"
+            class="chip" :class="{ on: dailyShape === k }"
+            :title="k === 'even' ? '每天相近（最大余数法）' : k === 'wave' ? '自然随机起伏' : '工作日多、周末少'"
+            @click="dailyShape = k; regenerateDaily()"
+          >{{ l }}</button>
+          <span class="hint" style="align-self:center">合计恒等于导出数，改单天自动找平</span>
+        </div>
+      </div>
 
       <div class="daily-table">
         <div class="dd-thead">
@@ -274,8 +282,11 @@ const hourPresets = [
         <div class="dd-tbody">
           <div v-for="(r, i) in dailyRows" :key="i" class="dd-row">
             <span class="dd-date">{{ dayjs(r.date).format('YYYY-MM-DD') }}</span>
-            <a-input-number v-model:value="r.count" :min="0" size="small" style="width:80px" @change="commit" />
-            <a-button size="small" type="text" danger @click="removeDailyRow(i)" title="移除该天">✕</a-button>
+            <a-input-number
+              :value="r.count" :min="0" size="small" style="width:80px"
+              @change="(v) => onDailyEdit(i, v)"
+            />
+            <a-button size="small" type="text" danger @click="removeDailyRow(i)" title="移除该天（条数摊到其余天）">✕</a-button>
           </div>
           <div v-if="!dailyRows.length" class="dd-empty">请先选择开始与结束日期</div>
         </div>
