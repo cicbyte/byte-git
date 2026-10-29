@@ -1097,9 +1097,18 @@ fn parse_log_output(out: &str) -> Vec<LogCommitDto> {
 
 /// LogFetch 分页拉取提交列表。
 /// `before` 是“已加载条数”的偏移字符串 → --skip（^hash 会错误排除祖先提交）。
+/// 空仓库探测：无任何提交时 HEAD 未出生，rev-parse 静默失败。
+/// log 域各命令据此返回空态，避免 git 对 HEAD 的 fatal 透传到前端。
+fn head_unborn(repo: &Path) -> bool {
+    !git_exec(repo, &["rev-parse", "--verify", "--quiet", "HEAD"], LOG_TIMEOUT).success
+}
+
 #[tauri::command]
 pub fn log_fetch(repo: String, limit: i64, before: String) -> Result<Vec<LogCommitDto>, String> {
     let repo = repo_path(Some(repo));
+    if head_unborn(&repo) {
+        return Ok(Vec::new());
+    }
     let mut args: Vec<String> = vec!["log".into(), format!("--format={LOG_FORMAT}"), "--no-merges".into()];
     if limit > 0 {
         args.push(format!("-{limit}"));
@@ -1141,6 +1150,9 @@ pub fn show_file_at(commit_ref: String, file_path: String, repo: Option<String>)
 #[tauri::command]
 pub fn log_fetch_by_date(repo: String, date: String) -> Result<Vec<LogCommitDto>, String> {
     let repo = repo_path(Some(repo));
+    if head_unborn(&repo) {
+        return Ok(Vec::new());
+    }
     let d = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
         .map_err(|_| format!("invalid date {date:?} (expect YYYY-MM-DD)"))?;
     let next = (d + chrono::Duration::days(1)).format("%Y-%m-%d");
@@ -1171,6 +1183,9 @@ pub fn log_diff(repo: String, hash: String) -> Result<String, String> {
 #[tauri::command]
 pub fn commit_total(repo: Option<String>) -> Result<i64, String> {
     let repo = repo_path(repo);
+    if head_unborn(&repo) {
+        return Ok(0);
+    }
     let res = git_exec(&repo, &["rev-list", "--count", "--no-merges", "HEAD"], LONG_TIMEOUT);
     if !res.success {
         return Err(format!("git rev-list --count 失败: {}", res.combined().trim()));
