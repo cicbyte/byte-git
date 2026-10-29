@@ -185,7 +185,7 @@ watch(() => repo.repoEpoch, () => { clearStat(); if (hasExported.value) autoLoad
 // do NOT write the file; only real edits (field edit / restore / apply-rule) do.
 let saveTimer = null
 function scheduleSave() {
-  if (exporting.value || loadingMore.value || !hasData.value || !app?.JsonEditorWrite) return
+  if (exporting.value || loadingMore.value || entries.value.length === 0 || !app?.JsonEditorWrite) return
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(async () => {
     if (exporting.value || loadingMore.value) return  // a load started during the debounce
