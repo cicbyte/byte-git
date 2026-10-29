@@ -32,7 +32,7 @@ onMounted(reload)
 
 // watch repo switch
 import { watch } from 'vue'
-watch(() => repo.repoEpoch, () => reload())
+watch(() => repo.repoEpoch, () => { tagCommitOptions.value = []; reload() })
 
 // ============================================================
 // Remote
@@ -178,14 +178,31 @@ async function loadTags() {
 
 // create modal
 const tagAddOpen = ref(false)
-const tagAddForm = ref({ name: '', message: '' })
+const tagAddForm = ref({ name: '', message: '', commit: null })
+const tagCommitOptions = ref([])
+async function openTagAdd() {
+  tagAddOpen.value = true
+  if (!tagCommitOptions.value.length && app?.LogFetch) {
+    try {
+      const list = await app.LogFetch('', 200, '') || []
+      tagCommitOptions.value = list.map((c) => ({
+        value: c.hash,
+        label: `${(c.hash || '').slice(0, 7)} · ${c.subject || ''}`,
+      }))
+    } catch { /* 提交列表加载失败不阻塞创建（仍可打在 HEAD） */ }
+  }
+}
+function tagCommitFilter(input, option) {
+  const q = String(input || '').toLowerCase()
+  return String(option.label || '').toLowerCase().includes(q)
+}
 async function doAddTag() {
   if (!tagAddForm.value.name) { AMessage.warning('标签名不能为空'); return }
   try {
-    await app.TagCreate(tagAddForm.value.name, tagAddForm.value.message)
+    await app.TagCreate(tagAddForm.value.name, tagAddForm.value.message, tagAddForm.value.commit || null)
     AMessage.success('已创建标签')
     tagAddOpen.value = false
-    tagAddForm.value = { name: '', message: '' }
+    tagAddForm.value = { name: '', message: '', commit: null }
     await loadTags()
   } catch (e) { AMessage.error('创建失败: ' + String(e?.message || e)) }
 }
@@ -232,7 +249,7 @@ async function doTagPush() {
       ]" size="small" @change="reload" />
       <div class="gm-spacer"></div>
       <a-button size="small" @click="reload" :loading="loading"><template #icon><ReloadOutlined /></template>刷新</a-button>
-      <a-button size="small" @click="tab === 'remote' ? (remoteAddOpen = true) : tab === 'branch' ? (branchAddOpen = true) : (tagAddOpen = true)">
+      <a-button size="small" @click="tab === 'remote' ? (remoteAddOpen = true) : tab === 'branch' ? (branchAddOpen = true) : openTagAdd()">
         <template #icon><PlusOutlined /></template>{{ tab === 'remote' ? '添加远程' : tab === 'branch' ? '新建分支' : '创建标签' }}
       </a-button>
     </div>
@@ -358,7 +375,16 @@ async function doTagPush() {
       <div class="gm-form">
         <div class="gm-form-row"><span class="gm-form-label">标签名</span><a-input v-model:value="tagAddForm.name" placeholder="如 v1.0.0" /></div>
         <div class="gm-form-row"><span class="gm-form-label">说明</span><a-input v-model:value="tagAddForm.message" placeholder="留空=轻量标签，填写=附注标签" /></div>
-        <div class="gm-form-tip">基于当前 HEAD 创建</div>
+        <div class="gm-form-row"><span class="gm-form-label">提交</span>
+          <a-select
+            v-model:value="tagAddForm.commit"
+            :options="tagCommitOptions"
+            show-search allow-clear
+            :filter-option="tagCommitFilter"
+            placeholder="默认：当前 HEAD"
+          />
+        </div>
+        <div class="gm-form-tip">不选提交则基于当前 HEAD 创建</div>
         <div class="gm-form-foot"><a-button @click="tagAddOpen = false">取消</a-button><a-button type="primary" @click="doAddTag">创建</a-button></div>
       </div>
     </a-modal>

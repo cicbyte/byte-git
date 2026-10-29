@@ -40,6 +40,11 @@ useThemeStore().initializeTheme()
 
 app.mount('#app')
 
+// 全局滚轮速度归一：WebView2 原生滚轮在部分鼠标/驱动下每档位移过大。
+// （缩放 ctrl+滚轮、滚动链语义均保留；详见 useWheelTamer 注释）
+import { installWheelTamer } from './composables/useWheelTamer'
+installWheelTamer()
+
 // Suppress the browser's native context menu app-wide. Custom right-click
 // menus (CommitTree, AIRewrite, MetaRewrite …) listen on `contextmenu` and
 // call preventDefault themselves; preventDefault here only blocks the

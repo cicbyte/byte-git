@@ -140,7 +140,7 @@ const SIGNATURES: Record<string, string[]> = {
     BranchSetUpstream: ['local', 'remote'],
     BranchRename: ['oldName', 'newName'],
     TagList: [],
-    TagCreate: ['name', 'message'],
+    TagCreate: ['name', 'message', 'commit'],
     TagDelete: ['name'],
     TagPush: ['remote', 'names'],
     HookList: ['scope'],

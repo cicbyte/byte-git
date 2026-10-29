@@ -655,17 +655,31 @@ pub fn tag_list(repo: Option<String>) -> Result<Vec<TagDto>, String> {
     Ok(result)
 }
 
-/// TagCreate creates a tag at HEAD. If message is non-empty, creates an annotated tag.
+/// TagCreate creates a tag; 未指定 commit 时打在 HEAD，指定时打在该提交上。
+/// message 非空则创建附注标签。
 #[tauri::command]
-pub fn tag_create(name: String, message: String, repo: Option<String>) -> Result<(), String> {
+pub fn tag_create(
+    name: String,
+    message: String,
+    commit: Option<String>,
+    repo: Option<String>,
+) -> Result<(), String> {
     if name.is_empty() {
         return Err("标签名不能为空".into());
     }
     let repo = repo_path(repo);
-    let res = if !message.is_empty() {
-        git_exec(&repo, &["tag", "-a", name.as_str(), "-m", message.as_str()], LONG_TIMEOUT)
-    } else {
-        git_exec(&repo, &["tag", name.as_str()], LONG_TIMEOUT)
+    let target = commit.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let res = match (message.is_empty(), target) {
+        (true, None) => git_exec(&repo, &["tag", name.as_str()], LONG_TIMEOUT),
+        (true, Some(c)) => git_exec(&repo, &["tag", name.as_str(), c], LONG_TIMEOUT),
+        (false, None) => {
+            git_exec(&repo, &["tag", "-a", name.as_str(), "-m", message.as_str()], LONG_TIMEOUT)
+        }
+        (false, Some(c)) => git_exec(
+            &repo,
+            &["tag", "-a", name.as_str(), "-m", message.as_str(), c],
+            LONG_TIMEOUT,
+        ),
     };
     if !res.success {
         return Err(format!("创建标签失败: {}", res.combined().trim()));
