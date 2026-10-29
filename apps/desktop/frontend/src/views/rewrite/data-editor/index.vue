@@ -62,8 +62,8 @@ const hasData = computed(() => rows.value.length > 0)
 
 function markDirty() { dirty.value = true }
 
-// hash → 全局行号（1 起）：分页只是视觉切片，行号列必须显示全局序，
-// 与校验消息的"第 N 行"保持一致（页内 index 翻页后会重置）。
+// hash → 全局行号（1 起）：行号列必须显示全局序，
+// 与校验消息的"第 N 行"保持一致。
 const rowIndexOf = computed(() => {
   const m = new Map()
   rows.value.forEach((r, i) => m.set(r.hash, i + 1))
@@ -395,7 +395,7 @@ watch(() => repo.repoEpoch, async () => {
           :data-source="rows"
           row-key="hash"
           size="small"
-          :pagination="{ pageSize: 20, showSizeChanger: true, pageSizeOptions: ['10','20','50','100'] }"
+          :pagination="false"
           :expandable="{ expandedRowKeys, onExpandedRowsChange: (keys) => expandedRowKeys = keys }"
           :loading="loading"
         >
