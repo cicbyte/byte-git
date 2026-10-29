@@ -163,6 +163,24 @@ if (props.modelValue.enabled && props.modelValue.mode === 'daily') {
 
 // date presets
 function daysAgo(n) { return dayjs().subtract(n, 'day') }
+
+// 起止约束：结束不可早于开始、开始不可晚于结束（选择器层面直接置灰）
+function rangeStartDisabled(d) {
+  if (!dateEnd.value) return false
+  return d.isAfter(dayjs(dateEnd.value).startOf('day'))
+}
+function rangeEndDisabled(d) {
+  if (!dateStart.value) return false
+  return d.isBefore(dayjs(dateStart.value).startOf('day'))
+}
+function dailyStartDisabled(d) {
+  if (!dailyEnd.value) return false
+  return d.isAfter(dayjs(dailyEnd.value).startOf('day'))
+}
+function dailyEndDisabled(d) {
+  if (!dailyStart.value) return false
+  return d.isBefore(dayjs(dailyStart.value).startOf('day'))
+}
 const datePresets = computed(() => {
   const today = dayjs()
   return [
@@ -215,6 +233,7 @@ const hourPresets = [
           placeholder="开始时间"
           size="small"
           style="width:200px"
+          :disabled-date="rangeStartDisabled"
           @change="commit"
         />
       </div>
@@ -227,6 +246,7 @@ const hourPresets = [
           placeholder="结束时间"
           size="small"
           style="width:200px"
+          :disabled-date="rangeEndDisabled"
           @change="commit"
         />
       </div>
@@ -247,9 +267,9 @@ const hourPresets = [
     <template v-else>
       <div class="row">
         <span class="lbl w80">开始</span>
-        <a-date-picker v-model:value="dailyStart" format="YYYY-MM-DD" size="small" style="width:150px" :allow-clear="false" />
+        <a-date-picker v-model:value="dailyStart" format="YYYY-MM-DD" size="small" style="width:150px" :allow-clear="false" :disabled-date="dailyStartDisabled" />
         <span class="lbl">结束</span>
-        <a-date-picker v-model:value="dailyEnd" format="YYYY-MM-DD" size="small" style="width:150px" :allow-clear="false" />
+        <a-date-picker v-model:value="dailyEnd" format="YYYY-MM-DD" size="small" style="width:150px" :allow-clear="false" :disabled-date="dailyEndDisabled" />
         <span class="hint" v-if="dailyRangeDays > 0">共 {{ dailyRangeDays }} 天</span>
       </div>
       <div class="preset-row">
