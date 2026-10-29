@@ -11,7 +11,7 @@ use byte_git_core::config::Settings;
 use byte_git_core::rewrite::{self, CommitEntry, CommitMeta};
 use byte_git_core::util::{git_dir, run_capture};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -151,6 +151,9 @@ pub struct MetaExportRemap {
     pub active_hour: String,
     #[serde(default)]
     pub allocs: Vec<DailyAllocDto>,
+    /// 逐日分配时按提交体量加权时间间隔（大提交间隔更长）
+    #[serde(default)]
+    pub size_weight: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -501,12 +504,77 @@ fn build_day_slots(day: i64, count: i64, hour_start: u32, hour_end: u32, rng: &m
         .collect()
 }
 
+/// 加权时隙：同一天内按当天提交（时间序）体量分配落点——提交前的时间
+/// 间隔 ∝ 该提交的体量（大提交间隔更长），权重带 ±20% 抖动保持自然感。
+/// w 与 count 等长且为该天提交的时间序权重。
+fn build_day_slots_w(day: i64, count: usize, hour_start: u32, hour_end: u32, w: &[u64], rng: &mut Rng) -> Vec<i64> {
+    if count == 0 {
+        return Vec::new();
+    }
+    let hs = hour_start as i64;
+    let span = (hour_end as i64 - hs) * 3600;
+    let jw: Vec<u64> = w
+        .iter()
+        .map(|x| ((*x).max(1) * (80 + rng.below(41)) / 100).max(1))
+        .collect();
+    let total: u64 = jw.iter().sum::<u64>().max(1);
+    let mut cum = 0u64;
+    (0..count)
+        .map(|k| {
+            cum += jw.get(k).copied().unwrap_or(1);
+            day + hs * 3600 + span * (cum as i64) / (total as i64)
+        })
+        .collect()
+}
+
+/// 单次 git log --numstat 批量取每条提交的体量权重：
+/// 1 + 增删行数 + 文件数×4（多文件重构类提交更重），钳制 [1, 20000]，
+/// 未命中的提交按 1。一次子进程避免逐提交查询。
+fn commit_size_weights(repo: &Path, entries: &[CommitEntry]) -> Vec<u64> {
+    let mut out = vec![1u64; entries.len()];
+    let text = match run_capture(repo, ["log", "--no-merges", "-n", "2000", "--format=%H%x01", "--numstat"]) {
+        Ok(t) => t,
+        Err(_) => return out,
+    };
+    let mut map: HashMap<String, u64> = HashMap::new();
+    let mut cur: Option<(String, u64)> = None;
+    let mut flush = |cur: &mut Option<(String, u64)>, map: &mut HashMap<String, u64>| {
+        if let Some((h, w)) = cur.take() {
+            map.insert(h, w.clamp(1, 20000));
+        }
+    };
+    for line in text.lines() {
+        let line = line.trim_end_matches('\r');
+        if let Some(h) = line.strip_suffix('\u{1}') {
+            flush(&mut cur, &mut map);
+            cur = Some((h.to_string(), 1));
+        } else if line.is_empty() {
+            flush(&mut cur, &mut map);
+        } else if let Some((_, acc)) = cur.as_mut() {
+            let mut it = line.splitn(3, '\t');
+            let a = it.next().and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+            let d = it.next().and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+            *acc += a + d + 4;
+        }
+    }
+    flush(&mut cur, &mut map);
+    for (i, e) in entries.iter().enumerate() {
+        if let Some(w) = map.get(&e.hash) {
+            out[i] = *w;
+        }
+    }
+    out
+}
+
 /// 移植 rewrite.DistributeByDays：按逐日分配重写 entries 日期。
+/// weights（与 entries 同序，新→旧）：Some 且分配合计与条数一致、顺序模式时，
+/// 同一天内按当天提交体量加权时间间隔（大提交间隔更长）。
 fn distribute_by_days(
     entries: &mut [CommitEntry],
     allocs: &[DailyAllocDto],
     mode: &str,
     active_hour: &str,
+    weights: Option<&[u64]>,
 ) -> Result<(), String> {
     let n = entries.len();
     if n == 0 {
@@ -539,39 +607,56 @@ fn distribute_by_days(
 
     let mut rng = Rng::new();
     let mut all_slots: Vec<i64> = Vec::new();
-    for &(day, count) in &parsed {
-        all_slots.extend(build_day_slots(day, count, hour_start, hour_end, &mut rng));
-    }
+    let total_alloc: i64 = parsed.iter().map(|(_, c)| c).sum();
 
-    if all_slots.len() > n {
-        all_slots.truncate(n);
-    } else if all_slots.len() < n {
-        // 不足：把剩余条目按比例摊分到各天
-        let remaining = (n - all_slots.len()) as i64;
-        all_slots.clear();
-        let total_base: i64 = parsed.iter().map(|(_, c)| c).sum();
-        let base = total_base.max(1);
-        let mut allocated = 0i64;
-        let mut extra = vec![0i64; parsed.len()];
-        for i in 0..parsed.len() {
-            if i == parsed.len() - 1 {
-                extra[i] = remaining - allocated;
-            } else {
-                extra[i] = remaining * parsed[i].1 / base;
-                allocated += extra[i];
-            }
+    if weights.is_some() && total_alloc == n as i64 && mode != "random" {
+        // 加权路径：allocs 与条目一一对应，逐天按当天提交（时间序）体量分时隙。
+        // entries 为 新→旧，时间序即倒序，从尾部往前切分每天的名额。
+        let w = weights.unwrap_or(&[]);
+        let mut k = n;
+        for &(day, count) in &parsed {
+            let c = count as usize;
+            let start = k.saturating_sub(c);
+            let w_chrono: Vec<u64> = (start..k).rev().map(|i| w.get(i).copied().unwrap_or(1)).collect();
+            all_slots.extend(build_day_slots_w(day, c, hour_start, hour_end, &w_chrono, &mut rng));
+            k = start;
         }
-        for (i, &(day, count)) in parsed.iter().enumerate() {
-            let c = count + extra[i];
-            if c <= 0 {
-                continue;
-            }
-            all_slots.extend(build_day_slots(day, c, hour_start, hour_end, &mut rng));
+    } else {
+        // 原路径（无权重 / 分配与条数不一致 / 随机模式）：均匀时隙 + 对账安全网
+        for &(day, count) in &parsed {
+            all_slots.extend(build_day_slots(day, count, hour_start, hour_end, &mut rng));
         }
-        // 仍不足则强制补齐（理论上不会发生）
-        while all_slots.len() < n {
-            let day0 = parsed[0].0;
-            all_slots.push(day0 + all_slots.len() as i64);
+
+        if all_slots.len() > n {
+            all_slots.truncate(n);
+        } else if all_slots.len() < n {
+            // 不足：把剩余条目按比例摊分到各天
+            let remaining = (n - all_slots.len()) as i64;
+            all_slots.clear();
+            let total_base: i64 = parsed.iter().map(|(_, c)| c).sum();
+            let base = total_base.max(1);
+            let mut allocated = 0i64;
+            let mut extra = vec![0i64; parsed.len()];
+            for i in 0..parsed.len() {
+                if i == parsed.len() - 1 {
+                    extra[i] = remaining - allocated;
+                } else {
+                    extra[i] = remaining * parsed[i].1 / base;
+                    allocated += extra[i];
+                }
+            }
+            for (i, &(day, count)) in parsed.iter().enumerate() {
+                let c = count + extra[i];
+                if c <= 0 {
+                    continue;
+                }
+                all_slots.extend(build_day_slots(day, c, hour_start, hour_end, &mut rng));
+            }
+            // 仍不足则强制补齐（理论上不会发生）
+            while all_slots.len() < n {
+                let day0 = parsed[0].0;
+                all_slots.push(day0 + all_slots.len() as i64);
+            }
         }
     }
 
@@ -1262,7 +1347,10 @@ fn meta_rewrite_export_impl(repo: &Path, opts: &MetaExportOptions) -> Result<Vec
     // 日期重映射
     if let Some(remap) = &opts.remap {
         if !remap.allocs.is_empty() {
-            distribute_by_days(&mut entries, &remap.allocs, &remap.mode, &remap.active_hour)
+            let weights = remap
+                .size_weight
+                .then(|| commit_size_weights(&repo, &entries));
+            distribute_by_days(&mut entries, &remap.allocs, &remap.mode, &remap.active_hour, weights.as_deref())
                 .map_err(|e| format!("逐日分配失败: {e}"))?;
         } else if !remap.date_range.is_empty() {
             rewrite::redistribute_dates(&mut entries, &remap.date_range, &remap.mode, remap.daily_limit, &remap.active_hour)
@@ -1491,15 +1579,20 @@ pub fn meta_rewrite_remap(
 }
 
 /// MetaRewriteDistributeByDays：按逐日分配重写已加载条目的日期。
+/// size_weight=true 时按提交体量加权同天内的时间间隔。
 #[tauri::command]
 pub fn meta_rewrite_distribute_by_days(
+    repo: Option<String>,
     entries: Vec<MetaEntryDto>,
     allocs: Vec<DailyAllocDto>,
     mode: String,
     active_hour: String,
+    size_weight: bool,
 ) -> Result<Vec<MetaEntryDto>, String> {
+    let repo = repo_path(repo);
     let mut ce: Vec<CommitEntry> = entries.iter().map(dto_to_entry).collect();
-    distribute_by_days(&mut ce, &allocs, &mode, &active_hour)?;
+    let weights = size_weight.then(|| commit_size_weights(&repo, &ce));
+    distribute_by_days(&mut ce, &allocs, &mode, &active_hour, weights.as_deref())?;
     Ok(ce.iter().map(entry_to_dto).collect())
 }
 
@@ -1558,6 +1651,23 @@ mod tests {
             assert_eq!(civil_from_days(z), (y, m, d));
         }
         assert_eq!(days_from_civil(1970, 1, 1), 0);
+    }
+
+    /// 加权时隙：大提交前的时间间隔显著大于小提交；时序递增且落在活跃时段内。
+    #[test]
+    fn weighted_slots_shape() {
+        let day = days_from_civil(2026, 10, 27) * 86400;
+        let mut rng = Rng::new();
+        // 时间序：小、大、小 —— gap1（大提交前）应远大于 gap2（小提交前）
+        let w = [1u64, 1000, 1];
+        let slots = build_day_slots_w(day, 3, 9, 18, &w, &mut rng);
+        assert_eq!(slots.len(), 3);
+        let hs = day + 9 * 3600;
+        let he = day + 18 * 3600;
+        assert!(slots.iter().all(|s| *s >= hs && *s <= he));
+        assert!(slots.windows(2).all(|p| p[0] < p[1]), "时隙必须递增");
+        let (gap1, gap2) = (slots[1] - slots[0], slots[2] - slots[1]);
+        assert!(gap1 > gap2 * 10, "大提交间隔应显著更大: gap1={gap1} gap2={gap2}");
     }
 
     #[test]

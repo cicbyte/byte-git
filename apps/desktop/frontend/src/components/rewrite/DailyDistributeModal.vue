@@ -15,7 +15,7 @@ import dayjs from 'dayjs'
 import {
   balancedEven, balancedWave, balancedWeekday, compensateAfterEdit, rebalance,
   SHAPE_LABELS, COMPENSATE_LABELS,
-} from '../../../composables/useDailyAllocation'
+} from '../../composables/useDailyAllocation'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -29,6 +29,7 @@ const rows = ref([])
 const shape = ref('even') // 每日条数形状: even | wave | weekday
 const comp = ref('proportional') // 差额补偿: proportional | tail | head
 const mode = ref('spread') // 天内时间排列: spread | random
+const sizeWeight = ref(true) // 按提交体量加权间隔（大提交间隔更长，仅顺序模式）
 const activeHour = ref('9-22')
 const customDays = ref(7)
 
@@ -55,6 +56,7 @@ watch(
     shape.value = 'even'
     comp.value = 'proportional'
     mode.value = 'spread'
+    sizeWeight.value = true
     activeHour.value = '9-22'
     customDays.value = 7
     generate(7)
@@ -122,7 +124,7 @@ function doApply() {
     .filter((r) => r.count > 0)
     .sort((a, b) => (a.date.isBefore(b.date) ? -1 : 1))
   const allocs = arr.map((r) => ({ date: r.date.format('YYYY-MM-DD'), count: r.count }))
-  emit('apply', { allocs, mode: mode.value, activeHour: activeHour.value || '' })
+  emit('apply', { allocs, mode: mode.value, activeHour: activeHour.value || '', sizeWeight: !!sizeWeight.value })
 }
 
 function pct(c) {
@@ -176,6 +178,9 @@ function pct(c) {
           <a-radio-button value="spread">顺序</a-radio-button>
           <a-radio-button value="random">随机</a-radio-button>
         </a-radio-group>
+        <a-checkbox v-model:checked="sizeWeight" :disabled="mode === 'random'" title="同一天内，大提交（行数/文件数多）前的时间间隔更长">
+          按提交大小加权间隔
+        </a-checkbox>
         <span class="lbl" style="width:auto;margin-left:12px">活跃时段</span>
         <a-input v-model:value="activeHour" placeholder="9-22" size="small" style="width:72px" />
         <button

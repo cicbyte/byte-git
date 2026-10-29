@@ -243,12 +243,12 @@ function openDistribute() {
   distributeOpen.value = true
 }
 
-async function onDistributeApply({ allocs, mode: dm, activeHour }) {
+async function onDistributeApply({ allocs, mode: dm, activeHour, sizeWeight }) {
   if (!app) return
   distributing.value = true
   try {
     const updated = await app.MetaRewriteDistributeByDays(
-      JSON.parse(JSON.stringify(entries.value)), allocs, dm, activeHour,
+      JSON.parse(JSON.stringify(entries.value)), allocs, dm, activeHour, !!sizeWeight,
     )
     // 合并：按 hash 回填，仅 rewrite 字段更新（original/hash/pushed 保持）
     const map = new Map(updated.map((u) => [u.hash, u]))

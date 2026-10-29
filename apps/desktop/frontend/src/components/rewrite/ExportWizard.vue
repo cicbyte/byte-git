@@ -100,7 +100,7 @@ function reset() {
   rules.value = []
   remap.value = {
     enabled: false, mode: 'range', dateRange: '',
-    dailyLimit: 0, activeHour: '', dateMode: 'spread', allocs: [],
+    dailyLimit: 0, activeHour: '', dateMode: 'spread', allocs: [], sizeWeight: true,
   }
 }
 
@@ -117,6 +117,7 @@ function doExport() {
       dailyLimit: remap.value.mode === 'range' ? (remap.value.dailyLimit || 0) : 0,
       activeHour: remap.value.activeHour || '',
       allocs: remap.value.mode === 'daily' ? remap.value.allocs : [],
+      sizeWeight: remap.value.mode === 'daily' ? (remap.value.sizeWeight ?? false) : false,
     }
   }
   const opts = {

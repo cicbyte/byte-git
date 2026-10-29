@@ -24,7 +24,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 // 本地可变状态（与父配置双向同步）
-const remap = ref({ ...props.modelValue })
+const remap = ref({ sizeWeight: true, ...props.modelValue })
 
 // 范围模式：开始/结束（dayjs 对象），由 dateRange 字符串初始化
 const dateStart = ref(props.modelValue.dateRange ? dayjs(props.modelValue.dateRange.split(',')[0]) : null)
@@ -289,6 +289,12 @@ const hourPresets = [
             :title="k === 'even' ? '每天相近（最大余数法）' : k === 'wave' ? '自然随机起伏' : '工作日多、周末少'"
             @click="dailyShape = k; regenerateDaily()"
           >{{ l }}</button>
+          <a-checkbox
+            v-model:checked="remap.sizeWeight"
+            :disabled="remap.dateMode === 'random'"
+            title="同一天内，大提交（行数/文件数多）前的时间间隔更长（仅顺序排列生效）"
+            @change="commit"
+          >按提交大小加权间隔</a-checkbox>
           <span class="hint" style="align-self:center">合计恒等于导出数，改单天自动找平</span>
         </div>
       </div>

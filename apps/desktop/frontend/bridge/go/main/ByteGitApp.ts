@@ -95,7 +95,7 @@ const SIGNATURES: Record<string, string[]> = {
     MetaRewriteApply: ['repo', 'entries', 'syncRefs', 'autoBackup'],
     MetaRewriteApplyRule: ['entries', 'rule'],
     MetaRewriteRemap: ['entries', 'dateRange', 'mode', 'dailyLimit', 'activeHour'],
-    MetaRewriteDistributeByDays: ['entries', 'allocs', 'mode', 'activeHour'],
+    MetaRewriteDistributeByDays: ['entries', 'allocs', 'mode', 'activeHour', 'sizeWeight'],
     JsonEditorPath: [],
     JsonEditorRead: [],
     JsonEditorWrite: ['content'],
