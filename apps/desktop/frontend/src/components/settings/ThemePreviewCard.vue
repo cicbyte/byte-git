@@ -7,8 +7,8 @@
  */
 import { computed } from 'vue'
 import { CheckOutlined } from '@ant-design/icons-vue'
-import { buildPresetColors } from '../../themes/presets'
-import { useThemeStore } from '../../stores/theme'
+import { buildPresetColors } from '@/themes/presets'
+import { useThemeStore } from '@/stores/theme'
 
 const props = defineProps({
   preset: { type: String, required: true },

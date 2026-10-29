@@ -16,7 +16,7 @@ import {
   PictureOutlined, UploadOutlined, DeleteOutlined,
   CheckCircleOutlined, InfoCircleOutlined,
 } from '@ant-design/icons-vue'
-import { useWallpaperStore } from '../../stores/wallpaper'
+import { useWallpaperStore } from '@/stores/wallpaper'
 
 const wallpaper = useWallpaperStore()
 

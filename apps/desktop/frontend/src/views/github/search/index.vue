@@ -4,8 +4,8 @@ import { message as AMessage } from 'ant-design-vue'
 import {
   GithubOutlined, SearchOutlined, CodeOutlined, StarOutlined,
 } from '@ant-design/icons-vue'
-import { useGitHubCache } from '../../../composables/useGitHub'
-import { usePageFooter } from '../../../composables/usePageFooter'
+import { useGitHubCache } from '@/composables/useGitHub'
+import { usePageFooter } from '@/composables/usePageFooter'
 
 /**
  * GitHub 搜索 — 代码搜索（当前仓库）+ 仓库搜索（全 GitHub）。

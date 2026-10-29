@@ -10,7 +10,7 @@ import {
   ThunderboltOutlined, CheckCircleOutlined,
   MenuOutlined, NodeIndexOutlined, NumberOutlined,
 } from '@ant-design/icons-vue'
-import { useMotionStore } from '../../stores/motion'
+import { useMotionStore } from '@/stores/motion'
 
 const motion = useMotionStore()
 

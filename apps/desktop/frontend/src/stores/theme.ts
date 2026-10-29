@@ -33,8 +33,8 @@ import {
   buildPresetColors,
   defaultCustom,
   recomputeDerived,
-} from '../themes/presets'
-import { applyColorsToDOM, buildAntdToken } from '../themes/token'
+} from '@/themes/presets'
+import { applyColorsToDOM, buildAntdToken } from '@/themes/token'
 import type {
   PresetKey,
   Mode,
@@ -42,7 +42,7 @@ import type {
   ThemeColors,
   RegionOverrides,
   ThemeState,
-} from '../themes/types'
+} from '@/themes/types'
 
 const THEME_KEY = 'byte-git-theme'
 const THEME_STATE_VERSION = 1

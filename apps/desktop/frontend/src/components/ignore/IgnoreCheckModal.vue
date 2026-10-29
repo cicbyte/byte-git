@@ -5,7 +5,7 @@
  */
 import { ref, computed, watch } from 'vue'
 import { message as AMessage } from 'ant-design-vue'
-import FileTreePicker from '../common/FileTreePicker.vue'
+import FileTreePicker from '@/components/common/FileTreePicker.vue'
 
 const app = window.go?.main?.ByteGitApp
 

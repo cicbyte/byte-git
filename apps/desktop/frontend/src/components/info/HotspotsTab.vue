@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { useRepoData } from '../../composables/useRepoData'
-import PanelState from '../common/PanelState.vue'
+import { useRepoData } from '@/composables/useRepoData'
+import PanelState from '@/components/common/PanelState.vue'
 
 const days = ref(90)
 const limit = ref(20)

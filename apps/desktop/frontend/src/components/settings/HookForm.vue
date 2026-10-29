@@ -4,7 +4,7 @@ import { message as AMessage, Modal } from 'ant-design-vue'
 import {
   ThunderboltOutlined, DeleteOutlined, SaveOutlined, PlayCircleOutlined,
 } from '@ant-design/icons-vue'
-import CodeViewer from '../common/CodeViewer.vue'
+import CodeViewer from '@/components/common/CodeViewer.vue'
 
 /**
  * Hook 管理 — 列表 + CodeMirror 编辑器 + 安装/卸载/测试运行。

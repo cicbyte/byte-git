@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useRepoData } from '../../composables/useRepoData'
-import PanelState from '../common/PanelState.vue'
+import { useRepoData } from '@/composables/useRepoData'
+import PanelState from '@/components/common/PanelState.vue'
 
 const days = ref(30)
 const { data: list, loading, error, reload } = useRepoData((repo) =>

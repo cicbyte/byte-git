@@ -7,8 +7,8 @@ import {
   UndoOutlined, ReloadOutlined, SaveOutlined, CloseOutlined,
   CloudUploadOutlined, DownOutlined,
 } from '@ant-design/icons-vue'
-import AiSparkIcon from '../common/AiSparkIcon.vue'
-import { useScmStore, COMMIT_TYPES } from '../../stores/scm'
+import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
+import { useScmStore, COMMIT_TYPES } from '@/stores/scm'
 
 /**
  * 全局源代码管理抽屉（参考 VSCode SCM 面板）。

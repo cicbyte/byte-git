@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { message as AMessage, Modal } from 'ant-design-vue'
 import { SaveOutlined, UndoOutlined, GlobalOutlined } from '@ant-design/icons-vue'
-import CodeViewer from '../common/CodeViewer.vue'
+import CodeViewer from '@/components/common/CodeViewer.vue'
 
 /**
  * 代理规则管理 — 编辑 ~/.cicbyte/apps/byte-git/rules/rules.lua

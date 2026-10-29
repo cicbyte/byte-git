@@ -20,9 +20,9 @@ import {
   CopyOutlined, BranchesOutlined, UndoOutlined, FileTextOutlined,
   FieldTimeOutlined, ForkOutlined, VerticalLeftOutlined, VerticalRightOutlined,
 } from '@ant-design/icons-vue'
-import ContextMenu from '../../../../components/common/ContextMenu.vue'
-import CtxItem from '../../../../components/common/CtxItem.vue'
-import CreateBranchModal from '../../time-travel/components/CreateBranchModal.vue'
+import ContextMenu from '@/components/common/ContextMenu.vue'
+import CtxItem from '@/components/common/CtxItem.vue'
+import CreateBranchModal from '@/views/browse/time-travel/components/CreateBranchModal.vue'
 
 const props = defineProps({
   open: { type: Boolean, default: false },

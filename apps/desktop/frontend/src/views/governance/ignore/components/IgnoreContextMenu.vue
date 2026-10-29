@@ -10,7 +10,7 @@ import {
   PlusOutlined, DatabaseOutlined, GithubOutlined, SettingOutlined,
   ThunderboltOutlined, SearchOutlined, ReloadOutlined,
 } from '@ant-design/icons-vue'
-import AiSparkIcon from '../../../../components/common/AiSparkIcon.vue'
+import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
 
 defineProps({
   localTemplates: { type: Array, default: () => [] },

@@ -6,13 +6,13 @@ import {
   DeleteOutlined, ClearOutlined,
   ClockCircleOutlined, FolderOpenOutlined, FileOutlined
 } from '@ant-design/icons-vue'
-import CodeViewer from '../../../components/common/CodeViewer.vue'
-import FileTreeNode from '../../../components/common/FileTreeNode.vue'
-import MarkdownView from '../../../components/common/MarkdownView.vue'
-import ContextMenu from '../../../components/common/ContextMenu.vue'
-import CtxItem from '../../../components/common/CtxItem.vue'
+import CodeViewer from '@/components/common/CodeViewer.vue'
+import FileTreeNode from '@/components/common/FileTreeNode.vue'
+import MarkdownView from '@/components/common/MarkdownView.vue'
+import ContextMenu from '@/components/common/ContextMenu.vue'
+import CtxItem from '@/components/common/CtxItem.vue'
 import BackupArchiveModal from './components/BackupArchiveModal.vue'
-import { usePageFooter } from '../../../composables/usePageFooter'
+import { usePageFooter } from '@/composables/usePageFooter'
 
 const app = window.go?.main?.ByteGitApp
 

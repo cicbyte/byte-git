@@ -1,9 +1,18 @@
 import {defineConfig} from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
+
+  resolve: {
+    // @ → src、@bridge → bridge：跨目录引用统一走别名，杜绝 ../../ 相对路径（易错且难读）
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@bridge': fileURLToPath(new URL('./bridge', import.meta.url)),
+    },
+  },
 
   // ---- Wails dev-mode requirements ----
   server: {

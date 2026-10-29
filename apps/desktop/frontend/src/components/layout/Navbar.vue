@@ -2,14 +2,14 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MinusOutlined, BorderOutlined, CloseOutlined, MenuFoldOutlined, MenuUnfoldOutlined, BranchesOutlined, EyeOutlined, CodeOutlined, AppstoreOutlined, SettingOutlined } from '@ant-design/icons-vue'
-import { useLayoutStore } from '../../stores/layout'
-import { useRepoStore } from '../../stores/repo'
-import { useScmStore } from '../../stores/scm'
-import { useThemeStore } from '../../stores/theme'
+import { useLayoutStore } from '@/stores/layout'
+import { useRepoStore } from '@/stores/repo'
+import { useScmStore } from '@/stores/scm'
+import { useThemeStore } from '@/stores/theme'
 import { storeToRefs } from 'pinia'
 import DownloadBar from './DownloadBar.vue'
 import RepoModal from './RepoModal.vue'
-import ScmDrawer from '../scm/ScmDrawer.vue'
+import ScmDrawer from '@/components/scm/ScmDrawer.vue'
 
 const route = useRoute()
 const router = useRouter()

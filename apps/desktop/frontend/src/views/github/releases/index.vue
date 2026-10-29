@@ -9,10 +9,10 @@ import {
 } from '@ant-design/icons-vue'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
-import { useRepoStore } from '../../../stores/repo'
-import { usePageFooter } from '../../../composables/usePageFooter'
-import { useGitHubCache } from '../../../composables/useGitHub'
-import { useThemeStore } from '../../../stores/theme'
+import { useRepoStore } from '@/stores/repo'
+import { usePageFooter } from '@/composables/usePageFooter'
+import { useGitHubCache } from '@/composables/useGitHub'
+import { useThemeStore } from '@/stores/theme'
 
 const app = window.go?.main?.ByteGitApp
 const repo = useRepoStore()

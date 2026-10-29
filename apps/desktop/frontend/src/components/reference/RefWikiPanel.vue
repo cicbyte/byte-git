@@ -10,7 +10,7 @@ import { ref, watch, computed } from 'vue'
 import { FileTextOutlined, ReadOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import { MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
-import { useThemeStore } from '../../stores/theme'
+import { useThemeStore } from '@/stores/theme'
 
 const props = defineProps({
   repoName: { type: String, default: '' },

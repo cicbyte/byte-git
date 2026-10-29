@@ -6,9 +6,9 @@ import {
   ApiOutlined, ControlOutlined, ToolOutlined, CodeOutlined, SaveOutlined,
   FolderOpenOutlined,
 } from '@ant-design/icons-vue'
-import { useSettings, SETTING_KEYS, useFeatureFlags } from '../../composables/useSettings'
-import { useOcrConfig } from '../../composables/useOcrConfig'
-import CodeViewer from '../common/CodeViewer.vue'
+import { useSettings, SETTING_KEYS, useFeatureFlags } from '@/composables/useSettings'
+import { useOcrConfig } from '@/composables/useOcrConfig'
+import CodeViewer from '@/components/common/CodeViewer.vue'
 
 const app = window.go?.main?.ByteGitApp
 const { settings, queueSave } = useSettings()

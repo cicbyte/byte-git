@@ -7,13 +7,13 @@ import {
   CommentOutlined, ExclamationCircleOutlined, CheckCircleOutlined,
   TagOutlined,
 } from '@ant-design/icons-vue'
-import { useRepoStore } from '../../../stores/repo'
-import { usePageFooter } from '../../../composables/usePageFooter'
-import { useGitHubCache } from '../../../composables/useGitHub'
-import MarkdownView from '../../../components/common/MarkdownView.vue'
+import { useRepoStore } from '@/stores/repo'
+import { usePageFooter } from '@/composables/usePageFooter'
+import { useGitHubCache } from '@/composables/useGitHub'
+import MarkdownView from '@/components/common/MarkdownView.vue'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
-import { useThemeStore } from '../../../stores/theme'
+import { useThemeStore } from '@/stores/theme'
 
 /**
  * GitHub Issues 管理 — 两栏布局（参考 PR）：

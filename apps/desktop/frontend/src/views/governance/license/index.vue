@@ -5,7 +5,7 @@ import {
   FileTextOutlined, ReloadOutlined, PlusOutlined, SearchOutlined,
   ThunderboltOutlined, CheckCircleOutlined, SafetyCertificateOutlined
 } from '@ant-design/icons-vue'
-import CodeViewer from '../../../components/common/CodeViewer.vue'
+import CodeViewer from '@/components/common/CodeViewer.vue'
 
 const app = window.go?.main?.ByteGitApp
 

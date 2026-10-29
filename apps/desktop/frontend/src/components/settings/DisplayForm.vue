@@ -15,8 +15,8 @@ import {
   EyeOutlined, BulbOutlined, BulbFilled, AppstoreOutlined,
   MenuFoldOutlined, CheckCircleOutlined,
 } from '@ant-design/icons-vue'
-import { useLayoutStore } from '../../stores/layout'
-import { useThemeStore } from '../../stores/theme'
+import { useLayoutStore } from '@/stores/layout'
+import { useThemeStore } from '@/stores/theme'
 
 const layout = useLayoutStore()
 const theme = useThemeStore()

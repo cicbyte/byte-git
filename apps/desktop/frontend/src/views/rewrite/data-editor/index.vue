@@ -5,10 +5,10 @@ import {
   SaveOutlined, ReloadOutlined, UndoOutlined, TableOutlined, CodeOutlined,
   EyeOutlined, DeleteOutlined,
 } from '@ant-design/icons-vue'
-import { useRepoStore } from '../../../stores/repo'
-import CodeViewer from '../../../components/common/CodeViewer.vue'
-import RewriteRowEditor from '../../../components/rewrite/RewriteRowEditor.vue'
-import RewritePreviewModal from '../../../components/rewrite/RewritePreviewModal.vue'
+import { useRepoStore } from '@/stores/repo'
+import CodeViewer from '@/components/common/CodeViewer.vue'
+import RewriteRowEditor from '@/components/rewrite/RewriteRowEditor.vue'
+import RewritePreviewModal from '@/components/rewrite/RewritePreviewModal.vue'
 
 /**
  * 改写数据编辑器 — 读写固定路径 rewrite.json。

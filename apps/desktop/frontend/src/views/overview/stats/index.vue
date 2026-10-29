@@ -5,8 +5,8 @@ import {
   CalendarOutlined, FireOutlined, TrophyOutlined,
   LineChartOutlined, ReloadOutlined,
 } from '@ant-design/icons-vue'
-import { useRepoStore } from '../../../stores/repo'
-import StatsHeatmap from '../../../components/stats/StatsHeatmap.vue'
+import { useRepoStore } from '@/stores/repo'
+import StatsHeatmap from '@/components/stats/StatsHeatmap.vue'
 
 const repo = useRepoStore()
 const app = window.go?.main?.ByteGitApp

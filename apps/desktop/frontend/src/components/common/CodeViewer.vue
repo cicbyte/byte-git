@@ -38,7 +38,7 @@ import { cmake } from '@codemirror/legacy-modes/mode/cmake'
 import { stex } from '@codemirror/legacy-modes/mode/stex'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { Decoration } from '@codemirror/view'
-import { useThemeStore } from '../../stores/theme'
+import { useThemeStore } from '@/stores/theme'
 import EditorContextMenu from './EditorContextMenu.vue'
 
 /**

@@ -4,8 +4,8 @@ import {
   CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined,
   GithubOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons-vue'
-import { useSettings, SETTING_KEYS, useFeatureFlags } from '../../composables/useSettings'
-import { useGitHubCache } from '../../composables/useGitHub'
+import { useSettings, SETTING_KEYS, useFeatureFlags } from '@/composables/useSettings'
+import { useGitHubCache } from '@/composables/useGitHub'
 
 /**
  * GitHub 配置 — Token 认证 + 远端检测。

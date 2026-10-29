@@ -4,7 +4,7 @@ import { message as AMessage } from 'ant-design-vue'
 import {
   CodeOutlined, FolderOpenOutlined, ReloadOutlined, CheckCircleOutlined,
 } from '@ant-design/icons-vue'
-import { useSettings, SETTING_KEYS } from '../../composables/useSettings'
+import { useSettings, SETTING_KEYS } from '@/composables/useSettings'
 
 const app = window.go?.main?.ByteGitApp
 const { settings, queueSave } = useSettings()

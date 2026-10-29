@@ -1,17 +1,17 @@
 <script setup>
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { useRepoStore } from '../../../stores/repo'
+import { useRepoStore } from '@/stores/repo'
 import { message as AMessage } from 'ant-design-vue'
 import { FileOutlined, HistoryOutlined } from '@ant-design/icons-vue'
-import CommitTree from '../../../components/common/CommitTree.vue'
-import CommitHoverCard from '../../../components/common/CommitHoverCard.vue'
-import FileTreeNode from '../../../components/common/FileTreeNode.vue'
-import DiffViewer from '../../../components/common/DiffViewer.vue'
+import CommitTree from '@/components/common/CommitTree.vue'
+import CommitHoverCard from '@/components/common/CommitHoverCard.vue'
+import FileTreeNode from '@/components/common/FileTreeNode.vue'
+import DiffViewer from '@/components/common/DiffViewer.vue'
 import LogContextMenu from './components/LogContextMenu.vue'
-import { useCommitStat } from '../../../composables/useCommitStat'
-import { usePageFooter } from '../../../composables/usePageFooter'
-import LogFooter from '../../shared/LogFooter.vue'
+import { useCommitStat } from '@/composables/useCommitStat'
+import { usePageFooter } from '@/composables/usePageFooter'
+import LogFooter from '@/views/shared/LogFooter.vue'
 
 /**
  * 提交日志 — 左：提交列表；中：该提交修改过的文件树；右：side-by-side diff。

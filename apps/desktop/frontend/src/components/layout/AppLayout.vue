@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted } from 'vue'
-import { useLayoutStore } from '../../stores/layout'
-import { useWallpaperStore } from '../../stores/wallpaper'
+import { useLayoutStore } from '@/stores/layout'
+import { useWallpaperStore } from '@/stores/wallpaper'
 import ProjectRail from './ProjectRail.vue'
 import Sidebar from './Sidebar.vue'
 import Navbar from './Navbar.vue'

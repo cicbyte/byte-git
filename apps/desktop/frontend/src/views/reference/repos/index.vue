@@ -8,15 +8,15 @@ import {
   BranchesOutlined, CalendarOutlined, ReadOutlined, BarChartOutlined,
   CodeOutlined,
 } from '@ant-design/icons-vue'
-import { useRepoStore } from '../../../stores/repo'
-import { useToolStatus } from '../../../composables/useToolStatus'
-import { usePageFooter } from '../../../composables/usePageFooter'
-import ContextMenu from '../../../components/common/ContextMenu.vue'
-import CtxItem from '../../../components/common/CtxItem.vue'
-import RefAddModal from '../../../components/reference/RefAddModal.vue'
-import RefWikiPanel from '../../../components/reference/RefWikiPanel.vue'
-import RefSccPanel from '../../../components/reference/RefSccPanel.vue'
-import RefSourcePanel from '../../../components/reference/RefSourcePanel.vue'
+import { useRepoStore } from '@/stores/repo'
+import { useToolStatus } from '@/composables/useToolStatus'
+import { usePageFooter } from '@/composables/usePageFooter'
+import ContextMenu from '@/components/common/ContextMenu.vue'
+import CtxItem from '@/components/common/CtxItem.vue'
+import RefAddModal from '@/components/reference/RefAddModal.vue'
+import RefWikiPanel from '@/components/reference/RefWikiPanel.vue'
+import RefSccPanel from '@/components/reference/RefSccPanel.vue'
+import RefSourcePanel from '@/components/reference/RefSourcePanel.vue'
 
 const repo = useRepoStore()
 const app = window.go?.main?.ByteGitApp

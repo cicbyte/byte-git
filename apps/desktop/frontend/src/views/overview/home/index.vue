@@ -6,9 +6,9 @@ import {
   ArrowRightOutlined, FileTextOutlined, BranchesOutlined,
   CloudUploadOutlined, CodeOutlined, ThunderboltOutlined, HistoryOutlined,
 } from '@ant-design/icons-vue'
-import MarkdownView from '../../../components/common/MarkdownView.vue'
-import { useRepoStore } from '../../../stores/repo'
-import { useScmStore } from '../../../stores/scm'
+import MarkdownView from '@/components/common/MarkdownView.vue'
+import { useRepoStore } from '@/stores/repo'
+import { useScmStore } from '@/stores/scm'
 import { storeToRefs } from 'pinia'
 
 const router = useRouter()

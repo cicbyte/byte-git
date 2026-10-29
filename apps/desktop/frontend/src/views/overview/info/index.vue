@@ -1,15 +1,15 @@
 <script setup>
 import { ref } from 'vue'
-import SummaryTab from '../../../components/info/SummaryTab.vue'
-import ActivityTab from '../../../components/info/ActivityTab.vue'
-import HealthTab from '../../../components/info/HealthTab.vue'
-import BranchesTab from '../../../components/info/BranchesTab.vue'
-import SizeTab from '../../../components/info/SizeTab.vue'
-import ChangelogTab from '../../../components/info/ChangelogTab.vue'
-import HotspotsTab from '../../../components/info/HotspotsTab.vue'
-import LargeFilesTab from '../../../components/info/LargeFilesTab.vue'
-import TodosTab from '../../../components/info/TodosTab.vue'
-import ReadmeTab from '../../../components/info/ReadmeTab.vue'
+import SummaryTab from '@/components/info/SummaryTab.vue'
+import ActivityTab from '@/components/info/ActivityTab.vue'
+import HealthTab from '@/components/info/HealthTab.vue'
+import BranchesTab from '@/components/info/BranchesTab.vue'
+import SizeTab from '@/components/info/SizeTab.vue'
+import ChangelogTab from '@/components/info/ChangelogTab.vue'
+import HotspotsTab from '@/components/info/HotspotsTab.vue'
+import LargeFilesTab from '@/components/info/LargeFilesTab.vue'
+import TodosTab from '@/components/info/TodosTab.vue'
+import ReadmeTab from '@/components/info/ReadmeTab.vue'
 
 const activeTab = ref('summary')
 </script>

@@ -1,9 +1,9 @@
 <script setup>
 import { computed } from 'vue'
 import { InfoCircleOutlined, SafetyOutlined, CodeOutlined } from '@ant-design/icons-vue'
-import AiSparkIcon from '../common/AiSparkIcon.vue'
-import { useSettings, SETTING_KEYS } from '../../composables/useSettings'
-import { useErrorLogStore } from '../../stores/errorLog'
+import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
+import { useSettings, SETTING_KEYS } from '@/composables/useSettings'
+import { useErrorLogStore } from '@/stores/errorLog'
 
 const props = defineProps({
   activeTab: { type: String, default: 'ai' },

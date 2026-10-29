@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useGitConfig } from '../../composables/useGitConfig'
+import { useGitConfig } from '@/composables/useGitConfig'
 
 const { entries, loading, load, queueSave } = useGitConfig()
 

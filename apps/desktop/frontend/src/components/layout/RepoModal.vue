@@ -6,8 +6,8 @@ import {
   ArrowRightOutlined, ThunderboltOutlined,
 } from '@ant-design/icons-vue'
 import { message as AMessage } from 'ant-design-vue'
-import { useRepoStore } from '../../stores/repo'
-import { relTime } from '../../composables/useRelativeTime'
+import { useRepoStore } from '@/stores/repo'
+import { relTime } from '@/composables/useRelativeTime'
 
 const props = defineProps({
   open: { type: Boolean, default: false },

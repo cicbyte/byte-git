@@ -15,11 +15,11 @@ import {
   FileOutlined, FolderOpenOutlined,
   CodeOutlined, FileTextOutlined, EyeOutlined, SearchOutlined,
 } from '@ant-design/icons-vue'
-import CodeViewer from '../../../components/common/CodeViewer.vue'
-import MarkdownView from '../../../components/common/MarkdownView.vue'
-import FileTreeNode from '../../../components/common/FileTreeNode.vue'
-import { useRepoStore } from '../../../stores/repo'
-import { usePageFooter } from '../../../composables/usePageFooter'
+import CodeViewer from '@/components/common/CodeViewer.vue'
+import MarkdownView from '@/components/common/MarkdownView.vue'
+import FileTreeNode from '@/components/common/FileTreeNode.vue'
+import { useRepoStore } from '@/stores/repo'
+import { usePageFooter } from '@/composables/usePageFooter'
 
 const repo = useRepoStore()
 const app = window.go?.main?.ByteGitApp

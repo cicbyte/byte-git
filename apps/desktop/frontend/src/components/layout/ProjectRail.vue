@@ -18,9 +18,9 @@ import {
   FolderOpenOutlined, PlusOutlined, DeleteOutlined,
   PushpinFilled, PushpinOutlined,
 } from '@ant-design/icons-vue'
-import { useRepoStore } from '../../stores/repo'
-import ContextMenu from '../common/ContextMenu.vue'
-import CtxItem from '../common/CtxItem.vue'
+import { useRepoStore } from '@/stores/repo'
+import ContextMenu from '@/components/common/ContextMenu.vue'
+import CtxItem from '@/components/common/CtxItem.vue'
 
 const route = useRoute()
 const repo = useRepoStore()

@@ -5,11 +5,11 @@ import {
   PlusOutlined, CheckCircleOutlined, FileTextOutlined,
   ReloadOutlined, GithubOutlined,
 } from '@ant-design/icons-vue'
-import AiSparkIcon from '../../../components/common/AiSparkIcon.vue'
-import CodeViewer from '../../../components/common/CodeViewer.vue'
-import IgnoreCategoriesModal from '../../../components/ignore/IgnoreCategoriesModal.vue'
-import IgnoreCheckModal from '../../../components/ignore/IgnoreCheckModal.vue'
-import IgnoreManagerModal from '../../../components/ignore/IgnoreManagerModal.vue'
+import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
+import CodeViewer from '@/components/common/CodeViewer.vue'
+import IgnoreCategoriesModal from '@/components/ignore/IgnoreCategoriesModal.vue'
+import IgnoreCheckModal from '@/components/ignore/IgnoreCheckModal.vue'
+import IgnoreManagerModal from '@/components/ignore/IgnoreManagerModal.vue'
 import IgnoreContextMenu from './components/IgnoreContextMenu.vue'
 import IgnoreGithubPickerModal from './components/IgnoreGithubPickerModal.vue'
 

@@ -14,8 +14,8 @@ import {
   ThunderboltOutlined, CheckOutlined, CloseOutlined, DeleteOutlined, EditOutlined,
   FileTextOutlined,
 } from '@ant-design/icons-vue'
-import FileTreeNode from '../../../../components/common/FileTreeNode.vue'
-import DiffViewer from '../../../../components/common/DiffViewer.vue'
+import FileTreeNode from '@/components/common/FileTreeNode.vue'
+import DiffViewer from '@/components/common/DiffViewer.vue'
 
 const props = defineProps({
   /** 当前选中的任务对象，可为 null */

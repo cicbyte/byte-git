@@ -1,11 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRepoStore } from '../../../stores/repo'
+import { useRepoStore } from '@/stores/repo'
 import { message as AMessage } from 'ant-design-vue'
 import { FileOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons-vue'
-import FileTreeNode from '../../../components/common/FileTreeNode.vue'
-import DiffViewer from '../../../components/common/DiffViewer.vue'
-import { useLiveStream } from '../../../composables/useLiveStream'
+import FileTreeNode from '@/components/common/FileTreeNode.vue'
+import DiffViewer from '@/components/common/DiffViewer.vue'
+import { useLiveStream } from '@/composables/useLiveStream'
 
 /**
  * 实时变更 — 只读监控工作区相对 HEAD 的未提交改动。

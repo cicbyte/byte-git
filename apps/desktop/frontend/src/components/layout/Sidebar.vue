@@ -1,8 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useLayoutStore } from '../../stores/layout'
-import { useRepoStore } from '../../stores/repo'
+import { useLayoutStore } from '@/stores/layout'
+import { useRepoStore } from '@/stores/repo'
 import {
   DashboardOutlined,
   ApartmentOutlined,
@@ -29,9 +29,9 @@ import {
   ToolOutlined,
   BranchesOutlined,
 } from '@ant-design/icons-vue'
-import AiSparkIcon from '../common/AiSparkIcon.vue'
-import logoUrl from '../../assets/logo.png'
-import { useFeatureFlags } from '../../composables/useSettings'
+import AiSparkIcon from '@/components/common/AiSparkIcon.vue'
+import logoUrl from '@/assets/logo.png'
+import { useFeatureFlags } from '@/composables/useSettings'
 
 const route = useRoute()
 const router = useRouter()

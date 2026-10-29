@@ -4,8 +4,8 @@ import { message as AMessage, Modal } from 'ant-design-vue'
 import {
   InboxOutlined, PushpinOutlined, DeleteOutlined, EyeOutlined,
 } from '@ant-design/icons-vue'
-import { useRepoStore } from '../../../stores/repo'
-import { usePageFooter } from '../../../composables/usePageFooter'
+import { useRepoStore } from '@/stores/repo'
+import { usePageFooter } from '@/composables/usePageFooter'
 
 /**
  * Stash 管理 — 列表 / 命名保存 / 弹出 / 删除 / diff 预览。

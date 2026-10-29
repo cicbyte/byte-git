@@ -21,8 +21,8 @@ import {
   BranchesOutlined, ForkOutlined, VerticalLeftOutlined, VerticalRightOutlined,
   DownloadOutlined,
 } from '@ant-design/icons-vue'
-import ContextMenu from '../../../../components/common/ContextMenu.vue'
-import CtxItem from '../../../../components/common/CtxItem.vue'
+import ContextMenu from '@/components/common/ContextMenu.vue'
+import CtxItem from '@/components/common/CtxItem.vue'
 import ExportModal from './ExportModal.vue'
 import CreateBranchModal from './CreateBranchModal.vue'
 

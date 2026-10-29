@@ -9,7 +9,7 @@ import {
   PlusOutlined, CloudSyncOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, EyeOutlined, CopyOutlined,
 } from '@ant-design/icons-vue'
-import CodeViewer from '../common/CodeViewer.vue'
+import CodeViewer from '@/components/common/CodeViewer.vue'
 
 const app = window.go?.main?.ByteGitApp
 

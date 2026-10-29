@@ -4,8 +4,8 @@ import {
   CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined,
   FolderOpenOutlined, ApartmentOutlined,
 } from '@ant-design/icons-vue'
-import { useSettings, SETTING_KEYS, useFeatureFlags } from '../../composables/useSettings'
-import { useToolStatus } from '../../composables/useToolStatus'
+import { useSettings, SETTING_KEYS, useFeatureFlags } from '@/composables/useSettings'
+import { useToolStatus } from '@/composables/useToolStatus'
 
 const app = window.go?.main?.ByteGitApp
 const { settings, queueSave } = useSettings()

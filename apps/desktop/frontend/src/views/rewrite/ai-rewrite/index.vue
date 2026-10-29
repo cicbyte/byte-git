@@ -7,18 +7,18 @@ import {
   SettingOutlined, PlusOutlined, DeleteOutlined, ArrowRightOutlined,
   HistoryOutlined, ProfileOutlined,
 } from '@ant-design/icons-vue'
-import { useRepoStore } from '../../../stores/repo'
-import { useRewriteStream } from '../../../composables/useRewriteStream'
-import { relTime } from '../../../composables/useRelativeTime'
-import CommitTree from '../../../components/common/CommitTree.vue'
-import CommitHoverCard from '../../../components/common/CommitHoverCard.vue'
-import PushTag from '../../../components/common/PushTag.vue'
-import ContextMenu from '../../../components/common/ContextMenu.vue'
-import CtxItem from '../../../components/common/CtxItem.vue'
-import AIRewriteRulesModal from '../../../components/rewrite/AIRewriteRulesModal.vue'
+import { useRepoStore } from '@/stores/repo'
+import { useRewriteStream } from '@/composables/useRewriteStream'
+import { relTime } from '@/composables/useRelativeTime'
+import CommitTree from '@/components/common/CommitTree.vue'
+import CommitHoverCard from '@/components/common/CommitHoverCard.vue'
+import PushTag from '@/components/common/PushTag.vue'
+import ContextMenu from '@/components/common/ContextMenu.vue'
+import CtxItem from '@/components/common/CtxItem.vue'
+import AIRewriteRulesModal from '@/components/rewrite/AIRewriteRulesModal.vue'
 import AiRewritePreviewModal from './components/AiRewritePreviewModal.vue'
 import AiRewriteTaskDetail from './components/AiRewriteTaskDetail.vue'
-import { useCommitStat } from '../../../composables/useCommitStat'
+import { useCommitStat } from '@/composables/useCommitStat'
 
 /**
  * AI 改写 — 任务驱动工作流。

@@ -8,11 +8,11 @@ import {
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
-import { EventsOn, EventsOff } from '../../../bridge/runtime/runtime'
-import { useRepoStore } from '../../stores/repo'
-import { useThemeStore } from '../../stores/theme'
-import { usePageFooter } from '../../composables/usePageFooter'
-import TerminalFooter from '../shared/TerminalFooter.vue'
+import { EventsOn, EventsOff } from '@bridge/runtime/runtime'
+import { useRepoStore } from '@/stores/repo'
+import { useThemeStore } from '@/stores/theme'
+import { usePageFooter } from '@/composables/usePageFooter'
+import TerminalFooter from '@/views/shared/TerminalFooter.vue'
 
 /**
  * 内嵌终端 — xterm.js + 后端 PTY（Windows ConPTY / Unix pty）。

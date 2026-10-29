@@ -26,7 +26,7 @@
 import gsap from 'gsap'
 import type { Directive, DirectiveBinding } from 'vue'
 import { nextTick, watch } from 'vue'
-import { useMotionStore } from '../stores/motion'
+import { useMotionStore } from '@/stores/motion'
 
 /**
  * Common end-state for reveal animations. clearProps:"all" is the key

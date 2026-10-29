@@ -7,9 +7,9 @@ import {
   ExclamationCircleOutlined, CheckCircleOutlined, LoadingOutlined,
   CloseCircleOutlined, ClockCircleOutlined, FileTextOutlined,
 } from '@ant-design/icons-vue'
-import { useRepoStore } from '../../../stores/repo'
-import { usePageFooter } from '../../../composables/usePageFooter'
-import { useGitHubCache } from '../../../composables/useGitHub'
+import { useRepoStore } from '@/stores/repo'
+import { usePageFooter } from '@/composables/usePageFooter'
+import { useGitHubCache } from '@/composables/useGitHub'
 
 /**
  * GitHub Actions/CI — 工作流运行列表 + rerun/cancel。

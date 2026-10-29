@@ -6,17 +6,17 @@ import {
   EditOutlined, CloseOutlined, FolderOpenOutlined, CalendarOutlined,
   ReloadOutlined, HistoryOutlined
 } from '@ant-design/icons-vue'
-import { useRepoStore } from '../../../stores/repo'
-import ExportWizard from '../../../components/rewrite/ExportWizard.vue'
-import DailyDistributeModal from '../../../components/rewrite/DailyDistributeModal.vue'
-import { relTime } from '../../../composables/useRelativeTime'
-import CommitTree from '../../../components/common/CommitTree.vue'
-import CommitHoverCard from '../../../components/common/CommitHoverCard.vue'
-import PushTag from '../../../components/common/PushTag.vue'
-import ContextMenu from '../../../components/common/ContextMenu.vue'
-import CtxItem from '../../../components/common/CtxItem.vue'
+import { useRepoStore } from '@/stores/repo'
+import ExportWizard from '@/components/rewrite/ExportWizard.vue'
+import DailyDistributeModal from '@/components/rewrite/DailyDistributeModal.vue'
+import { relTime } from '@/composables/useRelativeTime'
+import CommitTree from '@/components/common/CommitTree.vue'
+import CommitHoverCard from '@/components/common/CommitHoverCard.vue'
+import PushTag from '@/components/common/PushTag.vue'
+import ContextMenu from '@/components/common/ContextMenu.vue'
+import CtxItem from '@/components/common/CtxItem.vue'
 import MetaPreviewModal from './components/MetaPreviewModal.vue'
-import { useCommitStat } from '../../../composables/useCommitStat'
+import { useCommitStat } from '@/composables/useCommitStat'
 const repo = useRepoStore()
 const app = window.go?.main?.ByteGitApp
 // per-commit change stat (lazy, for the hover card) — same composable the

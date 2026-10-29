@@ -1,7 +1,7 @@
 <script setup>
 import { computed, useSlots, watch, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { useCommitSelection } from '../../composables/useCommitSelection'
-import { staggerIn } from '../../composables/useGsapAnimations'
+import { useCommitSelection } from '@/composables/useCommitSelection'
+import { staggerIn } from '@/composables/useGsapAnimations'
 
 /**
  * Reusable commit-list "shell".

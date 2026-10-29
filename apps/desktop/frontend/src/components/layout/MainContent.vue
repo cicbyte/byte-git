@@ -2,10 +2,10 @@
 import { onMounted, computed, ref, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons-vue'
-import { usePageFooter } from '../../composables/usePageFooter'
-import { useToolStatus } from '../../composables/useToolStatus'
-import { useSettings } from '../../composables/useSettings'
-import { fadeIn, enterPage, leavePage } from '../../composables/useGsapAnimations'
+import { usePageFooter } from '@/composables/usePageFooter'
+import { useToolStatus } from '@/composables/useToolStatus'
+import { useSettings } from '@/composables/useSettings'
+import { fadeIn, enterPage, leavePage } from '@/composables/useGsapAnimations'
 
 const route = useRoute()
 // Global footer (dynamically injectable per-page component)

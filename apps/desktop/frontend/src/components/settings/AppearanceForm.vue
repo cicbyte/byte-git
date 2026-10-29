@@ -23,14 +23,14 @@ import {
   EditOutlined, ThunderboltOutlined,
 } from '@ant-design/icons-vue'
 import { message as AMessage } from 'ant-design-vue'
-import { useThemeStore } from '../../stores/theme'
+import { useThemeStore } from '@/stores/theme'
 import {
   PRESET_LIST,
   REGION_DEFS,
   buildPresetColors,
   deriveBaseLayer,
-} from '../../themes/presets'
-import { applyColorsToDOM } from '../../themes/token'
+} from '@/themes/presets'
+import { applyColorsToDOM } from '@/themes/token'
 import ThemePreviewCard from './ThemePreviewCard.vue'
 
 const theme = useThemeStore()

@@ -7,8 +7,8 @@ import {
   SwapOutlined, CheckOutlined, LinkOutlined, PushpinOutlined,
   CloudUploadOutlined,
 } from '@ant-design/icons-vue'
-import { useRepoStore } from '../../../stores/repo'
-import { relTime } from '../../../composables/useRelativeTime'
+import { useRepoStore } from '@/stores/repo'
+import { relTime } from '@/composables/useRelativeTime'
 
 const repo = useRepoStore()
 const app = window.go?.main?.ByteGitApp

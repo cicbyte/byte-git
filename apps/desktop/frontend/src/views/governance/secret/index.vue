@@ -6,9 +6,9 @@ import {
   ExclamationCircleOutlined, WarningOutlined, KeyOutlined, CodeOutlined,
   ToolOutlined, ArrowRightOutlined, HistoryOutlined
 } from '@ant-design/icons-vue'
-import { useRepoStore } from '../../../stores/repo'
-import { useToolStatus } from '../../../composables/useToolStatus'
-import CodeViewer from '../../../components/common/CodeViewer.vue'
+import { useRepoStore } from '@/stores/repo'
+import { useToolStatus } from '@/composables/useToolStatus'
+import CodeViewer from '@/components/common/CodeViewer.vue'
 import SecretResolvePanel from './components/SecretResolvePanel.vue'
 
 const repo = useRepoStore()

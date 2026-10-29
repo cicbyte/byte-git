@@ -2,8 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { message as AMessage } from 'ant-design-vue'
 import { WarningOutlined, FireOutlined, ReloadOutlined } from '@ant-design/icons-vue'
-import { useRepoStore } from '../../stores/repo'
-import PanelState from '../common/PanelState.vue'
+import { useRepoStore } from '@/stores/repo'
+import PanelState from '@/components/common/PanelState.vue'
 
 const repo = useRepoStore()
 const app = window.go?.main?.ByteGitApp

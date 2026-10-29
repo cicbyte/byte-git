@@ -16,9 +16,9 @@ import {
   SearchOutlined, StarOutlined, StarFilled,
   PlusOutlined, EditOutlined, DeleteOutlined,
 } from '@ant-design/icons-vue'
-import { useSnippetsStore } from '../../stores/snippets'
-import { useRepoStore } from '../../stores/repo'
-import SnippetEditor from '../snippets/SnippetEditor.vue'
+import { useSnippetsStore } from '@/stores/snippets'
+import { useRepoStore } from '@/stores/repo'
+import SnippetEditor from '@/components/snippets/SnippetEditor.vue'
 
 const props = defineProps({ open: Boolean })
 const emit = defineEmits(['update:open'])

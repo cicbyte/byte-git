@@ -14,9 +14,9 @@ import {
   CodeOutlined, FileTextOutlined, EyeOutlined, SearchOutlined,
   CopyOutlined, FolderOpenFilled,
 } from '@ant-design/icons-vue'
-import CodeViewer from '../common/CodeViewer.vue'
-import MarkdownView from '../common/MarkdownView.vue'
-import FileTreeNode from '../common/FileTreeNode.vue'
+import CodeViewer from '@/components/common/CodeViewer.vue'
+import MarkdownView from '@/components/common/MarkdownView.vue'
+import FileTreeNode from '@/components/common/FileTreeNode.vue'
 
 const props = defineProps({
   repoName: { type: String, default: '' },

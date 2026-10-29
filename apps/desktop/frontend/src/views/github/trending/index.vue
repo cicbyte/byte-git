@@ -4,9 +4,9 @@ import { message as AMessage } from 'ant-design-vue'
 import {
   GithubOutlined, ReloadOutlined, FireOutlined, StarOutlined,
 } from '@ant-design/icons-vue'
-import { usePageFooter } from '../../../composables/usePageFooter'
-import ContextMenu from '../../../components/common/ContextMenu.vue'
-import CtxItem from '../../../components/common/CtxItem.vue'
+import { usePageFooter } from '@/composables/usePageFooter'
+import ContextMenu from '@/components/common/ContextMenu.vue'
+import CtxItem from '@/components/common/CtxItem.vue'
 
 /**
  * GitHub Trending — 热门仓库浏览（today/week/month + 语言筛选）。

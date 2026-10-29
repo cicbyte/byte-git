@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { useRepoData } from '../../composables/useRepoData'
-import PanelState from '../common/PanelState.vue'
+import { useRepoData } from '@/composables/useRepoData'
+import PanelState from '@/components/common/PanelState.vue'
 
 const fromTag = ref('')
 const { data: list, loading, error, reload } = useRepoData((repo) =>

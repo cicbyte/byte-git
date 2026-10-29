@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue'
-import { useRepoStore } from '../stores/repo'
+import { useRepoStore } from '@/stores/repo'
 
 /**
  * Generic data fetcher bound to the global repo path.

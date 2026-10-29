@@ -6,9 +6,9 @@ import {
 } from '@ant-design/icons-vue'
 import { MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
-import { useThemeStore } from '../../../stores/theme'
-import { usePageFooter } from '../../../composables/usePageFooter'
-import { fadeIn, staggerIn } from '../../../composables/useGsapAnimations'
+import { useThemeStore } from '@/stores/theme'
+import { usePageFooter } from '@/composables/usePageFooter'
+import { fadeIn, staggerIn } from '@/composables/useGsapAnimations'
 import CheatFooter from './components/CheatFooter.vue'
 
 /**

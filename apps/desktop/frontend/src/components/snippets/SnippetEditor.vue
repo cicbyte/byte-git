@@ -6,7 +6,7 @@
  */
 import { ref, watch, computed } from 'vue'
 import { message as AMessage } from 'ant-design-vue'
-import { useSnippetsStore } from '../../stores/snippets'
+import { useSnippetsStore } from '@/stores/snippets'
 
 const props = defineProps({
   // existing snippet to edit (null = new mode)

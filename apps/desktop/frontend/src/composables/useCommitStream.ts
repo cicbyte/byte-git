@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { EventsOn, EventsOff } from '../../bridge/runtime/runtime'
+import { EventsOn, EventsOff } from '@bridge/runtime/runtime'
 
 /**
  * Stream AI-generated commit tokens into a reactive buffer.

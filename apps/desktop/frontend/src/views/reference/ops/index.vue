@@ -17,12 +17,12 @@ import {
   ToolOutlined, HeartOutlined, CloudOutlined, ApartmentOutlined,
   ExclamationCircleOutlined, DeleteOutlined,
 } from '@ant-design/icons-vue'
-import { useToolStatus } from '../../../composables/useToolStatus'
-import { usePageFooter } from '../../../composables/usePageFooter'
-import InitSection from '../../../components/reference/sections/InitSection.vue'
-import DoctorSection from '../../../components/reference/sections/DoctorSection.vue'
-import WikiSection from '../../../components/reference/sections/WikiSection.vue'
-import TrashSection from '../../../components/reference/sections/TrashSection.vue'
+import { useToolStatus } from '@/composables/useToolStatus'
+import { usePageFooter } from '@/composables/usePageFooter'
+import InitSection from '@/components/reference/sections/InitSection.vue'
+import DoctorSection from '@/components/reference/sections/DoctorSection.vue'
+import WikiSection from '@/components/reference/sections/WikiSection.vue'
+import TrashSection from '@/components/reference/sections/TrashSection.vue'
 
 const { reference: refStatus, ensureLoaded } = useToolStatus()
 const { setFooter, clearFooter } = usePageFooter()

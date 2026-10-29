@@ -13,7 +13,7 @@ import dayjs from 'dayjs'
 import {
   balancedEven, balancedWave, balancedWeekday, compensateAfterEdit, rebalance,
   SHAPE_LABELS,
-} from '../../composables/useDailyAllocation'
+} from '@/composables/useDailyAllocation'
 
 const props = defineProps({
   // 双向绑定的 remap 配置对象

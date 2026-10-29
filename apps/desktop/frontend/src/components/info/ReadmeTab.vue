@@ -1,8 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRepoData } from '../../composables/useRepoData'
-import PanelState from '../common/PanelState.vue'
-import MarkdownView from '../common/MarkdownView.vue'
+import { useRepoData } from '@/composables/useRepoData'
+import PanelState from '@/components/common/PanelState.vue'
+import MarkdownView from '@/components/common/MarkdownView.vue'
 
 // README is read directly (not via useRepoData) because it's a plain file,
 // not a repo-analysed metric.

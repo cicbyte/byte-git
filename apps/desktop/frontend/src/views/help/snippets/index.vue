@@ -9,10 +9,10 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, StarOutlined, StarFilled,
   SearchOutlined, SnippetsOutlined, CopyOutlined,
 } from '@ant-design/icons-vue'
-import { useSnippetsStore } from '../../../stores/snippets'
-import { usePageFooter } from '../../../composables/usePageFooter'
+import { useSnippetsStore } from '@/stores/snippets'
+import { usePageFooter } from '@/composables/usePageFooter'
 import { message as AMessage } from 'ant-design-vue'
-import SnippetEditor from '../../../components/snippets/SnippetEditor.vue'
+import SnippetEditor from '@/components/snippets/SnippetEditor.vue'
 
 const store = useSnippetsStore()
 const { setFooter, clearFooter } = usePageFooter()

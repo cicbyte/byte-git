@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useRepoStore } from './repo'
-import { useCommitStream } from '../composables/useCommitStream'
+import { useCommitStream } from '@/composables/useCommitStream'
 import { message as AMessage } from 'ant-design-vue'
-import { EventsOn, EventsOff } from '../../bridge/runtime/runtime'
+import { EventsOn, EventsOff } from '@bridge/runtime/runtime'
 
 /**
  * Centralized Source Control Management state.

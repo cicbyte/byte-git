@@ -15,7 +15,7 @@ import dayjs from 'dayjs'
 import {
   balancedEven, balancedWave, balancedWeekday, compensateAfterEdit, rebalance,
   SHAPE_LABELS, COMPENSATE_LABELS,
-} from '../../composables/useDailyAllocation'
+} from '@/composables/useDailyAllocation'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
