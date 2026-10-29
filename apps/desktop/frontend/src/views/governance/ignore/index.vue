@@ -80,6 +80,16 @@ async function quickAddLocal() {
   addFromTemplate(lang, 'local')
 }
 
+// ---- local template picker (右键菜单「本地模板」弹窗) ----
+const localPickerOpen = ref(false)
+
+function openLocalPicker() { localPickerOpen.value = true }
+
+function pickLocalTemplate(name) {
+  localPickerOpen.value = false
+  addFromTemplate(name, 'local')
+}
+
 // ---- github template picker modal (UI state owned by IgnoreGithubPickerModal) ----
 const ghPickerOpen = ref(false)
 
@@ -350,7 +360,7 @@ onMounted(async () => {
           :local-templates="localTemplates"
           :github-cloned="githubCloned"
           :github-template-count="githubTemplates.length"
-          @add-from-template="addFromTemplate"
+          @open-local-picker="openLocalPicker"
           @open-github-picker="openGithubPicker"
           @show-ai-input="showAiInput"
           @open-mgr="openMgr"
@@ -361,6 +371,19 @@ onMounted(async () => {
         />
       </template>
     </a-dropdown>
+
+    <!-- local template picker modal -->
+    <a-modal v-model:open="localPickerOpen" title="本地模板" width="420px" :footer="null" destroy-on-close>
+      <div v-if="localTemplates.length" class="ig-local-list">
+        <a-button
+          v-for="t in localTemplates"
+          :key="t"
+          size="small"
+          @click="pickLocalTemplate(t)"
+        >{{ t }}</a-button>
+      </div>
+      <a-empty v-else description="无内置模板" :image-style="{ height: '48px' }" style="margin:8px 0" />
+    </a-modal>
 
     <!-- GitHub template picker modal -->
     <IgnoreGithubPickerModal
@@ -399,6 +422,9 @@ onMounted(async () => {
 
 <style scoped>
 .ig-page { width: calc(100% + var(--spacing-lg) * 2); height: calc(100% + var(--spacing-lg) * 2); margin: calc(-1 * var(--spacing-lg)); display: flex; flex-direction: column; min-height: 0; background: transparent; }
+
+/* local template picker modal */
+.ig-local-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0 8px; }
 
 /* top bar */
 .ig-bar { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 34px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
