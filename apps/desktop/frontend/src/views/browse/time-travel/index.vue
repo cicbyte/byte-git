@@ -329,7 +329,7 @@ onBeforeUnmount(() => { clearFooter() })
     <!-- Column 1: commits -->
     <aside class="tt-commits" ref="commitsColRef">
       <div class="tt-col-head">
-        <span><HistoryOutlined /> 提交历史</span>
+        <span class="tt-col-title"><HistoryOutlined /> 提交历史</span>
         <a-button size="small" type="text" @click="loadCommits" :loading="loadingCommits"><ReloadOutlined /></a-button>
       </div>
       <CommitTree
@@ -452,6 +452,8 @@ onBeforeUnmount(() => { clearFooter() })
 /* shared column chrome */
 .tt-commits, .tt-files, .tt-code { background: var(--color-surface); display: flex; flex-direction: column; min-height: 0; }
 .tt-col-head { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 34px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+/* 标题伸展 → 栏内动作按钮（如刷新）贴栏头右缘，与实时变更等页一致 */
+.tt-col-title { flex: 1; }
 
 /* column 1: commits (narrow) */
 .tt-commits { width: 240px; flex-shrink: 0; }
