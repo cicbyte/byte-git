@@ -326,6 +326,14 @@ const committerFields = [
           <template #icon><ReloadOutlined /></template>刷新
         </a-button>
         <a-button size="small" type="text" @click="clearAll">清空</a-button>
+        <!-- 右侧：工作流动作（与 AI 改写页工具栏同构：左数据操作，右动作） -->
+        <div class="mr-spacer"></div>
+        <a-button size="small" :loading="distributing" :disabled="!entries.length" @click="openDistribute">
+          <template #icon><CalendarOutlined /></template>逐日分配
+        </a-button>
+        <a-button size="small" :loading="previewing" :disabled="!changedCount" @click="openPreview">
+          <template #icon><ExclamationCircleOutlined /></template>预览改写影响
+        </a-button>
       </div>
 
       <div class="mr-cols">
@@ -440,18 +448,6 @@ const committerFields = [
         </div>
         </div>
       </section>
-    </div>
-
-    <!-- Bottom: apply -->
-    <div class="mr-bottom">
-      <div class="mr-spacer"></div>
-      <span class="mr-stat">已改 {{ changedCount }} / 共 {{ entries.length }}</span>
-      <a-button :loading="distributing" :disabled="!entries.length" @click="openDistribute">
-        <template #icon><CalendarOutlined /></template>逐日分配
-      </a-button>
-      <a-button :loading="previewing" :disabled="!changedCount" @click="openPreview">
-        <template #icon><ExclamationCircleOutlined /></template>预览改写影响
-      </a-button>
     </div>
 
     <!-- Context menu -->
@@ -601,7 +597,5 @@ const committerFields = [
 @keyframes mr-ai-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .mr-ed-changes { font-size: 12px; color: var(--color-primary); padding-top: var(--spacing-sm); border-top: 1px solid var(--color-border-light); }
 /* bottom */
-.mr-bottom { display: flex; align-items: center; gap: var(--spacing-md); flex-shrink: 0; padding-top: var(--spacing-xs); border-top: 1px solid var(--color-border); }
-.mr-backup { display: none; }
-.mr-stat { font-size: 12px; color: var(--color-text-secondary); }
+
 </style>
