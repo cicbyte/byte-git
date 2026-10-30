@@ -190,7 +190,6 @@ function onTreeClick(entry) {
 // 任务统计
 const taskCount = computed(() => tasks.value.length)
 const pendingCount = computed(() => tasks.value.filter((t) => !t.suggested).length)
-const generatedCount = computed(() => tasks.value.filter((t) => t.suggested).length)
 const approvedCount = computed(() => tasks.value.filter((t) => t.status === 'approved').length)
 
 // ============ AI 生成（单条 + 全部待生成）============
@@ -379,10 +378,10 @@ watch(() => repo.repoEpoch, () => {
 
       <div class="ar-spacer"></div>
 
-      <span class="ar-stat">任务 <b>{{ taskCount }}</b> · 已生成 <b>{{ generatedCount }}</b> · 已采用 <b class="ok">{{ approvedCount }}</b></span>
+      <!-- 任务/已生成/已采用计数由中栏过滤段控与底栏承载，工具栏不重复 -->
       <a-button v-if="generating" size="small" danger @click="cancelGenerate">取消生成</a-button>
       <a-button v-else size="small" :disabled="!pendingCount" @click="generateAll" title="为所有未生成的任务生成 AI 建议">
-        <template #icon><ThunderboltOutlined /></template>生成全部待生成{{ pendingCount ? ` (${pendingCount})` : '' }}
+        <template #icon><ThunderboltOutlined /></template>生成全部{{ pendingCount ? ` (${pendingCount})` : '' }}
       </a-button>
       <a-button size="small" :loading="previewing" :disabled="!approvedCount" @click="openPreview">
         <template #icon><ExclamationCircleOutlined /></template>预览结果{{ approvedCount ? ` (${approvedCount})` : '' }}
@@ -575,9 +574,6 @@ watch(() => repo.repoEpoch, () => {
   border-bottom: 1px solid var(--color-border);
 }
 .ar-spacer { flex: 1; }
-.ar-stat { font-size: 12px; color: var(--color-text-secondary); }
-.ar-stat b { color: var(--color-text); }
-.ar-stat .ok { color: var(--color-success); }
 .ar-batch-bar { flex-shrink: 0; }
 
 /* shared column-header title (icon + label) */
