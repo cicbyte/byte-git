@@ -4,7 +4,7 @@ import { message as AMessage } from 'ant-design-vue'
 import {
   ThunderboltOutlined, ReloadOutlined,
   ExclamationCircleOutlined,
-  SettingOutlined, PlusOutlined, HistoryOutlined, UnorderedListOutlined,
+  SettingOutlined, PlusOutlined, HistoryOutlined, ProfileOutlined, ArrowRightOutlined, DeleteOutlined,
 } from '@ant-design/icons-vue'
 import { storeToRefs } from 'pinia'
 import { useRepoStore } from '@/stores/repo'
@@ -22,12 +22,13 @@ import AiRewriteTaskDetail from './components/AiRewriteTaskDetail.vue'
 import { useCommitStat } from '@/composables/useCommitStat'
 
 /**
- * AI 改写 — 审阅工作台（两栏）。
- * 左：提交树（浏览，右键/行内 + /规则匹配 → 加入任务）
- * 右：审阅工作台（任务 chips 带 + 原文/建议对比 + 文件 diff + 键盘流）
+ * AI 改写 — 三栏分栏工作台。
+ * 左：提交树（浏览，双击/行内 + /右键多选/规则匹配 → 加入任务）
+ * 中：改写任务列表（竖排卡片，状态色条 + 过滤 + 批量清理）
+ * 右：任务详情（原文/建议对比 + 文件 diff）
  *
  * 任务队列在 pinia（stores/aiRewrite）：跨路由保留，切仓库自动清空。
- * 键盘流（非输入态）：←/→ 切换任务 · G 生成 · A 采用 · S 跳过。
+ * 键盘流（非输入态）：←/→/↑/↓ 切换任务 · G 生成 · A 采用 · S 跳过 · Esc 取消选中。
  */
 const repo = useRepoStore()
 const aiStore = useAiRewriteStore()
@@ -126,6 +127,26 @@ function addSelectedToTasks() {
     AMessage.info('选中提交已在任务队列中')
   }
 }
+// 从队列移除选中提交（右键菜单「从任务移除」）
+function removeSelectedFromTasks() {
+  const before = tasks.value.length
+  tasks.value = tasks.value.filter((t) => !selectedHashes.value.has(t.hash))
+  const n = before - tasks.value.length
+  if (activeTaskIdx.value >= tasks.value.length) {
+    activeTaskIdx.value = Math.max(-1, tasks.value.length - 1)
+  }
+  closeTreeMenu()
+  if (n) AMessage.success(`已移除 ${n} 条任务`)
+  else AMessage.info('选中提交不在任务队列中')
+}
+// 按 hash 从队列移除单条（提交树行内 ✓ 点击）
+function removeByHash(hash) {
+  const idx = tasks.value.findIndex((t) => t.hash === hash)
+  if (idx >= 0) removeTask(idx)
+}
+// 右键菜单：选中里在/不在队列的数量（决定菜单项）
+const selInTask = computed(() =>
+  [...selectedHashes.value].filter((h) => tasks.value.some((t) => t.hash === h)).length)
 // 行内 + 快速加入单条（hover 出现）
 function addQuick(entry) {
   if (addToTask(entry)) {
@@ -234,8 +255,8 @@ function removeTask(idx) {
 
 const batchPct = computed(() => batchTotal.value ? Math.round(batchDone.value / batchTotal.value * 100) : 0)
 
-// ============ 审阅工作台：chips 带 + 过滤 + 清单面板 + 键盘流 ============
-// 状态过滤（大队列可操作性）：键盘导航在过滤集内移动
+// ============ 任务列表（中栏）：过滤 + 批量清理 + 键盘导航 ============
+// 状态过滤：列表与键盘导航均按过滤集移动
 const chipFilter = ref('all')
 const filteredTasks = computed(() => {
   if (chipFilter.value === 'pending') return tasks.value.filter((t) => !t.suggested)
@@ -244,6 +265,7 @@ const filteredTasks = computed(() => {
 })
 const filteredIdxs = computed(() => filteredTasks.value.map((t) => tasks.value.indexOf(t)))
 const navPos = computed(() => filteredIdxs.value.indexOf(activeTaskIdx.value))
+const skippedCount = computed(() => tasks.value.filter((t) => t.status === 'skipped').length)
 
 function step(delta) {
   const idxs = filteredIdxs.value
@@ -256,35 +278,17 @@ function step(delta) {
   activeTaskIdx.value = idxs[next]
 }
 
-// 活动 chip 自动滚入视野（键盘导航不丢视野）
-const stripChipsRef = ref(null)
+// 键盘导航时活动卡片滚入视野
 watch(activeTaskIdx, () => {
   nextTick(() => {
-    stripChipsRef.value
-      ?.querySelector('.ar-chip.active')
-      ?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' })
+    document.querySelector('.ar-task-card.active')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   })
 })
 
-// 任务清单面板（大队列：搜索定位 + 批量清理）
-const panelOpen = ref(false)
-const panelRef = ref(null)
-const panelBtnRef = ref(null)
-const panelSearch = ref('')
-// 面板行状态短文案
+// 卡片状态短文案
 const stText = { pending: '待生成', suggested: '已生成', approved: '已采用', retry: '失败', skipped: '跳过' }
-const statusTextShort = (t) => stText[t.status || 'pending'] || ''
-const panelTasks = computed(() => {
-  const q = panelSearch.value.trim().toLowerCase()
-  const list = tasks.value.map((t, i) => ({ t, i }))
-  if (!q) return list
-  return list.filter(({ t }) =>
-    (t.original || '').toLowerCase().includes(q) || (t.hash || '').includes(q))
-})
-function jumpTo(i) {
-  activeTaskIdx.value = i
-  panelOpen.value = false
-}
+
 function removeSkipped() {
   const before = tasks.value.length
   tasks.value = tasks.value.filter((t) => t.status !== 'skipped')
@@ -292,13 +296,7 @@ function removeSkipped() {
 }
 function clearAll() {
   aiStore.clear()
-  panelOpen.value = false
   AMessage.success('已清空任务队列')
-}
-function onDocClick(e) {
-  if (!panelOpen.value) return
-  if (panelRef.value?.contains(e.target) || panelBtnRef.value?.contains(e.target)) return
-  panelOpen.value = false
 }
 
 // 键盘流：非输入态生效（←/→ 切换 · G 生成 · A 采用 · S 跳过，Esc 取消树选择）。
@@ -314,8 +312,8 @@ function onKeydown(e) {
     return
   }
   if (!activeTask.value) return
-  if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1) }
-  else if (e.key === 'ArrowRight') { e.preventDefault(); step(1) }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); step(-1) }
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); step(1) }
   else if (e.key === 'g' || e.key === 'G') { e.preventDefault(); generateOne(activeTask.value) }
   else if (e.key === 'a' || e.key === 'A') { e.preventDefault(); approve(activeTask.value) }
   else if (e.key === 's' || e.key === 'S') { e.preventDefault(); skip(activeTask.value) }
@@ -354,11 +352,9 @@ const rulesOpen = ref(false)
 onMounted(() => {
   loadTree()
   window.addEventListener('keydown', onKeydown)
-  document.addEventListener('click', onDocClick)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
-  document.removeEventListener('click', onDocClick)
 })
 watch(() => repo.repoEpoch, () => {
   clearStat()
@@ -438,7 +434,7 @@ watch(() => repo.repoEpoch, () => {
                 <div class="ar-subject" :title="e.original">{{ e.original }}</div>
                 <div class="ar-author">{{ e.author }}</div>
               </div>
-              <!-- 行内快速加入（hover 浮现，绝对定位不挤压布局） -->
+              <!-- 行内快速加入/移除（hover 浮现，绝对定位不挤压布局） -->
               <button
                 v-if="!tasks.some(t => t.hash === e.hash)"
                 class="ar-row-add"
@@ -446,7 +442,13 @@ watch(() => repo.repoEpoch, () => {
                 @click.stop="addQuick(e)"
                 @dblclick.stop
               ><PlusOutlined /></button>
-              <span v-else class="ar-row-in" title="已在任务队列">✓</span>
+              <button
+                v-else
+                class="ar-row-in"
+                title="已在任务队列，点击移除"
+                @click.stop="removeByHash(e.hash)"
+                @dblclick.stop
+              >✓</button>
             </div>
           </template>
           <template #tooltip="{ entry: e, index }">
@@ -465,81 +467,77 @@ watch(() => repo.repoEpoch, () => {
         </CommitTree>
       </aside>
 
-      <!-- 右栏：审阅工作台 -->
-      <section class="ar-workbench">
-        <!-- 任务 chips 带（过滤 + 导航 + 清单面板） -->
-        <div v-if="taskCount" class="ar-strip">
-          <button class="ar-strip-nav" :disabled="navPos <= 0" @click="step(-1)" title="上一条 (←)">‹</button>
-          <div class="ar-strip-chips" ref="stripChipsRef">
-            <button
-              v-for="t in filteredTasks" :key="t.hash"
-              class="ar-chip"
-              :class="['st-' + (t.status || 'pending'), { active: tasks.indexOf(t) === activeTaskIdx }]"
-              :title="t.original"
-              @click="activeTaskIdx = tasks.indexOf(t)"
-            >{{ t.hash.slice(0, 7) }}</button>
-          </div>
-          <button class="ar-strip-nav" :disabled="navPos >= filteredTasks.length - 1" @click="step(1)" title="下一条 (→)">›</button>
-
-          <a-radio-group v-model:value="chipFilter" size="small" button-style="solid" class="ar-strip-filter">
+      <!-- 中栏：改写任务列表（分栏竖排） -->
+      <aside class="ar-tasks">
+        <div class="ar-tasks-head">
+          <span class="ar-head-title"><ProfileOutlined /> 改写任务</span>
+          <span>{{ taskCount ? `${filteredTasks.length}/${taskCount}` : '0 条' }}</span>
+        </div>
+        <div v-if="taskCount" class="ar-tasks-filter">
+          <a-radio-group v-model:value="chipFilter" size="small" button-style="solid" class="ar-filter">
             <a-radio-button value="all">全部 {{ taskCount }}</a-radio-button>
             <a-radio-button value="pending">待生成 {{ pendingCount }}</a-radio-button>
             <a-radio-button value="approved">已采用 {{ approvedCount }}</a-radio-button>
           </a-radio-group>
-
-          <button
-            ref="panelBtnRef"
-            class="ar-strip-list"
-            :class="{ on: panelOpen }"
-            title="任务清单（搜索定位 / 批量清理）"
-            @click="panelOpen = !panelOpen"
-          ><UnorderedListOutlined /></button>
-
-          <!-- 任务清单面板 -->
-          <div v-if="panelOpen" ref="panelRef" class="ar-task-panel">
-            <a-input v-model:value="panelSearch" placeholder="搜索 hash / 提交信息…" size="small" allow-clear />
-            <div class="ar-panel-list">
-              <div
-                v-for="{ t, i } in panelTasks" :key="t.hash"
-                class="ar-panel-row"
-                :class="['st-' + (t.status || 'pending'), { active: i === activeTaskIdx }]"
-                @click="jumpTo(i)"
-              >
-                <span class="ar-panel-hash">{{ t.hash.slice(0, 7) }}</span>
-                <span class="ar-panel-orig" :title="t.original">{{ t.original }}</span>
-                <span class="ar-panel-st">{{ statusTextShort(t) }}</span>
-                <button class="ar-panel-x" title="移除" @click.stop="removeTask(i)">×</button>
-              </div>
-              <div v-if="!panelTasks.length" class="ar-panel-empty">无匹配任务</div>
-            </div>
-            <div class="ar-panel-foot">
-              <span class="ar-panel-keys">←/→ 切换 · G 生成 · A 采用 · S 跳过</span>
-              <div class="ar-panel-spacer" />
-              <a-button size="small" type="text" @click="removeSkipped">移除已跳过</a-button>
-              <a-button size="small" type="text" danger @click="clearAll">清空</a-button>
-            </div>
-          </div>
         </div>
+        <div class="ar-tasks-body">
+          <div v-if="!taskCount" class="ar-tasks-empty">
+            <PlusOutlined style="font-size:24px;opacity:0.3" />
+            <div style="margin-top:8px">双击提交或悬停点 ＋ 加入<br/>右键支持 Ctrl/Shift 多选<br/>或点工具栏「按规则匹配」</div>
+          </div>
+          <template v-else>
+            <div
+              v-for="t in filteredTasks" :key="t.hash"
+              class="ar-task-card"
+              :class="['st-' + (t.status || 'pending'), { active: tasks.indexOf(t) === activeTaskIdx }]"
+              @click="activeTaskIdx = tasks.indexOf(t)"
+            >
+              <div class="atc-bar"></div>
+              <div class="atc-main">
+                <div class="atc-line">
+                  <span class="atc-num">#{{ tasks.indexOf(t) + 1 }}</span>
+                  <span class="atc-hash">{{ t.hash.slice(0, 7) }}</span>
+                  <span v-if="t.needAi" class="atc-flag" title="命中规则">⚠</span>
+                  <span class="atc-st">{{ stText[t.status || 'pending'] }}</span>
+                </div>
+                <div class="atc-orig" :title="t.original">{{ t.original }}</div>
+                <div v-if="t.suggested" class="atc-new" :title="t.suggested"><ArrowRightOutlined /> {{ t.suggested }}</div>
+              </div>
+              <button class="atc-x" title="移除" @click.stop="removeTask(tasks.indexOf(t))">×</button>
+            </div>
+            <div v-if="!filteredTasks.length" class="ar-tasks-empty">此筛选下无任务</div>
+          </template>
+        </div>
+        <div v-if="taskCount" class="ar-tasks-foot">
+          <span>已采用 <b class="ok">{{ approvedCount }}</b>/{{ taskCount }}</span>
+          <div class="ar-foot-spacer" />
+          <button v-if="skippedCount" class="ar-foot-btn" @click="removeSkipped">移除已跳过 {{ skippedCount }}</button>
+          <button class="ar-foot-btn danger" @click="clearAll">清空</button>
+        </div>
+      </aside>
 
-        <!-- 详情（原文/建议 + diff） -->
-        <AiRewriteTaskDetail
-          :active-task="activeTask"
-          :single-hash="singleHash"
-          :index="activeTaskIdx"
-          :repo-arg="repo.repoArg()"
-          @generate="generateOne"
-          @approve="approve"
-          @skip="skip"
-          @remove="removeTask"
-          @quick-match="addMatchedToTasks"
-        />
-      </section>
+      <!-- 右栏：任务详情 -->
+      <AiRewriteTaskDetail
+        :active-task="activeTask"
+        :single-hash="singleHash"
+        :index="activeTaskIdx"
+        :repo-arg="repo.repoArg()"
+        @generate="generateOne"
+        @approve="approve"
+        @skip="skip"
+        @remove="removeTask"
+        @quick-match="addMatchedToTasks"
+      />
     </div>
 
-    <!-- 提交树右键菜单 -->
+    <!-- 提交树右键菜单（按选中状态动态：未入队→加入，已入队→移除） -->
     <ContextMenu v-model:open="treeContextMenu.open" :x="treeContextMenu.x" :y="treeContextMenu.y" :title="selectedHashes.size ? `已选 ${selectedHashes.size} 条` : '操作'">
-      <CtxItem @click="addSelectedToTasks"><PlusOutlined /> 加入改写任务</CtxItem>
-      <CtxItem @click="closeTreeMenu"><ReloadOutlined /> 取消</CtxItem>
+      <CtxItem v-if="selectedHashes.size > selInTask" @click="addSelectedToTasks">
+        <PlusOutlined /> 加入改写任务{{ selectedHashes.size - selInTask > 1 ? ` (${selectedHashes.size - selInTask})` : '' }}
+      </CtxItem>
+      <CtxItem v-if="selInTask" @click="removeSelectedFromTasks">
+        <DeleteOutlined /> 从任务移除{{ selInTask > 1 ? ` (${selInTask})` : '' }}
+      </CtxItem>
     </ContextMenu>
 
     <!-- 规则管理 modal -->
@@ -586,8 +584,8 @@ watch(() => repo.repoEpoch, () => {
 .ar-head-title { display: inline-flex; align-items: center; gap: 6px; }
 .ar-head-title .anticon { font-size: 13px; opacity: 0.85; }
 
-/* 两栏 — 1px gap (parent border colour shows as divider) */
-.ar-cols { flex: 1; display: grid; grid-template-columns: 300px 1fr; gap: 1px; background: var(--color-border); min-height: 0; overflow: hidden; }
+/* 三栏 — 1px gap (parent border colour shows as divider) */
+.ar-cols { flex: 1; display: grid; grid-template-columns: 300px 280px 1fr; gap: 1px; background: var(--color-border); min-height: 0; overflow: hidden; }
 
 /* 左栏：提交树 */
 .ar-tree { background: var(--color-background); overflow: hidden; display: flex; flex-direction: column; }
@@ -628,96 +626,56 @@ watch(() => repo.repoEpoch, () => {
 .ar-row-add:hover { color: var(--color-primary); border-color: var(--color-primary); }
 .ar-row-in {
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent;
   font-size: 11px; color: var(--color-success); opacity: 0.8;
+  cursor: pointer; border-radius: var(--radius-xs);
+  transition: color var(--transition-fast), opacity var(--transition-fast);
 }
+.ar-row-in:hover { color: var(--color-error); opacity: 1; }
 
-/* 右栏：审阅工作台 */
-.ar-workbench { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--color-surface); }
+/* 中栏：改写任务列表（分栏竖排） */
+.ar-tasks { background: var(--color-background); display: flex; flex-direction: column; overflow: hidden; }
+.ar-tasks-head { display: flex; align-items: center; justify-content: space-between; padding: 0 12px; height: 34px; flex-shrink: 0; font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+.ar-tasks-filter { padding: 8px 10px; flex-shrink: 0; border-bottom: 1px solid var(--color-border-light); }
+.ar-filter { display: flex; width: 100%; }
+.ar-filter :deep(.ant-radio-button-wrapper) { flex: 1; padding: 0 4px; font-size: 11px; height: 22px; line-height: 20px; text-align: center; }
+.ar-tasks-body { flex: 1; overflow-y: auto; padding: 4px; }
+.ar-tasks-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-text-tertiary); font-size: 12px; text-align: center; padding: 40px 12px; }
 
-/* 任务 chips 带 */
-.ar-strip {
-  display: flex; align-items: center; gap: 8px;
-  height: 38px; flex-shrink: 0;
-  padding: 0 var(--spacing-md);
-  border-bottom: 1px solid var(--color-border);
-}
-.ar-strip-nav {
-  width: 22px; height: 22px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--color-border); border-radius: var(--radius-xs);
-  background: transparent; color: var(--color-text-secondary);
-  font-size: 14px; line-height: 1; cursor: pointer;
-}
-.ar-strip-nav:hover:not(:disabled) { color: var(--color-primary); border-color: var(--color-primary); }
-.ar-strip-nav:disabled { opacity: 0.35; cursor: default; }
-.ar-strip-chips { flex: 1; min-width: 0; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: thin; }
-.ar-strip-chips::-webkit-scrollbar { height: 4px; }
-.ar-chip {
-  flex-shrink: 0;
-  font-family: 'Cascadia Code', monospace;
-  font-size: 11px;
-  padding: 1px 8px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
-  background: transparent; color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: border-color var(--transition-fast), background-color var(--transition-fast);
-}
-.ar-chip.st-approved { color: var(--color-success); border-color: var(--color-success); }
-.ar-chip.st-suggested { color: var(--color-primary); border-color: var(--color-primary-border); }
-.ar-chip.st-retry { color: var(--color-error); border-color: var(--color-error); }
-.ar-chip.st-skipped { opacity: 0.45; }
-.ar-chip.active { background: var(--color-primary-bg); font-weight: 700; }
-/* 过滤段控 + 清单按钮 + 任务清单面板 */
-.ar-strip-filter { flex-shrink: 0; }
-.ar-strip-filter :deep(.ant-radio-button-wrapper) { padding: 0 8px; font-size: 11px; height: 22px; line-height: 20px; }
-.ar-strip-list {
-  width: 22px; height: 22px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--color-border); border-radius: var(--radius-xs);
-  background: transparent; color: var(--color-text-secondary);
-  font-size: 12px; cursor: pointer;
-}
-.ar-strip-list:hover, .ar-strip-list.on { color: var(--color-primary); border-color: var(--color-primary); }
-
-.ar-strip { position: relative; }
-.ar-task-panel {
-  position: absolute;
-  top: calc(100% + 6px); right: var(--spacing-md);
-  width: 380px; max-height: 420px;
-  display: flex; flex-direction: column;
-  background: var(--color-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  padding: 10px;
-  z-index: 30;
-}
-.ar-panel-list { flex: 1; min-height: 120px; overflow-y: auto; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
-.ar-panel-row {
-  display: flex; align-items: center; gap: 8px;
-  padding: 5px 8px; border-radius: var(--radius-xs);
-  cursor: pointer; font-size: 12px;
-  border-left: 3px solid transparent;
-}
-.ar-panel-row:hover { background: var(--color-hover); }
-.ar-panel-row.active { background: var(--color-primary-bg); }
-.ar-panel-row.st-approved { border-left-color: var(--color-success); }
-.ar-panel-row.st-suggested { border-left-color: var(--color-primary); }
-.ar-panel-row.st-retry { border-left-color: var(--color-error); }
-.ar-panel-row.st-skipped { opacity: 0.5; }
-.ar-panel-hash { font-family: 'Cascadia Code', monospace; font-size: 11px; color: var(--color-hash); flex-shrink: 0; }
-.ar-panel-orig { flex: 1; min-width: 0; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ar-panel-st { flex-shrink: 0; font-size: 10px; color: var(--color-text-tertiary); }
-.ar-panel-row.st-approved .ar-panel-st { color: var(--color-success); }
-.ar-panel-x {
-  flex-shrink: 0; width: 16px; height: 16px;
+.ar-task-card { display: flex; align-items: stretch; gap: 0; border-radius: var(--radius-xs); cursor: pointer; margin-bottom: 2px; position: relative; transition: background var(--transition-fast); }
+.ar-task-card:hover { background: var(--color-hover); }
+.ar-task-card.active { background: var(--color-primary-bg); }
+.atc-bar { width: 3px; flex-shrink: 0; border-radius: 2px; background: var(--color-text-tertiary); }
+.ar-task-card.st-suggested .atc-bar { background: var(--color-primary); }
+.ar-task-card.st-approved .atc-bar { background: var(--color-success); }
+.ar-task-card.st-retry .atc-bar { background: var(--color-error); }
+.ar-task-card.st-skipped .atc-bar { background: var(--color-text-tertiary); opacity: 0.4; }
+.atc-main { flex: 1; min-width: 0; padding: 5px 22px 5px 0; }
+.atc-line { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+.atc-num { font-family: 'Cascadia Code', monospace; font-size: 10px; color: var(--color-text-tertiary); }
+.atc-hash { font-family: 'Cascadia Code', monospace; font-size: 11px; color: var(--color-hash); }
+.atc-flag { color: var(--color-warning); font-size: 11px; }
+.atc-st { margin-left: auto; font-size: 10px; color: var(--color-text-tertiary); flex-shrink: 0; }
+.ar-task-card.st-approved .atc-st { color: var(--color-success); }
+.ar-task-card.st-suggested .atc-st { color: var(--color-primary); }
+.atc-orig { font-size: 12px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atc-new { font-size: 11px; color: var(--color-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+.atc-x {
+  position: absolute; right: 4px; top: 4px;
+  width: 16px; height: 16px;
   border: none; background: transparent; color: var(--color-text-tertiary);
   font-size: 12px; line-height: 1; cursor: pointer; border-radius: 3px;
+  opacity: 0; transition: opacity var(--transition-fast);
 }
-.ar-panel-x:hover { color: var(--color-error); background: var(--color-hover); }
-.ar-panel-empty { padding: 24px 0; text-align: center; font-size: 12px; color: var(--color-text-tertiary); }
-.ar-panel-foot { display: flex; align-items: center; gap: 6px; border-top: 1px solid var(--color-border-light); padding-top: 8px; margin-top: 8px; flex-shrink: 0; }
-.ar-panel-keys { font-size: 10px; color: var(--color-text-tertiary); opacity: 0.7; }
-.ar-panel-spacer { flex: 1; }
+.ar-task-card:hover .atc-x { opacity: 1; }
+.atc-x:hover { color: var(--color-error); background: var(--color-hover); }
+
+.ar-tasks-foot { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--color-border); flex-shrink: 0; font-size: 12px; color: var(--color-text-secondary); background: var(--color-surface); }
+.ar-tasks-foot .ok { color: var(--color-success); }
+.ar-foot-spacer { flex: 1; }
+.ar-foot-btn { background: transparent; border: none; padding: 2px 4px; font-size: 11px; color: var(--color-text-tertiary); cursor: pointer; border-radius: 3px; }
+.ar-foot-btn:hover { color: var(--color-primary); }
+.ar-foot-btn.danger:hover { color: var(--color-error); }
 </style>
