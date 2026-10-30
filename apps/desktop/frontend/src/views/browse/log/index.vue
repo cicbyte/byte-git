@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRepoStore } from '@/stores/repo'
 import { message as AMessage } from 'ant-design-vue'
-import { FileOutlined, HistoryOutlined } from '@ant-design/icons-vue'
+import { FileOutlined, HistoryOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import CommitTree from '@/components/common/CommitTree.vue'
 import CommitHoverCard from '@/components/common/CommitHoverCard.vue'
 import FileTreeNode from '@/components/common/FileTreeNode.vue'
@@ -299,6 +299,7 @@ onBeforeUnmount(() => { clearFooter() })
           <span class="commit-head-title">
             <HistoryOutlined /> 提交
           </span>
+          <a-button size="small" type="text" :loading="loading" title="刷新" @click="loadInitial"><ReloadOutlined /></a-button>
         </template>
         <template #item="{ entry: c, index }">
           <div class="commit-row">

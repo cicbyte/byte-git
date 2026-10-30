@@ -13,7 +13,7 @@ import { ref, watch, computed, h, onBeforeUnmount } from 'vue'
 import { message as AMessage } from 'ant-design-vue'
 import {
   FileOutlined, FolderOpenOutlined,
-  CodeOutlined, FileTextOutlined, EyeOutlined, SearchOutlined,
+  CodeOutlined, FileTextOutlined, EyeOutlined, SearchOutlined, ReloadOutlined,
 } from '@ant-design/icons-vue'
 import CodeViewer from '@/components/common/CodeViewer.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
@@ -193,7 +193,8 @@ onBeforeUnmount(() => {
       <aside class="ws-tree">
         <div class="wt-head">
           <FolderOpenOutlined class="wt-icon" />
-          <span>文件</span>
+          <span class="wt-title">文件</span>
+          <a-button size="small" type="text" :loading="treeLoading" title="刷新（重置搜索）" @click="loadRoot"><ReloadOutlined /></a-button>
         </div>
         <div class="wt-search">
           <a-input
@@ -304,9 +305,11 @@ onBeforeUnmount(() => {
 .ws-tree { width: 260px; flex-shrink: 0; background: var(--color-surface); display: flex; flex-direction: column; overflow: hidden; }
 .wt-head {
   display: flex; align-items: center; gap: 8px;
-  padding: 12px 14px; border-bottom: 1px solid var(--color-border-light);
+  padding: 6px 14px; border-bottom: 1px solid var(--color-border-light);
   font-size: 13px; font-weight: 600; color: var(--color-text); flex-shrink: 0;
 }
+/* 标题伸展 → 刷新按钮贴栏头右缘（与实时变更/代码穿梭一致） */
+.wt-title { flex: 1; }
 .wt-icon { color: var(--color-primary); }
 .wt-search { padding: 8px 10px; border-bottom: 1px solid var(--color-border-light); flex-shrink: 0; }
 .wt-body { flex: 1; overflow-y: auto; padding: 6px 4px; }
