@@ -26,7 +26,7 @@ const cols = [
     <a-input-number v-model:value="limit" :min="1" :max="100" size="small" style="width:80px" />
   </div>
   <PanelState :loading="loading" :error="error || ''" :empty="!list?.length" empty-text="无热点数据" @retry="reload">
-    <a-table :columns="cols" :data-source="list" row-key="file" size="small" :pagination="{ pageSize: 15 }" />
+    <a-table :columns="cols" :data-source="list" row-key="file" size="small" :pagination="false" />
   </PanelState>
 </template>
 
