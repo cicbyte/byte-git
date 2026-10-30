@@ -76,12 +76,19 @@
 
 .tp-item.active .tp-item-name { color: var(--color-primary); font-weight: 500; }
 
+/* 动作按钮常驻占位（仅透明度切换）：hover 入场若改变行内容宽度，
+   名称列 ellipsis 会重排，列表随之抖动 */
 .tp-item-acts {
-  display: none;
+  display: flex;
+  gap: 2px;
   flex-shrink: 0;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 
-.tp-item:hover .tp-item-acts { display: flex; gap: 2px; }
+.tp-item:hover .tp-item-acts,
+.tp-item.active .tp-item-acts { visibility: visible; opacity: 1; }
 
 .tp-empty-list {
   padding: 24px 0;

@@ -7,7 +7,7 @@ import { ref, computed, onMounted } from 'vue'
 import { message as AMessage, Modal } from 'ant-design-vue'
 import {
   PlusOutlined, CloudSyncOutlined, ReloadOutlined,
-  EditOutlined, DeleteOutlined, EyeOutlined, CopyOutlined,
+  EditOutlined, DeleteOutlined, CopyOutlined,
 } from '@ant-design/icons-vue'
 import CodeViewer from '@/components/common/CodeViewer.vue'
 
@@ -62,7 +62,7 @@ async function mgrEdit(name) {
   mgrViewing.value = null
   try {
     const content = await app.IgnoreTemplateView(name, 'local')
-    mgrEditing.value = { name, content, isNew: false }
+    mgrEditing.value = { name, origName: name, content, isNew: false }
   } catch { AMessage.error('读取失败') }
 }
 
@@ -78,13 +78,19 @@ function confirmDelete(name) {
   })
 }
 
+// 仅名称必填；内容可为空（先建壳后补内容）。编辑态改名按重命名处理（删旧名，不留重复项）。
+// 保存后留在编辑态（新建后可直接续填内容），不弹回列表。
 async function mgrSave() {
   const t = mgrEditing.value
-  if (!t?.name.trim() || !t?.content.trim()) { AMessage.warning('请填写名称和内容'); return }
+  if (!t?.name.trim()) { AMessage.warning('请填写模板名称'); return }
+  const name = t.name.trim()
   try {
-    await app.IgnoreTemplateSave(t.name.trim(), t.content)
-    AMessage.success('已保存')
-    mgrEditing.value = null
+    await app.IgnoreTemplateSave(name, t.content ?? '')
+    if (!t.isNew && t.origName && t.origName !== name) {
+      try { await app.IgnoreTemplateDelete(t.origName) } catch {}
+    }
+    AMessage.success(!(t.content || '').trim() ? '已保存（内容为空，可稍后编辑）' : '已保存')
+    mgrEditing.value = { name, origName: name, content: t.content ?? '', isNew: false }
     await loadLists()
   } catch (e) { AMessage.error('保存失败: ' + String(e?.message || e)) }
 }
@@ -143,7 +149,6 @@ onMounted(loadLists)
         >
           <span class="tp-item-name">{{ t }}</span>
           <div class="tp-item-acts" @click.stop>
-            <a-button size="small" type="text" @click="mgrView(t)" title="查看"><EyeOutlined /></a-button>
             <template v-if="mgrSource === 'local'">
               <a-button size="small" type="text" @click="mgrEdit(t)" title="编辑"><EditOutlined /></a-button>
               <a-button size="small" type="text" danger @click="confirmDelete(t)" title="删除"><DeleteOutlined /></a-button>

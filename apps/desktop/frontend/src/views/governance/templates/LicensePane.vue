@@ -7,7 +7,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { message as AMessage, Modal } from 'ant-design-vue'
 import {
-  PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined,
+  PlusOutlined, EditOutlined, DeleteOutlined,
 } from '@ant-design/icons-vue'
 import CodeViewer from '@/components/common/CodeViewer.vue'
 
@@ -49,7 +49,7 @@ async function edit(name) {
   viewing.value = null
   try {
     const content = await app.LicenseTemplateView(name)
-    editing.value = { name, content, isNew: false }
+    editing.value = { name, origName: name, content, isNew: false }
   } catch { AMessage.error('读取失败') }
 }
 
@@ -65,13 +65,19 @@ function confirmDelete(name) {
   })
 }
 
+// 仅名称必填；内容可为空（先建壳后补内容）。编辑态改名按重命名处理（删旧名，不留重复项）。
+// 保存后留在编辑态（新建后可直接续填内容），不弹回列表。
 async function save() {
   const t = editing.value
-  if (!t?.name.trim() || !t?.content.trim()) { AMessage.warning('请填写名称和内容'); return }
+  if (!t?.name.trim()) { AMessage.warning('请填写模板名称'); return }
+  const name = t.name.trim()
   try {
-    await app.LicenseTemplateSave(t.name.trim(), t.content)
-    AMessage.success('已保存')
-    editing.value = null
+    await app.LicenseTemplateSave(name, t.content ?? '')
+    if (!t.isNew && t.origName && t.origName !== name) {
+      try { await app.LicenseTemplateDelete(t.origName) } catch {}
+    }
+    AMessage.success(!(t.content || '').trim() ? '已保存（内容为空，可稍后编辑）' : '已保存')
+    editing.value = { name, origName: name, content: t.content ?? '', isNew: false }
     await load()
   } catch (e) { AMessage.error('保存失败: ' + String(e?.message || e)) }
 }
@@ -100,7 +106,6 @@ onMounted(load)
         >
           <span class="tp-item-name">{{ t }}</span>
           <div class="tp-item-acts" @click.stop>
-            <a-button size="small" type="text" @click="view(t)" title="查看"><EyeOutlined /></a-button>
             <a-button size="small" type="text" @click="edit(t)" title="编辑"><EditOutlined /></a-button>
             <a-button size="small" type="text" danger @click="confirmDelete(t)" title="删除"><DeleteOutlined /></a-button>
           </div>
