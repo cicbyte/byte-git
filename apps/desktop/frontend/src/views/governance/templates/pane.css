@@ -110,13 +110,19 @@
   overflow: hidden;
 }
 
-.tp-edit-head {
+/* 文档式编辑头：细条（标签/未保存/操作）+ 大号标题输入 + 编辑器 */
+.tp-doc-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--color-border-light);
+  gap: 10px;
+  padding: 10px 14px 0;
 }
+
+.tp-doc-spacer { flex: 1; }
+
+.tp-dirty { font-size: 11px; color: var(--color-warning); }
+
+.tp-saved-hint { font-size: 11px; color: var(--color-success); }
 
 .tp-edit-tag {
   font-size: 12px;
@@ -127,7 +133,23 @@
   flex-shrink: 0;
 }
 
-.tp-name-input { width: 240px; }
+.tp-title-input {
+  margin: 8px 14px 10px;
+  padding: 2px 2px 6px;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--color-text);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  outline: none;
+  border-radius: 0;
+  transition: border-color var(--transition-fast);
+}
+
+.tp-title-input:hover { border-bottom-color: var(--color-border); }
+.tp-title-input:focus { border-bottom-color: var(--color-primary); }
+.tp-title-input::placeholder { color: var(--color-text-disabled); font-weight: 400; }
 
 .tp-view-head {
   display: flex;

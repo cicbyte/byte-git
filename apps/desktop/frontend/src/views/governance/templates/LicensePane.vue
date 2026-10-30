@@ -4,7 +4,7 @@
  * 模板存于 ~/.cicbyte/apps/byte-git/licenses/（首次自动从内嵌模板播种）；
  * 编辑后的版本在许可证页创建时优先使用。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { message as AMessage, Modal } from 'ant-design-vue'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
@@ -34,7 +34,9 @@ async function load() {
 
 function startNew() {
   editing.value = { name: '', content: '', isNew: true }
+  savedBaseline.value = baselineOf(editing.value)
   viewing.value = null
+  nextTick(() => { nameInputRef.value?.focus(); nameInputRef.value?.select() })
 }
 
 async function view(name) {
@@ -50,6 +52,7 @@ async function edit(name) {
   try {
     const content = await app.LicenseTemplateView(name)
     editing.value = { name, origName: name, content, isNew: false }
+    savedBaseline.value = baselineOf(editing.value)
   } catch { AMessage.error('读取失败') }
 }
 
@@ -65,11 +68,45 @@ function confirmDelete(name) {
   })
 }
 
+// ---- 文档式编辑：标题化名称输入 + 未保存标记 + 保存反馈 ----
+const nameInputRef = ref(null)
+const savedBaseline = ref('')
+const justSaved = ref(false)
+let savedTimer = null
+
+const baselineOf = (t) => JSON.stringify({ n: (t?.name || '').trim(), c: t?.content || '' })
+const dirty = computed(() =>
+  !!editing.value && baselineOf(editing.value) !== savedBaseline.value)
+
+function markSaved(t) {
+  savedBaseline.value = baselineOf(t)
+  justSaved.value = true
+  clearTimeout(savedTimer)
+  savedTimer = setTimeout(() => { justSaved.value = false }, 1500)
+}
+
+// 取消：有未保存修改时恢复到上次保存的名称/内容；干净状态（新建未输入）直接关闭
+function revertEdit() {
+  const t = editing.value
+  if (!t) return
+  if (dirty.value) {
+    const base = JSON.parse(savedBaseline.value)
+    editing.value = { name: base.n, origName: t.origName, content: base.c, isNew: t.isNew }
+    AMessage.info('已恢复到上次保存的内容')
+  } else {
+    editing.value = null
+  }
+}
+
 // 仅名称必填；内容可为空（先建壳后补内容）。编辑态改名按重命名处理（删旧名，不留重复项）。
 // 保存后留在编辑态（新建后可直接续填内容），不弹回列表。
 async function save() {
   const t = editing.value
-  if (!t?.name.trim()) { AMessage.warning('请填写模板名称'); return }
+  if (!t?.name.trim()) {
+    AMessage.warning('请填写模板名称')
+    nameInputRef.value?.focus()
+    return
+  }
   const name = t.name.trim()
   try {
     await app.LicenseTemplateSave(name, t.content ?? '')
@@ -78,6 +115,7 @@ async function save() {
     }
     AMessage.success(!(t.content || '').trim() ? '已保存（内容为空，可稍后编辑）' : '已保存')
     editing.value = { name, origName: name, content: t.content ?? '', isNew: false }
+    markSaved(editing.value)
     await load()
   } catch (e) { AMessage.error('保存失败: ' + String(e?.message || e)) }
 }
@@ -117,12 +155,24 @@ onMounted(load)
     <!-- 右：查看/编辑 -->
     <div class="tp-main">
       <template v-if="editing">
-        <div class="tp-edit-head">
+        <div class="tp-doc-head">
           <span class="tp-edit-tag">{{ editing.isNew ? '新建' : '编辑' }}</span>
-          <a-input v-model:value="editing.name" placeholder="模板名称（如 MIT）" size="small" class="tp-name-input" />
-          <a-button size="small" @click="editing = null">取消</a-button>
-          <a-button size="small" type="primary" @click="save">保存</a-button>
+          <span v-if="dirty" class="tp-dirty">● 未保存</span>
+          <span v-else-if="justSaved" class="tp-saved-hint">已保存 ✓</span>
+          <div class="tp-doc-spacer" />
+          <template v-if="dirty || editing.isNew">
+            <a-button size="small" @click="revertEdit">取消</a-button>
+            <a-button size="small" type="primary" @click="save">保 存</a-button>
+          </template>
         </div>
+        <input
+          ref="nameInputRef"
+          v-model="editing.name"
+          class="tp-title-input"
+          placeholder="未命名许可证"
+          spellcheck="false"
+          @keydown.enter.prevent="save"
+        />
         <div class="tp-editor">
           <CodeViewer
             :code="editing.content"

@@ -3,7 +3,7 @@
  * .gitignore 模板面板 — 本地/GitHub 双来源。
  * 左列表（来源切换/搜索/新建/同步）+ 右查看/编辑，删除带确认。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { message as AMessage, Modal } from 'ant-design-vue'
 import {
   PlusOutlined, CloudSyncOutlined, ReloadOutlined,
@@ -47,7 +47,9 @@ function switchMgrSource(v) {
 
 function mgrNew() {
   mgrEditing.value = { name: '', content: '', isNew: true }
+  savedBaseline.value = baselineOf(mgrEditing.value)
   mgrViewing.value = null
+  nextTick(() => { nameInputRef.value?.focus(); nameInputRef.value?.select() })
 }
 
 async function mgrView(name) {
@@ -63,6 +65,7 @@ async function mgrEdit(name) {
   try {
     const content = await app.IgnoreTemplateView(name, 'local')
     mgrEditing.value = { name, origName: name, content, isNew: false }
+    savedBaseline.value = baselineOf(mgrEditing.value)
   } catch { AMessage.error('读取失败') }
 }
 
@@ -78,11 +81,45 @@ function confirmDelete(name) {
   })
 }
 
+// ---- 文档式编辑：标题化名称输入 + 未保存标记 + 保存反馈 ----
+const nameInputRef = ref(null)
+const savedBaseline = ref('')
+const justSaved = ref(false)
+let savedTimer = null
+
+const baselineOf = (t) => JSON.stringify({ n: (t?.name || '').trim(), c: t?.content || '' })
+const dirty = computed(() =>
+  !!mgrEditing.value && baselineOf(mgrEditing.value) !== savedBaseline.value)
+
+function markSaved(t) {
+  savedBaseline.value = baselineOf(t)
+  justSaved.value = true
+  clearTimeout(savedTimer)
+  savedTimer = setTimeout(() => { justSaved.value = false }, 1500)
+}
+
+// 取消：有未保存修改时恢复到上次保存的名称/内容；干净状态（新建未输入）直接关闭
+function revertEdit() {
+  const t = mgrEditing.value
+  if (!t) return
+  if (dirty.value) {
+    const base = JSON.parse(savedBaseline.value)
+    mgrEditing.value = { name: base.n, origName: t.origName, content: base.c, isNew: t.isNew }
+    AMessage.info('已恢复到上次保存的内容')
+  } else {
+    mgrEditing.value = null
+  }
+}
+
 // 仅名称必填；内容可为空（先建壳后补内容）。编辑态改名按重命名处理（删旧名，不留重复项）。
 // 保存后留在编辑态（新建后可直接续填内容），不弹回列表。
 async function mgrSave() {
   const t = mgrEditing.value
-  if (!t?.name.trim()) { AMessage.warning('请填写模板名称'); return }
+  if (!t?.name.trim()) {
+    AMessage.warning('请填写模板名称')
+    nameInputRef.value?.focus()
+    return
+  }
   const name = t.name.trim()
   try {
     await app.IgnoreTemplateSave(name, t.content ?? '')
@@ -91,6 +128,7 @@ async function mgrSave() {
     }
     AMessage.success(!(t.content || '').trim() ? '已保存（内容为空，可稍后编辑）' : '已保存')
     mgrEditing.value = { name, origName: name, content: t.content ?? '', isNew: false }
+    markSaved(mgrEditing.value)
     await loadLists()
   } catch (e) { AMessage.error('保存失败: ' + String(e?.message || e)) }
 }
@@ -163,12 +201,24 @@ onMounted(loadLists)
     <!-- 右：查看/编辑 -->
     <div class="tp-main">
       <template v-if="mgrEditing">
-        <div class="tp-edit-head">
+        <div class="tp-doc-head">
           <span class="tp-edit-tag">{{ mgrEditing.isNew ? '新建' : '编辑' }}</span>
-          <a-input v-model:value="mgrEditing.name" placeholder="模板名称（如 python）" size="small" class="tp-name-input" />
-          <a-button size="small" @click="mgrEditing = null">取消</a-button>
-          <a-button size="small" type="primary" @click="mgrSave">保存</a-button>
+          <span v-if="dirty" class="tp-dirty">● 未保存</span>
+          <span v-else-if="justSaved" class="tp-saved-hint">已保存 ✓</span>
+          <div class="tp-doc-spacer" />
+          <template v-if="dirty || mgrEditing.isNew">
+            <a-button size="small" @click="revertEdit">取消</a-button>
+            <a-button size="small" type="primary" @click="mgrSave">保 存</a-button>
+          </template>
         </div>
+        <input
+          ref="nameInputRef"
+          v-model="mgrEditing.name"
+          class="tp-title-input"
+          placeholder="未命名模板"
+          spellcheck="false"
+          @keydown.enter.prevent="mgrSave"
+        />
         <div class="tp-editor">
           <CodeViewer
             :code="mgrEditing.content"
