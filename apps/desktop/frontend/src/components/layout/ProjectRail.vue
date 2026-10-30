@@ -180,7 +180,12 @@ async function addProject() {
         </div>
       </div>
       <div v-if="!repo.recent.length" class="rail-empty">
-        暂无项目
+        <svg class="rail-empty-glyph" viewBox="0 0 40 26" aria-hidden="true">
+          <ellipse class="rg-orbit" cx="20" cy="13" rx="16" ry="8" />
+          <circle class="rg-node" cx="33" cy="17" r="4" />
+        </svg>
+        <span class="rail-empty-text">暂无项目</span>
+        <span class="rail-empty-note">观测未始 · NO REPOS</span>
       </div>
       <div v-else-if="!shownPinned.length && !shownRecent.length" class="rail-empty">
         无匹配项目
@@ -375,11 +380,24 @@ async function addProject() {
 }
 
 .rail-empty {
-  padding: 20px 10px;
-  font-size: 11px;
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   color: var(--color-text-tertiary);
   text-align: center;
 }
+.rail-empty-text { font-size: 12px; }
+.rail-empty-note {
+  font-family: var(--font-mono, Consolas, monospace);
+  font-size: 12px;
+  letter-spacing: 1px;
+  opacity: 0.75;
+}
+.rail-empty-glyph { width: 30px; height: 20px; }
+.rail-empty-glyph .rg-orbit { fill: none; stroke: var(--color-text-tertiary); stroke-opacity: 0.5; stroke-width: 1; stroke-dasharray: 3 4; }
+.rail-empty-glyph .rg-node { fill: none; stroke: var(--color-primary); stroke-width: 1.5; }
 
 .rail-bottom {
   padding: 0 8px;

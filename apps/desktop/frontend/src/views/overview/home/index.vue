@@ -7,6 +7,7 @@ import {
   CloudUploadOutlined, CodeOutlined, ThunderboltOutlined,
 } from '@ant-design/icons-vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
+import RepoEmptyObservatory from './components/RepoEmptyObservatory.vue'
 import { useRepoStore } from '@/stores/repo'
 import { useScmStore } from '@/stores/scm'
 import { storeToRefs } from 'pinia'
@@ -97,7 +98,10 @@ function fmtDate(d) {
       <h2>仪表盘</h2>
     </div>
 
-    <a-spin :spinning="loading">
+    <!-- 无仓库：观测图版空状态（等首次检测结算，避免有仓库时闪空态） -->
+    <RepoEmptyObservatory v-if="repo.detected && !repo.path" />
+
+    <a-spin v-else :spinning="loading">
       <!-- Bento stats: hero (总提交 + 近 7 日活动) + 4 actionable cards -->
       <div class="stat-cards">
         <div class="stat-card hero" @click="goToLog">

@@ -36,6 +36,9 @@ export const useRepoStore = defineStore('repo', () => {
   const switching = ref(false)
   /** Incremented after each successful switch — views watch it to reload. */
   const repoEpoch = ref(0)
+  /** 首次 detectCurrent 是否已结算（区分「还没检测完」与「确认无仓库」，
+   *  首屏空状态等它为 true 才展示，避免有仓库的启动闪一下空状态）。 */
+  const detected = ref(false)
 
   /** What to actually pass to backend methods ('' for current dir). */
   const repoArg = () => path.value.trim()
@@ -50,6 +53,8 @@ export const useRepoStore = defineStore('repo', () => {
       branch.value = info?.branch || ''
     } catch {
       // not running in Wails
+    } finally {
+      detected.value = true
     }
   }
 
@@ -123,6 +128,6 @@ export const useRepoStore = defineStore('repo', () => {
 
   return {
     path, name, branch, recent, switching, repoEpoch,
-    repoArg, detectCurrent, loadRecent, switchTo, pickFolder, removeRecent, setPinned, setOrder,
+    repoArg, detectCurrent, loadRecent, switchTo, pickFolder, removeRecent, setPinned, setOrder, detected,
   }
 })

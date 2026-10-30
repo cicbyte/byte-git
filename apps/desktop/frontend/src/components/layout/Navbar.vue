@@ -34,12 +34,8 @@ onMounted(async () => {
   // start the global fs watcher so the badge auto-updates on working-tree
   // changes, independent of whether LiveView is currently mounted.
   scm.startGlobalWatch()
-  // No repo detected (typical when launched as a packaged .exe whose CWD is
-  // not a git repo) → proactively pop the repo picker so the user is guided
-  // to open one instead of staring at an empty dashboard.
-  if (!repo.path) {
-    repoModalOpen.value = true
-  }
+  // 无仓库时不再自动弹切换弹窗——首屏「观测图版」空状态已承载引导
+  // （浏览文件夹 / 粘贴路径 / 最近打开），弹窗改由用户主动打开。
 })
 
 // keep SCM count fresh after repo switches and restart the watcher on the new path
@@ -51,6 +47,8 @@ watch(() => repo.repoEpoch, () => {
 watch(scmOpen, (v) => { if (!v) scm.refresh() })
 // listen for programmatic open requests (e.g. dashboard quick action)
 window.addEventListener('open-scm', () => { scmOpen.value = true })
+// 首屏空状态「管理最近列表」等入口经此打开仓库切换面板
+window.addEventListener('open-repo-modal', () => { repoModalOpen.value = true })
 
 // Menu hierarchy mirror of Sidebar.vue. Used to render a breadcrumb that
 // reflects the actual menu path: GroupLabel > ChildLabel.

@@ -126,9 +126,12 @@ async function onManualEnter(e) {
         </div>
 
         <div v-if="!repo.recent.length" class="rm-empty">
-          <div class="rm-empty-icon"><FolderOpenOutlined /></div>
+          <svg class="rm-empty-glyph" viewBox="0 0 40 26" aria-hidden="true">
+            <ellipse class="rg-orbit" cx="20" cy="13" rx="16" ry="8" />
+            <circle class="rg-node" cx="33" cy="17" r="4" />
+          </svg>
           <span>暂无最近打开的仓库</span>
-          <span class="rm-empty-tip">点击下方「浏览文件夹」开始</span>
+          <span class="rm-empty-tip">点击下方「浏览文件夹」开始 · 观测未始</span>
         </div>
       </div>
     </div>
@@ -267,9 +270,11 @@ async function onManualEnter(e) {
 
 /* empty */
 .rm-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 32px 0; }
-.rm-empty-icon { font-size: 30px; color: var(--color-text-tertiary); opacity: 0.35; }
+.rm-empty-glyph { width: 34px; height: 22px; }
+.rm-empty-glyph .rg-orbit { fill: none; stroke: var(--color-text-tertiary); stroke-opacity: 0.5; stroke-width: 1; stroke-dasharray: 3 4; }
+.rm-empty-glyph .rg-node { fill: none; stroke: var(--color-primary); stroke-width: 1.5; }
 .rm-empty span:nth-child(2) { font-size: 13px; color: var(--color-text-secondary); }
-.rm-empty-tip { font-size: 11px; color: var(--color-text-tertiary); }
+.rm-empty-tip { font-size: 12px; color: var(--color-text-tertiary); }
 
 /* footer */
 .rm-foot { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border-light); }
