@@ -28,9 +28,18 @@ const props = defineProps({
   repoArg: { type: [Object, Array, String], default: null },
 })
 
-const emit = defineEmits(['generate', 'approve', 'skip', 'remove'])
+const emit = defineEmits(['generate', 'approve', 'skip', 'remove', 'quickMatch'])
 
 const app = window.go?.main?.ByteGitApp
+
+// 状态中文文案（原始状态值见 stores/aiRewrite.ts）
+const statusText = {
+  pending: '待生成',
+  suggested: '已生成',
+  approved: '已采用',
+  retry: '生成失败',
+  skipped: '已跳过',
+}
 
 // ---- 文件列表 + diff（按任务 hash 懒加载）----
 const filesLoading = ref(false)
@@ -132,7 +141,7 @@ watch(() => props.activeTask?.hash, (hash) => {
             <div class="ar-msg-orig">{{ activeTask.original || '—' }}</div>
           </div>
           <div class="ar-msg-side">
-            <div class="ar-msg-label">改写 <span class="ar-status-tag" :class="'st-' + (activeTask.status||'pending')">{{ activeTask.status }}</span></div>
+            <div class="ar-msg-label">改写 <span class="ar-status-tag" :class="'st-' + (activeTask.status||'pending')">{{ statusText[activeTask.status || 'pending'] || activeTask.status }}</span></div>
             <textarea
               class="ar-msg-input"
               v-model="activeTask.suggested"
@@ -146,8 +155,13 @@ watch(() => props.activeTask?.hash, (hash) => {
           <a-button size="small" type="primary" :loading="singleHash === activeTask.hash" @click="emit('generate', activeTask)">
             <template #icon><ThunderboltOutlined /></template>{{ activeTask.suggested ? '重新生成' : '生成' }}
           </a-button>
-          <a-button size="small" :type="activeTask.status === 'approved' ? 'primary' : 'default'" @click="emit('approve', activeTask)">
-            <template #icon><CheckOutlined /></template>采用
+          <a-button
+            size="small"
+            :type="activeTask.status === 'approved' ? 'primary' : 'default'"
+            :title="activeTask.status === 'approved' ? '已采用，再次点击取消采用' : '采用此改写（进入应用清单）'"
+            @click="emit('approve', activeTask)"
+          >
+            <template #icon><CheckOutlined /></template>{{ activeTask.status === 'approved' ? '已采用 ✓' : '采用' }}
           </a-button>
           <a-button size="small" @click="emit('skip', activeTask)">
             <template #icon><CloseOutlined /></template>跳过
@@ -183,7 +197,11 @@ watch(() => props.activeTask?.hash, (hash) => {
     </template>
     <div v-else class="ar-detail-empty">
       <EditOutlined style="font-size:28px;opacity:0.3" />
-      <div style="margin-top:8px">选择一个任务查看详情</div>
+      <div class="ar-empty-title">还没有改写任务</div>
+      <div class="ar-empty-desc">双击提交（或悬停点 ＋）加入 · 右键批量<br/>Ctrl/Shift 多选 · 或按规则批量匹配</div>
+      <a-button size="small" type="primary" @click="emit('quickMatch')">
+        <template #icon><ThunderboltOutlined /></template>按规则匹配
+      </a-button>
     </div>
   </section>
 </template>
@@ -209,7 +227,9 @@ watch(() => props.activeTask?.hash, (hash) => {
   font-weight: 400;
   color: var(--color-hash);
 }
-.ar-detail-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-text-tertiary); font-size: 13px; }
+.ar-detail-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--color-text-tertiary); font-size: 13px; }
+.ar-empty-title { font-size: 15px; font-weight: 600; color: var(--color-text-secondary); }
+.ar-empty-desc { font-size: 12px; text-align: center; line-height: 1.8; }
 
 /* message 编辑区 */
 .ar-msg-area { flex-shrink: 0; padding: 12px; border-bottom: 1px solid var(--color-border); }

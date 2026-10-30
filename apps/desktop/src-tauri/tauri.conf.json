@@ -4,9 +4,9 @@
   "version": "0.0.1",
   "identifier": "com.cicbyte.byte-git",
   "build": {
-    "beforeDevCommand": "npm run --prefix ../frontend dev",
+    "beforeDevCommand": "pnpm --dir frontend dev",
     "devUrl": "http://127.0.0.1:1430",
-    "beforeBuildCommand": "npm run --prefix ../frontend build",
+    "beforeBuildCommand": "pnpm --dir frontend build",
     "frontendDist": "../frontend/dist"
   },
   "app": {

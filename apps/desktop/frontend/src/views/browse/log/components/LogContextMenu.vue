@@ -16,13 +16,16 @@
  */
 import { ref } from 'vue'
 import { message as AMessage } from 'ant-design-vue'
+import { useRouter } from 'vue-router'
 import {
   CopyOutlined, BranchesOutlined, UndoOutlined, FileTextOutlined,
   FieldTimeOutlined, ForkOutlined, VerticalLeftOutlined, VerticalRightOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons-vue'
 import ContextMenu from '@/components/common/ContextMenu.vue'
 import CtxItem from '@/components/common/CtxItem.vue'
 import CreateBranchModal from '@/views/browse/time-travel/components/CreateBranchModal.vue'
+import { useAiRewriteStore } from '@/stores/aiRewrite'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -41,8 +44,23 @@ const emit = defineEmits([
 ])
 
 const wailsApp = window.go?.main?.ByteGitApp
+const router = useRouter()
+const aiRewrite = useAiRewriteStore()
 
 function close() { emit('update:open', false) }
+
+// 加入 AI 改写任务队列并跳转审阅工作台（队列在 pinia，跨路由保留）
+function aiRewriteThis() {
+  const h = props.hash
+  close()
+  if (!h) return
+  const c = props.commits.find((x) => x.hash === h)
+  if (!c) return
+  aiRewrite.addEntry({ hash: c.hash, original: c.subject || '', author: c.author, date: c.date })
+  AMessage.success(`已加入 AI 改写任务（${h.slice(0, 7)}）`, 1.5)
+  emit('select', h)
+  router.push('/ai-rewrite')
+}
 
 function copyHash() {
   const h = props.hash
@@ -168,6 +186,7 @@ async function doReset(hash, mode) {
     <CtxItem @click="copyHash"><CopyOutlined /> 复制 Hash</CtxItem>
     <CtxItem @click="copyMessage"><FileTextOutlined /> 复制 Message</CtxItem>
     <CtxItem @click="gotoTimeTravel"><FieldTimeOutlined /> 在代码穿梭中查看</CtxItem>
+    <CtxItem @click="aiRewriteThis"><ThunderboltOutlined /> AI 改写此提交</CtxItem>
     <div class="ctx-sep"></div>
     <CtxItem @click="cherryPick"><BranchesOutlined /> Cherry-pick</CtxItem>
     <CtxItem @click="revert"><UndoOutlined /> Revert 撤销</CtxItem>

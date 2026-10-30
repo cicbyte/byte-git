@@ -80,15 +80,18 @@ jobs:
           node-version: 20
       - name: Install tauri CLI
         run: npm install -g @tauri-apps/cli@2
+      # 前端包管理统一 pnpm（与本地一致，锁定 pnpm-lock.yaml）；
+      # 版本对齐 package.json 的 packageManager 字段（lockfile v9）。
+      - name: Install pnpm
+        run: npm install -g pnpm@11
       - name: Install frontend deps
         working-directory: apps/desktop/frontend
-        run: npm install
-      # Windows 上 npm.cmd 对 --prefix 相对路径支持有缺陷（install/run 均失败），
-      # 故不用 tauri.conf.json 的 beforeBuildCommand（npm run --prefix 形式），
-      # 前端在 CI 里显式构建，再以 --config 空命令跳过 hook。
+        run: pnpm install --frozen-lockfile
+      # 前端在 CI 里显式构建，再以 --config 空命令跳过 hook
+      # （显式步骤的日志与缓存边界更清楚）。
       - name: Build frontend
         working-directory: apps/desktop/frontend
-        run: npm run build
+        run: pnpm run build
       - name: Build desktop app
         working-directory: apps/desktop
         shell: bash

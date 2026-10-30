@@ -3,10 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@11.24.0",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tauri": "cd ../src-tauri && tauri"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.4",
@@ -41,6 +43,7 @@
   },
   "devDependencies": {
     "@babel/types": "^7.27.0",
+    "@tauri-apps/cli": "^2.12.4",
     "@vitejs/plugin-vue": "^5.2.3",
     "typescript": "^5.7.3",
     "vite": "^6.3.5",
