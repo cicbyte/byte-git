@@ -77,7 +77,9 @@ jobs:
           key: desktop-windows
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # pnpm 11 依赖 node:sqlite（Node ≥ 22.5），Node 20 会报
+          # ERR_UNKNOWN_BUILTIN_MODULE: node:sqlite
+          node-version: 22
       - name: Install tauri CLI
         run: npm install -g @tauri-apps/cli@2
       # 前端包管理统一 pnpm（与本地一致，锁定 pnpm-lock.yaml）；
